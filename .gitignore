@@ -65,10 +65,7 @@ web_modules/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variable files
-.env
-.env.*
-!.env.example
+# dotenv environment variable files (repo root)
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -141,3 +138,41 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# --- macOS ---
+.DS_Store
+**/.DS_Store
+
+# --- Expo & React Native (EduForest Parent) ---
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Metro
+.metro-health-check*
+
+# EAS / local build overrides
+eas-build-*/
+eas.json.local
+
+# Kotlin (Android)
+.kotlin/
+
+# iOS (when you add `expo prebuild` / native ios/)
+ios/Pods/
+ios/build/
+ios/**/*.xcuserstate
+ios/**/*.xcuserdata
+ios/.xcode.env.local
+*.ipa
+*.dSYM.zip
+
+# Android: extra native / IDE (module-level rules also in android/.gitignore)
+**/android/app/.cxx/
+
+# Firebase local config (optional — remove leading # if you commit only google-services.json.example)
+# android/app/google-services.json
+
+# @expo/config generated (if present)
+expo-env.d.ts

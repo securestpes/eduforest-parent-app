@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "153418609760",
+    "project_id": "eduforest-app",
+    "storage_bucket": "eduforest-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:153418609760:android:60b209031da1932ec57f05",
+        "android_client_info": {
+          "package_name": "in.co.eduforest"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAG7GvnLtpiWbj1Jk4ZMG5T7Q0WP9qT2TM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:153418609760:android:17e270bbba88bfabc57f05",
+        "android_client_info": {
+          "package_name": "in.co.eduforest.parent"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAG7GvnLtpiWbj1Jk4ZMG5T7Q0WP9qT2TM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
