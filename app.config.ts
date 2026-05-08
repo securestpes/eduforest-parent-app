@@ -17,7 +17,8 @@ const packageJson = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')
 );
 const appVersion = process.env.APP_VERSION || packageJson.version || '1.0.0';
-const appBuildNumber = process.env.APP_BUILD_NUMBER || '101';
+/** Android versionCode / iOS build number; bump each store release. */
+const appBuildNumber = process.env.APP_BUILD_NUMBER || '103';
 
 const config: ExpoConfig = {
   name: 'EduForest Parent',
@@ -48,8 +49,6 @@ const config: ExpoConfig = {
   web: {
     favicon: './assets/favicon.png',
   },
-  /** Required so Metro targets the debug APK with @react-native-firebase (not Expo Go). */
-  plugins: ['expo-dev-client'],
   extra: {
     apiUrl: process.env.API_URL,
     appEnv: process.env.APP_ENV || APP_ENV,

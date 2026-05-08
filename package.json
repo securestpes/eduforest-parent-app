@@ -6,8 +6,6 @@
   "scripts": {
     "start": "dotenv -e ./env/.env.development -- npx expo start",
     "start:clear": "dotenv -e ./env/.env.development -- npx expo start --clear",
-    "start:dev-client": "dotenv -e ./env/.env.development -- npx expo start --dev-client",
-    "start:dev-client:clear": "dotenv -e ./env/.env.development -- npx expo start --dev-client --clear",
     "start:dev": "dotenv -e ./env/.env.development -- node -p \"process.env.API_URL\"",
     "start:prod": "dotenv -e ./env/.env.production -- npx expo start",
     "android": "dotenv -e ./env/.env.development -- npx expo run:android",
@@ -30,8 +28,8 @@
     "date-fns": "^4.1.0",
     "expo": "^54.0.0",
     "expo-constants": "~18.0.8",
-    "expo-dev-client": "~6.0.20",
     "expo-notifications": "~0.32.17",
+    "expo-speech": "^55.0.13",
     "expo-status-bar": "~3.0.8",
     "jwt-decode": "^4.0.0",
     "react": "19.1.0",

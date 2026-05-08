@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  DeviceEventEmitter,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,7 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { format } from 'date-fns';
 import { getMyStudents, getStudentAttendance, type ParentAttendanceRow, type ParentStudent } from '../services/parent';
 import { loadReadNotificationIds, saveReadNotificationIds } from '../services/notificationReadStore';
 import { ScreenDecor } from '../components/ScreenDecor';
@@ -26,6 +29,7 @@ import {
 } from '../utils/notificationCenter';
 import type { MainTabParamList } from '../navigation/MainTabs';
 import type { AppTheme } from '../../theme';
+import { APP_NOTIFICATION_RECEIVED_EVENT } from '../constants/notifications';
 
 function accentColor(accent: CenterNotification['accent'], theme: AppTheme): string {
   if (accent === 'danger') return theme.colors.error;
@@ -143,6 +147,7 @@ export function NotificationsScreen() {
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
 
   const loadReads = useCallback(async () => {
     const s = await loadReadNotificationIds();
@@ -172,6 +177,7 @@ export function NotificationsScreen() {
         })
       );
       setRowsMap(map);
+      setLastUpdatedAt(Date.now());
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -186,14 +192,44 @@ export function NotificationsScreen() {
     load();
   }, [load]);
 
+  useFocusEffect(
+    useCallback(() => {
+      void loadReads();
+      void load();
+    }, [load, loadReads])
+  );
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(
+      APP_NOTIFICATION_RECEIVED_EVENT,
+      () => {
+        void loadReads();
+        void load();
+      }
+    );
+    return () => sub.remove();
+  }, [load, loadReads]);
+
   const allItems = useMemo(() => collectCenterNotifications(students, rowsMap), [students, rowsMap]);
   const { today, thisWeekNotToday, earlier } = useMemo(() => splitNotificationsByRecency(allItems), [allItems]);
+  const todaySorted = useMemo(() => [...today].sort((a, b) => b.at.getTime() - a.at.getTime()), [today]);
+  const thisWeekSorted = useMemo(
+    () => [...thisWeekNotToday].sort((a, b) => b.at.getTime() - a.at.getTime()),
+    [thisWeekNotToday]
+  );
+  const earlierSorted = useMemo(() => [...earlier].sort((a, b) => b.at.getTime() - a.at.getTime()), [earlier]);
   const weekly = useMemo(() => buildWeeklySummary(students, rowsMap), [students, rowsMap]);
 
   const unreadCount = useMemo(
     () => allItems.filter((n) => !readIds.has(n.id)).length,
     [allItems, readIds]
   );
+  const lastUpdatedLabel = useMemo(() => {
+    if (!lastUpdatedAt) return null;
+    const secondsAgo = Math.floor((Date.now() - lastUpdatedAt) / 1000);
+    if (secondsAgo < 60) return 'Updated just now';
+    return `Updated ${format(new Date(lastUpdatedAt), 'hh:mm a')}`;
+  }, [lastUpdatedAt]);
 
   const markAllRead = async () => {
     const next = new Set(readIds);
@@ -248,6 +284,11 @@ export function NotificationsScreen() {
             {unreadCount} unread
           </Text>
         ) : null}
+        {lastUpdatedLabel ? (
+          <Text variant="labelSmall" style={{ color: theme.colors.primary, marginBottom: 8 }}>
+            {lastUpdatedLabel}
+          </Text>
+        ) : null}
 
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -278,10 +319,10 @@ export function NotificationsScreen() {
             />
           ) : (
             <>
-              {today.length > 0 ? (
+              {todaySorted.length > 0 ? (
                 <>
                   <SectionTitle emoji="🆕" text="TODAY" theme={theme} />
-                  {today.map((item) => (
+                  {todaySorted.map((item) => (
                     <NotifCard
                       key={item.id}
                       item={item}
@@ -294,7 +335,7 @@ export function NotificationsScreen() {
                 </>
               ) : null}
 
-              {thisWeekNotToday.length > 0 || weekly ? (
+              {thisWeekSorted.length > 0 || weekly ? (
                 <>
                   <SectionTitle emoji="📅" text="THIS WEEK" theme={theme} />
                   {weekly ? (
@@ -304,7 +345,7 @@ export function NotificationsScreen() {
                       onOpenAttendance={() => navigation.navigate('Attendance')}
                     />
                   ) : null}
-                  {thisWeekNotToday.map((item) => (
+                  {thisWeekSorted.map((item) => (
                     <NotifCard
                       key={item.id}
                       item={item}
@@ -317,10 +358,10 @@ export function NotificationsScreen() {
                 </>
               ) : null}
 
-              {earlier.length > 0 ? (
+              {earlierSorted.length > 0 ? (
                 <>
                   <SectionTitle emoji="📆" text="EARLIER" theme={theme} />
-                  {earlier.map((item) => (
+                  {earlierSorted.map((item) => (
                     <NotifCard
                       key={item.id}
                       item={item}

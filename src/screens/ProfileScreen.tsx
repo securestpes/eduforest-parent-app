@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Button, Text, useTheme } from 'react-native-paper';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Button, Switch, Text, useTheme } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,6 +20,7 @@ export function ProfileScreen() {
   const user = useSelector((s: RootState) => s.auth.user);
   const [displayName, setDisplayName] = useState('');
   const [mobile, setMobile] = useState('');
+  const [voiceAnnouncementsEnabled, setVoiceAnnouncementsEnabled] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
@@ -27,6 +28,12 @@ export function ProfileScreen() {
       (async () => {
         try {
           const res = await getMe();
+          const savedVoiceToggle = await AsyncStorage.getItem(
+            localStorageKeys.VOICE_ANNOUNCEMENTS_ENABLED
+          );
+          if (!cancelled && savedVoiceToggle !== null) {
+            setVoiceAnnouncementsEnabled(savedVoiceToggle === 'true');
+          }
           if (cancelled) return;
           if (res.status && res.data && typeof res.data === 'object') {
             const d = res.data as { mobile?: string; firstName?: string };
@@ -53,13 +60,24 @@ export function ProfileScreen() {
     dispatch(logout());
   };
 
+  const onToggleVoiceAnnouncements = async (value: boolean) => {
+    setVoiceAnnouncementsEnabled(value);
+    await AsyncStorage.setItem(
+      localStorageKeys.VOICE_ANNOUNCEMENTS_ENABLED,
+      String(value)
+    );
+  };
+
   const nameForAvatar = displayName || user?.name || 'Parent';
   const hue = avatarHue(nameForAvatar);
   const avatarBg = `hsl(${hue} 42% 42%)`;
 
   return (
     <ScreenDecor>
-      <View style={styles.root}>
+      <ScrollView
+        contentContainerStyle={styles.root}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={[styles.heroCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
           <View style={[styles.avatar, { backgroundColor: avatarBg }]}>
             <Text style={styles.avatarLetters}>{initials(nameForAvatar)}</Text>
@@ -94,6 +112,24 @@ export function ProfileScreen() {
         </View>
 
         <View style={[styles.infoCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+          <View style={[styles.infoIcon, { backgroundColor: theme.colors.tertiaryContainer }]}>
+            <MaterialCommunityIcons name="volume-high" size={24} color={theme.colors.tertiary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: '700' }}>
+              Voice announcements
+            </Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4, lineHeight: 20 }}>
+              Speak the attendance message when a new alert arrives.
+            </Text>
+          </View>
+          <Switch
+            value={voiceAnnouncementsEnabled}
+            onValueChange={(value) => void onToggleVoiceAnnouncements(value)}
+          />
+        </View>
+
+        <View style={[styles.infoCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
           <View style={[styles.infoIcon, { backgroundColor: theme.colors.secondaryContainer }]}>
             <MaterialCommunityIcons name="shield-check-outline" size={24} color={theme.colors.secondary} />
           </View>
@@ -117,13 +153,13 @@ export function ProfileScreen() {
         >
           Log out
         </Button>
-      </View>
+      </ScrollView>
     </ScreenDecor>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 },
+  root: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 110 },
   heroCard: {
     alignItems: 'center',
     borderRadius: 24,

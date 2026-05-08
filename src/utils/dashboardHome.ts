@@ -79,9 +79,22 @@ export type DashboardNotif = {
   timeLabel: string;
 };
 
+function toAmPm(raw?: string): string {
+  if (!raw) return '';
+  const cleaned = raw.trim();
+  const m = cleaned.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (!m) return cleaned;
+  const hours = Number(m[1]);
+  const mins = m[2];
+  if (Number.isNaN(hours) || hours < 0 || hours > 23) return cleaned;
+  const meridiem = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+  return `${String(hour12).padStart(2, '0')}:${mins} ${meridiem}`;
+}
+
 export function sessionTimeRange(row: ParentAttendanceRow): string {
-  const st = row.startTime?.slice(0, 5) ?? '';
-  const en = row.endTime?.slice(0, 5) ?? '';
+  const st = toAmPm(row.startTime);
+  const en = toAmPm(row.endTime);
   if (st && en) return `${st} – ${en}`;
   return st || en || '';
 }

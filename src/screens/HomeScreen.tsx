@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import {
   ActivityIndicator,
+  DeviceEventEmitter,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { format } from 'date-fns';
 import { useSelector } from 'react-redux';
@@ -30,6 +32,7 @@ import {
 import type { MainTabParamList } from '../navigation/MainTabs';
 import type { AppTheme } from '../../theme';
 import type { RootState } from '../../redux/store';
+import { APP_NOTIFICATION_RECEIVED_EVENT } from '../constants/notifications';
 
 function greetingLine(hour: number): string {
   if (hour < 12) return 'Good morning';
@@ -192,6 +195,7 @@ export function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
 
   const selectedId = useSelectionStore((s) => s.selectedStudentId);
   const setSelected = useSelectionStore((s) => s.setSelectedStudentId);
@@ -235,6 +239,7 @@ export function HomeScreen() {
         })
       );
       setRowsByStudent(map);
+      setLastUpdatedAt(Date.now());
     } catch {
       setError('Network error.');
     } finally {
@@ -245,6 +250,22 @@ export function HomeScreen() {
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load])
+  );
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(
+      APP_NOTIFICATION_RECEIVED_EVENT,
+      () => {
+        void load();
+      }
+    );
+    return () => sub.remove();
   }, [load]);
 
   useEffect(() => {
@@ -265,6 +286,12 @@ export function HomeScreen() {
     const now = new Date();
     return `Today · ${format(now, 'MMM d, yyyy')}`;
   }, []);
+  const lastUpdatedLabel = useMemo(() => {
+    if (!lastUpdatedAt) return null;
+    const secondsAgo = Math.floor((Date.now() - lastUpdatedAt) / 1000);
+    if (secondsAgo < 60) return 'Updated just now';
+    return `Updated ${format(new Date(lastUpdatedAt), 'hh:mm a')}`;
+  }, [lastUpdatedAt]);
 
   const greeting = useMemo(() => {
     const h = new Date().getHours();
@@ -325,6 +352,11 @@ export function HomeScreen() {
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
             {todayLine}
           </Text>
+          {lastUpdatedLabel ? (
+            <Text variant="labelSmall" style={{ color: theme.colors.primary, marginTop: 4 }}>
+              {lastUpdatedLabel}
+            </Text>
+          ) : null}
 
           {error ? (
             <View style={[styles.errBanner, { backgroundColor: theme.colors.errorContainer }]}>
