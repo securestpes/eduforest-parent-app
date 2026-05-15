@@ -30,6 +30,7 @@ import {
 import type { MainTabParamList } from '../navigation/MainTabs';
 import type { AppTheme } from '../../theme';
 import { APP_NOTIFICATION_RECEIVED_EVENT } from '../constants/notifications';
+import { useAppLanguage } from '../../common';
 
 function accentColor(accent: CenterNotification['accent'], theme: AppTheme): string {
   if (accent === 'danger') return theme.colors.error;
@@ -51,6 +52,7 @@ function NotifCard({
   onViewDetails: () => void;
   onContact: () => void;
 }) {
+  const { t } = useAppLanguage();
   const dot = accentColor(item.accent, theme);
   const pillBg =
     item.accent === 'danger'
@@ -90,10 +92,10 @@ function NotifCard({
       </Text>
       <View style={styles.cardActions}>
         <Button mode="outlined" compact onPress={onViewDetails} style={styles.halfBtn}>
-          View details
+          {t('notifications.viewDetails')}
         </Button>
         <Button mode="contained-tonal" compact onPress={onContact} style={styles.halfBtn}>
-          Contact school
+          {t('notifications.contactSchool')}
         </Button>
       </View>
     </View>
@@ -101,6 +103,7 @@ function NotifCard({
 }
 
 function WeeklyCard({ block, theme, onOpenAttendance }: { block: WeeklySummaryBlock; theme: AppTheme; onOpenAttendance: () => void }) {
+  const { t } = useAppLanguage();
   return (
     <Pressable
       onPress={onOpenAttendance}
@@ -124,7 +127,7 @@ function WeeklyCard({ block, theme, onOpenAttendance }: { block: WeeklySummaryBl
         </Text>
       ))}
       <Text variant="labelMedium" style={{ color: theme.colors.primary, marginTop: 10, fontWeight: '700' }}>
-        View full report →
+        {t('notifications.viewFullReport')}
       </Text>
     </Pressable>
   );
@@ -140,6 +143,7 @@ function SectionTitle({ emoji, text, theme }: { emoji: string; text: string; the
 
 export function NotificationsScreen() {
   const theme = useTheme() as AppTheme;
+  const { t } = useAppLanguage();
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
 
   const [students, setStudents] = useState<ParentStudent[]>([]);
@@ -227,9 +231,9 @@ export function NotificationsScreen() {
   const lastUpdatedLabel = useMemo(() => {
     if (!lastUpdatedAt) return null;
     const secondsAgo = Math.floor((Date.now() - lastUpdatedAt) / 1000);
-    if (secondsAgo < 60) return 'Updated just now';
-    return `Updated ${format(new Date(lastUpdatedAt), 'hh:mm a')}`;
-  }, [lastUpdatedAt]);
+    if (secondsAgo < 60) return t('common.updatedJustNow');
+    return t('common.updatedAt', { time: format(new Date(lastUpdatedAt), 'hh:mm a') });
+  }, [lastUpdatedAt, t]);
 
   const markAllRead = async () => {
     const next = new Set(readIds);
@@ -239,10 +243,7 @@ export function NotificationsScreen() {
   };
 
   const openContact = () =>
-    Alert.alert(
-      'Contact the institute',
-      'Use the phone number, WhatsApp group, or email your school has shared with parents. In-app messaging may be added later.'
-    );
+    Alert.alert(t('notifications.contactTitle'), t('notifications.contactMessage'));
 
   if (loading) {
     return (
@@ -251,7 +252,7 @@ export function NotificationsScreen() {
           <View style={styles.center}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
             <Text variant="bodyLarge" style={{ marginTop: 14, color: theme.colors.onSurfaceVariant }}>
-              Loading notifications…
+              {t('notifications.loading')}
             </Text>
           </View>
         </SafeAreaView>
@@ -266,7 +267,7 @@ export function NotificationsScreen() {
           <View style={styles.headerTitleWrap}>
             <MaterialCommunityIcons name="bell-ring-outline" size={22} color={theme.colors.primary} style={{ marginRight: 8 }} />
             <Text variant="titleLarge" style={{ color: theme.colors.onBackground, fontWeight: '800' }}>
-              Notifications
+              {t('notifications.title')}
             </Text>
           </View>
           <Pressable
@@ -275,13 +276,13 @@ export function NotificationsScreen() {
             style={{ opacity: allItems.length === 0 || unreadCount === 0 ? 0.45 : 1 }}
           >
             <Text variant="labelLarge" style={{ color: theme.colors.primary, fontWeight: '700' }}>
-              Mark all read
+              {t('notifications.markAllRead')}
             </Text>
           </Pressable>
         </View>
         {unreadCount > 0 ? (
           <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
-            {unreadCount} unread
+            {t('notifications.unread', { count: unreadCount })}
           </Text>
         ) : null}
         {lastUpdatedLabel ? (
@@ -308,20 +309,20 @@ export function NotificationsScreen() {
           {students.length === 0 ? (
             <EmptyState
               icon="bell-off-outline"
-              title="No students linked"
-              message="Link students from Home, then attendance updates will appear here as notifications."
+              title={t('notifications.emptyNoStudentsTitle')}
+              message={t('notifications.emptyNoStudentsMessage')}
             />
           ) : allItems.length === 0 ? (
             <EmptyState
               icon="bell-sleep-outline"
-              title="No activity yet"
-              message="When teachers mark attendance, you will see entries here. Push alerts can also land on your device when enabled."
+              title={t('notifications.emptyNoActivityTitle')}
+              message={t('notifications.emptyNoActivityMessage')}
             />
           ) : (
             <>
               {todaySorted.length > 0 ? (
                 <>
-                  <SectionTitle emoji="🆕" text="TODAY" theme={theme} />
+                  <SectionTitle emoji="🆕" text={t('notifications.sectionToday')} theme={theme} />
                   {todaySorted.map((item) => (
                     <NotifCard
                       key={item.id}
@@ -337,7 +338,7 @@ export function NotificationsScreen() {
 
               {thisWeekSorted.length > 0 || weekly ? (
                 <>
-                  <SectionTitle emoji="📅" text="THIS WEEK" theme={theme} />
+                  <SectionTitle emoji="📅" text={t('notifications.sectionThisWeek')} theme={theme} />
                   {weekly ? (
                     <WeeklyCard
                       block={weekly}
@@ -360,7 +361,7 @@ export function NotificationsScreen() {
 
               {earlierSorted.length > 0 ? (
                 <>
-                  <SectionTitle emoji="📆" text="EARLIER" theme={theme} />
+                  <SectionTitle emoji="📆" text={t('notifications.sectionEarlier')} theme={theme} />
                   {earlierSorted.map((item) => (
                     <NotifCard
                       key={item.id}

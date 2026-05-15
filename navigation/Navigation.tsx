@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import { jwtDecode } from 'jwt-decode';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,11 +10,13 @@ import {
   mapParentMeToUser,
   ParentProfileService,
 } from '../features/profile/services/ParentProfileService';
+import type { MainTabParamList } from '../src/navigation/MainTabs';
 import { AuthNavigation } from './AuthNavigation';
 import { AppNavigation } from './AppNavigation';
 import type { RootState } from '../redux/store';
 
 export type RootStackParamList = {
+  LegalConsent: undefined;
   Login: undefined;
   VerifyLogin: {
     mobileNumber: string;
@@ -21,7 +24,10 @@ export type RootStackParamList = {
     phoneAuthMethodHint?: 'instant';
     prefilledOtp?: string;
   };
-  MainTabs: undefined;
+  MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
+  PrivacyPolicy: undefined;
+  TermsAndConditions: undefined;
+  HelpAndSupport: undefined;
 };
 
 async function migrateLegacyToken(): Promise<void> {

@@ -115,7 +115,7 @@ export default function App() {
       });
 
       const voiceMessage = remoteMessage.data?.voice_message;
-      if (voiceMessage) {
+      if (typeof voiceMessage === 'string' && voiceMessage.length > 0) {
         try {
           const enabled = await isVoiceAnnouncementsEnabled();
           const alreadySpeaking = await Speech.isSpeakingAsync();

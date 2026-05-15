@@ -7,6 +7,7 @@ import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { AttendanceScreen } from '../screens/AttendanceScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import type { AppTheme } from '../../theme';
+import { useAppLanguage } from '../../common';
 
 export type MainTabParamList = {
   Home: undefined;
@@ -19,6 +20,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export function MainTabs() {
   const theme = useTheme() as AppTheme;
+  const { t } = useAppLanguage();
 
   return (
     <Tab.Navigator
@@ -52,8 +54,8 @@ export function MainTabs() {
         component={HomeScreen}
         options={{
           headerShown: false,
-          title: 'Home',
-          tabBarLabel: 'Home',
+          title: t('nav.home'),
+          tabBarLabel: t('nav.home'),
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="home-variant-outline" size={size} color={color} />
           ),
@@ -64,8 +66,8 @@ export function MainTabs() {
         component={NotificationsScreen}
         options={{
           headerShown: false,
-          title: 'Alerts',
-          tabBarLabel: 'Alerts',
+          title: t('nav.alerts'),
+          tabBarLabel: t('nav.alerts'),
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="bell-ring-outline" size={size} color={color} />
           ),
@@ -76,7 +78,8 @@ export function MainTabs() {
         component={AttendanceScreen}
         options={{
           headerShown: false,
-          title: 'Attendance',
+          title: t('nav.attendance'),
+          tabBarLabel: t('nav.attendance'),
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="calendar-check" size={size} color={color} />
           ),
@@ -86,7 +89,8 @@ export function MainTabs() {
         name="Profile"
         component={ProfileScreen}
         options={{
-          title: 'Profile',
+          title: t('nav.profile'),
+          tabBarLabel: t('nav.profile'),
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="account-circle-outline" size={size} color={color} />
           ),

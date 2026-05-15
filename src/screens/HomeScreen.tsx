@@ -33,12 +33,9 @@ import type { MainTabParamList } from '../navigation/MainTabs';
 import type { AppTheme } from '../../theme';
 import type { RootState } from '../../redux/store';
 import { APP_NOTIFICATION_RECEIVED_EVENT } from '../constants/notifications';
+import { useAppLanguage, type TranslationKey } from '../../common';
 
-function greetingLine(hour: number): string {
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
-}
+type Translate = (key: TranslationKey, params?: Record<string, string | number | undefined>) => string;
 
 function StatCard({
   icon,
@@ -82,8 +79,15 @@ function StatCard({
 }
 
 function StatusBadge({ kind, theme }: { kind: ReturnType<typeof kindFromStatus>; theme: AppTheme }) {
+  const { t } = useAppLanguage();
   const label =
-    kind === 'present' ? 'PRESENT' : kind === 'absent' ? 'ABSENT' : kind === 'late' ? 'LATE' : '—';
+    kind === 'present'
+      ? t('attendance.status.present')
+      : kind === 'absent'
+        ? t('attendance.status.absent')
+        : kind === 'late'
+          ? t('attendance.status.late')
+          : t('common.dash');
   const bg =
     kind === 'present'
       ? '#DCFCE7'
@@ -110,17 +114,19 @@ function ChildOverviewCard({
   onSelect,
   theme,
   lastRow,
+  t,
 }: {
   item: ParentStudent;
   selected: boolean;
   onSelect: () => void;
   theme: AppTheme;
   lastRow: ParentAttendanceRow | null;
+  t: Translate;
 }) {
   const hue = avatarHue(item.name);
   const avatarBg = `hsl(${hue} 45% 46%)`;
   const kind = lastRow ? kindFromStatus(lastRow.status) : 'unknown';
-  const batchLine = item.batchNames?.length ? item.batchNames.join(' · ') : '—';
+  const batchLine = item.batchNames?.length ? item.batchNames.join(' · ') : t('common.dash');
 
   return (
     <Pressable onPress={onSelect} style={({ pressed }) => [{ opacity: pressed ? 0.94 : 1 }]}>
@@ -148,12 +154,13 @@ function ChildOverviewCard({
             {item.instituteName}
           </Text>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }} numberOfLines={2}>
-            {batchLine} <Text style={{ color: theme.colors.outline }}>|</Text> Guardian: {item.guardianName}
+            {batchLine} <Text style={{ color: theme.colors.outline }}>|</Text> {t('home.guardianLabel')}{' '}
+            {item.guardianName}
           </Text>
           <View style={styles.lastRow}>
             <MaterialCommunityIcons name="star-four-points-outline" size={16} color={theme.colors.warning} />
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 6, flex: 1 }}>
-              {lastRow ? formatLastSessionLine(lastRow) : 'No attendance recorded yet'}
+              {lastRow ? formatLastSessionLine(lastRow) : t('home.noAttendanceYet')}
             </Text>
           </View>
         </View>
@@ -185,13 +192,14 @@ function NotifRow({ n, theme }: { n: DashboardNotif; theme: AppTheme }) {
 
 export function HomeScreen() {
   const theme = useTheme() as AppTheme;
+  const { t } = useAppLanguage();
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const scrollRef = useRef<ScrollView>(null);
   const user = useSelector((s: RootState) => s.auth.user);
 
   const [students, setStudents] = useState<ParentStudent[]>([]);
   const [rowsByStudent, setRowsByStudent] = useState<Map<number, ParentAttendanceRow[]>>(new Map());
-  const [parentLabel, setParentLabel] = useState('Parent');
+  const [parentLabel, setParentLabel] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -203,7 +211,7 @@ export function HomeScreen() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      let label = user?.name?.split(/\s+/)[0] ?? 'Parent';
+      let label = user?.name?.split(/\s+/)[0] ?? '';
       try {
         const meRes = await getMe();
         if (meRes.status && meRes.data && typeof meRes.data === 'object') {
@@ -219,7 +227,7 @@ export function HomeScreen() {
       if (!stRes.status || !Array.isArray(stRes.data)) {
         setStudents([]);
         setRowsByStudent(new Map());
-        setError(stRes.message || 'Could not load students.');
+        setError(stRes.message || t('home.couldNotLoadStudents'));
         return;
       }
 
@@ -241,12 +249,12 @@ export function HomeScreen() {
       setRowsByStudent(map);
       setLastUpdatedAt(Date.now());
     } catch {
-      setError('Network error.');
+      setError(t('home.networkError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?.name]);
+  }, [user?.name, t]);
 
   useEffect(() => {
     load();
@@ -284,19 +292,21 @@ export function HomeScreen() {
 
   const todayLine = useMemo(() => {
     const now = new Date();
-    return `Today · ${format(now, 'MMM d, yyyy')}`;
-  }, []);
+    return t('home.todayPrefix', { date: format(now, 'MMM d, yyyy') });
+  }, [t]);
   const lastUpdatedLabel = useMemo(() => {
     if (!lastUpdatedAt) return null;
     const secondsAgo = Math.floor((Date.now() - lastUpdatedAt) / 1000);
-    if (secondsAgo < 60) return 'Updated just now';
-    return `Updated ${format(new Date(lastUpdatedAt), 'hh:mm a')}`;
-  }, [lastUpdatedAt]);
+    if (secondsAgo < 60) return t('common.updatedJustNow');
+    return t('common.updatedAt', { time: format(new Date(lastUpdatedAt), 'hh:mm a') });
+  }, [lastUpdatedAt, t]);
 
   const greeting = useMemo(() => {
     const h = new Date().getHours();
-    return `${greetingLine(h)}, ${parentLabel}!`;
-  }, [parentLabel]);
+    const gm = h < 12 ? t('greeting.morning') : h < 17 ? t('greeting.afternoon') : t('greeting.evening');
+    const name = parentLabel || user?.name?.split(/\s+/)[0] || t('common.parent');
+    return t('home.waveGreeting', { greeting: gm, name });
+  }, [parentLabel, user?.name, t]);
 
   const onViewAllChildren = () => {
     scrollRef.current?.scrollToEnd({ animated: true });
@@ -309,7 +319,7 @@ export function HomeScreen() {
           <View style={styles.center}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
             <Text variant="bodyLarge" style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}>
-              Loading dashboard…
+              {t('home.loadingDashboard')}
             </Text>
           </View>
         </SafeAreaView>
@@ -369,24 +379,24 @@ export function HomeScreen() {
             <StatCard
               icon="chart-donut"
               value={`${stats.monthPct}%`}
-              label="Attendance"
-              sublabel="This month"
+              label={t('home.statsAttendance')}
+              sublabel={t('home.statsThisMonth')}
               theme={theme}
               tint="primary"
             />
             <StatCard
               icon="check-decagram"
               value={String(stats.weekPresent)}
-              label="Present"
-              sublabel="This week"
+              label={t('home.statsPresent')}
+              sublabel={t('home.statsThisWeek')}
               theme={theme}
               tint="success"
             />
             <StatCard
               icon="clock-alert-outline"
               value={String(stats.monthLate)}
-              label="Late days"
-              sublabel="This month"
+              label={t('home.statsLateDays')}
+              sublabel={t('home.statsThisMonth')}
               theme={theme}
               tint="warning"
             />
@@ -394,12 +404,12 @@ export function HomeScreen() {
 
           <View style={styles.sectionHeader}>
             <Text variant="titleMedium" style={{ color: theme.colors.onBackground, fontWeight: '700' }}>
-              My children
+              {t('home.myChildren')}
             </Text>
             {students.length > 0 ? (
               <Pressable onPress={onViewAllChildren}>
                 <Text variant="labelLarge" style={{ color: theme.colors.primary, fontWeight: '600' }}>
-                  View all →
+                  {t('home.viewAll')}
                 </Text>
               </Pressable>
             ) : null}
@@ -408,8 +418,8 @@ export function HomeScreen() {
           {students.length === 0 && !error ? (
             <EmptyState
               icon="account-child-outline"
-              title="No students linked yet"
-              message="Ask your institute to add this number as guardian on the student profile. Dashboard stats and alerts will appear here."
+              title={t('home.noStudentsTitle')}
+              message={t('home.noStudentsMessage')}
             />
           ) : (
             students.map((s) => (
@@ -420,6 +430,7 @@ export function HomeScreen() {
                 onSelect={() => setSelected(s.id)}
                 theme={theme}
                 lastRow={latestRow(rowsByStudent.get(s.id) ?? [])}
+                t={t}
               />
             ))
           )}
@@ -427,23 +438,23 @@ export function HomeScreen() {
           <View style={styles.notifSection}>
             <View style={styles.sectionHeader}>
               <Text variant="titleMedium" style={{ color: theme.colors.onBackground, fontWeight: '700' }}>
-                Recent notifications
+                {t('home.recentNotifications')}
               </Text>
               <Pressable onPress={() => navigation.navigate('Notifications')}>
                 <Text variant="labelMedium" style={{ color: theme.colors.primary, opacity: 0.85 }}>
-                  Mark all read
+                  {t('home.markAllRead')}
                 </Text>
               </Pressable>
             </View>
             <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
-              From your latest attendance activity
+              {t('home.fromLatestActivity')}
             </Text>
 
             {notifications.length === 0 ? (
               <View style={[styles.notifEmpty, { borderColor: theme.colors.outlineVariant }]}>
                 <MaterialCommunityIcons name="bell-sleep-outline" size={36} color={theme.colors.outline} />
                 <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 8 }}>
-                  No recent activity to show. Pull down to refresh after new classes are marked.
+                  {t('home.noRecentActivity')}
                 </Text>
               </View>
             ) : (

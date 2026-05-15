@@ -2,90 +2,96 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { localStorageKeys } from '../constants';
+import {
+  type AppLanguage,
+  parentTranslations,
+  supportedLanguages,
+  type TranslationKey,
+} from './parentTranslations';
 
-export type AppLanguage = 'en';
+export type { AppLanguage, TranslationKey };
 
 type TranslationParams = Record<string, string | number | undefined>;
 
-/** English copy aligned with gentrack-app `en` keys used on login / verify OTP. */
-const en: Record<string, string> = {
-  'common.change': 'Change',
-  'login.title': 'Login with Mobile Number',
-  'login.subtitle': 'We will send an SMS code to verify this number (Firebase)',
-  'login.mobileLabel': 'Mobile Number',
-  'login.continue': 'Continue',
-  'login.mobileRequired': 'Mobile number is required',
-  'login.mobileInvalid': 'Please enter a valid 10-digit mobile number',
-  'login.sendOtpFailed': 'Failed to send OTP',
-  'verifyOtp.title': 'OTP Verification',
-  'verifyOtp.subtitle': 'Enter the OTP sent to your mobile number',
-  'verifyOtp.verify': 'Verify OTP',
-  'verifyOtp.resend': 'Resend OTP',
-  'verifyOtp.resendIn': 'Resend in',
-  'verifyOtp.resentSuccess': 'OTP resent successfully.',
-  'verifyOtp.resentFailed': 'Failed to resend OTP.',
-  'verifyOtp.resentError': 'Unable to resend OTP. Please try again later.',
-  'verifyOtp.invalid': 'Please enter a valid 6-digit OTP.',
-  'verifyOtp.unexpected': 'An unexpected error occurred. Please try again.',
-  'verifyOtp.failed': 'OTP verification failed.',
-  'verifyOtp.expiredOtp': 'This code has expired. Request a new one.',
-  'verifyOtp.invalidPhone': 'Invalid phone number.',
-  'verifyOtp.tooManyAttempts': 'Too many attempts. Try again later.',
-};
-
 function interpolate(template: string, params?: TranslationParams): string {
-  if (!params) return template;
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) =>
-    String(params[key] ?? '')
-  );
+  if (!params) {
+    return template;
+  }
+  return Object.entries(params).reduce((result, [key, value]) => {
+    return result.replaceAll(`{{${key}}}`, String(value ?? ''));
+  }, template);
 }
-
-type TranslationKey = keyof typeof en | (string & {});
 
 type LanguageContextValue = {
   language: AppLanguage;
   isReady: boolean;
-  supportedLanguages: AppLanguage[];
-  setLanguage: (lang: AppLanguage) => Promise<void>;
+  supportedLanguages: typeof supportedLanguages;
+  setLanguage: (language: AppLanguage) => Promise<void>;
   t: (key: TranslationKey, params?: TranslationParams) => string;
 };
 
 const LanguageContext = createContext<LanguageContextValue>({
   language: 'en',
-  isReady: true,
-  supportedLanguages: ['en'],
+  isReady: false,
+  supportedLanguages,
   setLanguage: async () => {},
-  t: (key) => en[key] ?? String(key),
+  t: (key, params) =>
+    interpolate(parentTranslations.en[key] ?? String(key), params),
 });
 
 export const AppLanguageProvider = ({ children }: { children: React.ReactNode }) => {
-  const [language] = useState<AppLanguage>('en');
-  const [isReady] = useState(true);
+  const [language, setCurrentLanguage] = useState<AppLanguage>('en');
+  const [isReady, setIsReady] = useState(false);
 
-  const setLanguage = useCallback(async (_next: AppLanguage) => {
-    /* Parent app is English-only for now; hook matches gentrack shape. */
+  useEffect(() => {
+    const loadLanguage = async () => {
+      try {
+        const storedLanguage = await AsyncStorage.getItem(localStorageKeys.APP_LANGUAGE);
+        if (
+          storedLanguage === 'en' ||
+          storedLanguage === 'hi' ||
+          storedLanguage === 'bn' ||
+          storedLanguage === 'ta'
+        ) {
+          setCurrentLanguage(storedLanguage);
+        }
+      } finally {
+        setIsReady(true);
+      }
+    };
+
+    void loadLanguage();
+  }, []);
+
+  const setLanguage = useCallback(async (nextLanguage: AppLanguage) => {
+    setCurrentLanguage(nextLanguage);
+    await AsyncStorage.setItem(localStorageKeys.APP_LANGUAGE, nextLanguage);
   }, []);
 
   const t = useCallback(
     (key: TranslationKey, params?: TranslationParams) => {
-      const raw = en[key] ?? key;
-      return interpolate(raw, params);
+      const dictionary = parentTranslations[language] ?? parentTranslations.en;
+      const fallback = parentTranslations.en[key];
+      return interpolate(dictionary[key] ?? fallback ?? String(key), params);
     },
-    []
+    [language]
   );
 
   const value = useMemo(
     () => ({
       language,
       isReady,
-      supportedLanguages: ['en'] as AppLanguage[],
+      supportedLanguages,
       setLanguage,
       t,
     }),
-    [language, isReady, setLanguage, t]
+    [isReady, language, setLanguage, t]
   );
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;

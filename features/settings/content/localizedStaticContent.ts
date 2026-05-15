@@ -1,3 +1,5 @@
+import type { AppLanguage } from '../../../common/contexts/LanguageContext';
+
 export type LocalizedFaqItem = {
   id: number;
   category: string;
@@ -10,8 +12,6 @@ export type LocalizedSection = {
   icon: string;
   content: string;
 };
-
-type AppLanguage = 'en' | 'hi' | 'bn' | 'ta';
 
 const HELP_TERM_REPLACEMENTS: Record<Exclude<AppLanguage, 'en'>, Array<[RegExp, string]>> = {
   hi: [
@@ -547,6 +547,302 @@ export const HELP_FAQS: Record<AppLanguage, LocalizedFaqItem[]> = {
   ],
 };
 
+/** Parent app (EduForest Parent) help FAQs — not institute / Gentrack flows. */
+export const PARENT_HELP_FAQS: Record<AppLanguage, LocalizedFaqItem[]> = {
+  en: [
+    {
+      id: 1,
+      category: 'Getting started',
+      question: 'What is the EduForest Parent app for?',
+      answer:
+        'You receive attendance updates when your child’s institute marks attendance using EduForest. Open Home to see a snapshot, Attendance for history, and Alerts for notifications.',
+    },
+    {
+      id: 2,
+      category: 'Login',
+      question: 'Which mobile number should I use?',
+      answer:
+        'Use the same 10-digit Indian mobile number your institute registered as the guardian contact for your child. Sign-in uses SMS OTP (Firebase) on this number.',
+    },
+    {
+      id: 3,
+      category: 'Login',
+      question: 'I did not receive the OTP. What should I do?',
+      answer:
+        'Wait for the resend timer, then tap Resend OTP. Check the number, signal, and SMS blocking settings. You can tap Change to edit the number. If it still fails, email securestepsai@gmail.com.',
+    },
+    {
+      id: 4,
+      category: 'Notifications',
+      question: 'Why am I not getting attendance alerts?',
+      answer:
+        'Allow notifications for EduForest Parent in system settings. The institute must mark attendance and have your correct guardian number on file. Stay online for the best experience.',
+    },
+    {
+      id: 5,
+      category: 'Voice',
+      question: 'What are voice announcements?',
+      answer:
+        'When enabled under Profile, the app can speak the attendance message when a push arrives in the foreground. You can turn this off anytime from Profile.',
+    },
+    {
+      id: 6,
+      category: 'Attendance',
+      question: 'Where can I see past attendance?',
+      answer:
+        'Open the Attendance tab for history and summaries. Home may show recent highlights depending on your institute’s setup.',
+    },
+    {
+      id: 7,
+      category: 'Privacy',
+      question: 'Where are the Privacy Policy and Terms?',
+      answer:
+        'Open Profile, then Privacy policy, Terms & conditions, or Help & support. You can also read the same policies on https://eduforest.co.in.',
+    },
+    {
+      id: 8,
+      category: 'Support',
+      question: 'Who do I contact for wrong attendance or account issues?',
+      answer:
+        'Contact your institute first—they manage records. For app or login issues, email securestepsai@gmail.com with your registered mobile number and a short description.',
+    },
+    {
+      id: 9,
+      category: 'Notifications & privacy',
+      question: 'What data is used for push notifications?',
+      answer:
+        'Your institute sends attendance updates through EduForest; our servers may store an FCM device token linked to your parent account so alerts can reach your phone. Message content is used to show the alert in the app. See the in-app Privacy Policy for full details.',
+    },
+    {
+      id: 10,
+      category: 'Notifications & privacy',
+      question: 'Does voice announcement send my voice to the server?',
+      answer:
+        'No. Voice announcements use your phone’s built-in text-to-speech to read the message locally when the app is active and the feature is on in Profile. It is not a recording sent to EduForest.',
+    },
+  ],
+  hi: [
+    {
+      id: 1,
+      category: 'शुरुआत',
+      question: 'EduForest Parent ऐप किस लिए है?',
+      answer:
+        'जब आपके बच्चे का संस्थान EduForest से उपस्थिति दर्ज करता है तो आपको अपडेट मिलते हैं। सारांश के लिए Home, इतिहास के लिए Attendance, और सूचनाओं के लिए Alerts खोलें।',
+    },
+    {
+      id: 2,
+      category: 'लॉगिन',
+      question: 'कौन सा मोबाइल नंबर उपयोग करूँ?',
+      answer:
+        'वही 10 अंकों का भारतीय मोबाइल नंबर उपयोग करें जो संस्थान ने आपके बच्चे के अभिभावक संपर्क के रूप में दर्ज किया है। साइन-इन इसी नंबर पर SMS OTP (Firebase) से होता है।',
+    },
+    {
+      id: 3,
+      category: 'लॉगिन',
+      question: 'OTP नहीं मिला। क्या करूँ?',
+      answer:
+        'रीसेंड टाइमर खत्म होने दें, फिर Resend OTP दबाएँ। नंबर, नेटवर्क और SMS ब्लॉक सेटिंग जाँचें। नंबर बदलने के लिए Change दबाएँ। फिर भी असफल हो तो securestepsai@gmail.com पर लिखें।',
+    },
+    {
+      id: 4,
+      category: 'सूचनाएँ',
+      question: 'उपस्थिति अलर्ट क्यों नहीं मिल रहे?',
+      answer:
+        'सिस्टम सेटिंग में EduForest Parent के लिए सूचनाएँ अनुमति दें। संस्थान को उपस्थिति दर्ज करनी होगी और फाइल पर सही अभिभावक नंबर होना चाहिए। बेहतर अनुभव के लिए ऑनलाइन रहें।',
+    },
+    {
+      id: 5,
+      category: 'आवाज़',
+      question: 'आवाज़ घोषणाएँ क्या हैं?',
+      answer:
+        'प्रोफ़ाइल में चालू करने पर, जब ऐप अग्रभूमि में हो और पुश आए तो ऐप उपस्थिति संदेश बोलकर सुना सकता है। इसे कभी भी प्रोफ़ाइल से बंद कर सकते हैं।',
+    },
+    {
+      id: 6,
+      category: 'उपस्थिति',
+      question: 'पुरानी उपस्थिति कहाँ देखूँ?',
+      answer:
+        'इतिहास और सारांश के लिए Attendance टैब खोलें। संस्थान की सेटअप के अनुसार Home पर हाल की हाइलाइट्स दिख सकती हैं।',
+    },
+    {
+      id: 7,
+      category: 'गोपनीयता',
+      question: 'प्राइवेसी पॉलिसी और नियम कहाँ हैं?',
+      answer:
+        'प्रोफ़ाइल खोलें, फिर प्राइवेसी पॉलिसी, नियम और शर्तें, या मदद और सपोर्ट। https://eduforest.co.in पर भी पढ़ सकते हैं।',
+    },
+    {
+      id: 8,
+      category: 'सपोर्ट',
+      question: 'गलत उपस्थिति या खाते की समस्या पर किससे संपर्क करूँ?',
+      answer:
+        'पहले अपने संस्थान से संपर्क करें—वे रिकॉर्ड प्रबंधित करते हैं। ऐप या लॉगिन के लिए अपना पंजीकृत मोबाइल और संक्षिप्त विवरण के साथ securestepsai@gmail.com पर लिखें।',
+    },
+    {
+      id: 9,
+      category: 'सूचनाएँ और गोपनीयता',
+      question: 'पुश सूचनाओं के लिए कौन सा डेटा उपयोग होता है?',
+      answer:
+        'संस्थान EduForest के जरिए उपस्थिति अपडेट भेजता है; अलर्ट आपके फोन तक पहुँचाने के लिए हमारे सर्वर आपके पैरेंट खाते से जुड़ा FCM डिवाइस टोकन संग्रहीत कर सकते हैं। संदेश ऐप में अलर्ट दिखाने के लिए उपयोग होते हैं। पूरी जानकारी इन-ऐप प्राइवेसी पॉलिसी में है।',
+    },
+    {
+      id: 10,
+      category: 'सूचनाएँ और गोपनीयता',
+      question: 'क्या आवाज़ घोषणा मेरी आवाज़ सर्वर पर भेजती है?',
+      answer:
+        'नहीं। आवाज़ घोषणाएँ ऐप सक्रिय और प्रोफ़ाइल में सुविधा चालू होने पर आपके फोन के टेक्स्ट-टू-स्पीच से स्थानीय रूप से संदेश पढ़ती हैं। EduForest को रिकॉर्डिंग नहीं भेजी जाती।',
+    },
+  ],
+  bn: [
+    {
+      id: 1,
+      category: 'শুরু',
+      question: 'EduForest Parent অ্যাপটি কীসের জন্য?',
+      answer:
+        'আপনার সন্তানের প্রতিষ্ঠান EduForest দিয়ে উপস্থিতি চিহ্নিত করলে আপনি আপডেট পাবেন। সারসংক্ষেপের জন্য Home, ইতিহাসের জন্য Attendance, এবং বিজ্ঞপ্তির জন্য Alerts খুলুন।',
+    },
+    {
+      id: 2,
+      category: 'লগইন',
+      question: 'কোন মোবাইল নম্বর ব্যবহার করব?',
+      answer:
+        'আপনার সন্তানের অভিভাবক যোগাযোগ হিসেবে প্রতিষ্ঠান যে ১০ সংখ্যার ভারতীয় মোবাইল নম্বর নিবন্ধন করেছে সেটিই ব্যবহার করুন। এই নম্বরে SMS OTP (Firebase) দিয়ে সাইন-ইন হয়।',
+    },
+    {
+      id: 3,
+      category: 'লগইন',
+      question: 'OTP পাইনি। কী করব?',
+      answer:
+        'রিসেন্ড টাইমার শেষ হওয়ার অপেক্ষা করুন, তারপর Resend OTP চাপুন। নম্বর, নেটওয়ার্ক ও SMS ব্লক সেটিংস দেখুন। নম্বর বদলাতে Change চাপুন। ব্যর্থ হলে securestepsai@gmail.com-এ লিখুন।',
+    },
+    {
+      id: 4,
+      category: 'বিজ্ঞপ্তি',
+      question: 'উপস্থিতি অ্যালার্ট পাচ্ছি না কেন?',
+      answer:
+        'সিস্টেম সেটিংসে EduForest Parent-এর জন্য বিজ্ঞপ্তি অনুমতি দিন। প্রতিষ্ঠানকে উপস্থিতি চিহ্নিত করতে হবে এবং ফাইলে সঠিক অভিভাবক নম্বর থাকতে হবে। ভালো অভিজ্ঞতার জন্য অনলাইন থাকুন।',
+    },
+    {
+      id: 5,
+      category: 'ভয়েস',
+      question: 'ভয়েস ঘোষণা কী?',
+      answer:
+        'প্রোফাইলে চালু থাকলে, অ্যাগ্রগ্রাউন্ডে পুশ এলে অ্যাপ উপস্থিতি বার্তা জোরে পড়তে পারে। যেকোনো সময় প্রোফাইল থেকে বন্ধ করতে পারবেন।',
+    },
+    {
+      id: 6,
+      category: 'উপস্থিতি',
+      question: 'আগের উপস্থিতি কোথায় দেখব?',
+      answer:
+        'ইতিহাস ও সারাংশের জন্য Attendance ট্যাব খুলুন। প্রতিষ্ঠানের সেটআপ অনুযায়ী Home-এ সাম্প্রতিক হাইলাইট দেখা যেতে পারে।',
+    },
+    {
+      id: 7,
+      category: 'গোপনীয়তা',
+      question: 'প্রাইভেসি পলিসি ও শর্তাবলী কোথায়?',
+      answer:
+        'প্রোফাইল খুলুন, তারপর প্রাইভেসি পলিসি, শর্তাবলী, বা সহায়তা। https://eduforest.co.in-এও পড়তে পারেন।',
+    },
+    {
+      id: 8,
+      category: 'সাপোর্ট',
+      question: 'ভুল উপস্থিতি বা অ্যাকাউন্ট সমস্যায় কাকে জানাব?',
+      answer:
+        'প্রথমে আপনার প্রতিষ্ঠানে যোগাযোগ করুন—তারা রেকর্ড পরিচালনা করে। অ্যাপ বা লগইনের জন্য নিবন্ধিত মোবাইল ও সংক্ষিপ্ত বিবরণ সহ securestepsai@gmail.com-এ লিখুন।',
+    },
+    {
+      id: 9,
+      category: 'বিজ্ঞপ্তি ও গোপনীয়তা',
+      question: 'পুশ বিজ্ঞপ্তির জন্য কোন ডেটা ব্যবহার হয়?',
+      answer:
+        'প্রতিষ্ঠান EduForest-এর মাধ্যমে উপস্থিতি আপডেট পাঠায়; আমাদের সার্ভার আপনার প্যারেন্ট অ্যাকাউন্টের সাথে যুক্ত FCM ডিভাইস টোকেন সংরক্ষণ করতে পারে যাতে অ্যালার্ট ফোনে পৌঁছায়। বার্তা অ্যাপে দেখানোর জন্য ব্যবহৃত হয়। পূর্ণ বিবরণ ইন-অ্যাপ প্রাইভেসি পলিসিতে।',
+    },
+    {
+      id: 10,
+      category: 'বিজ্ঞপ্তি ও গোপনীয়তা',
+      question: 'ভয়েস ঘোষণা কি আমার কণ্ঠ সার্ভারে পাঠায়?',
+      answer:
+        'না। অ্যাপ সক্রিয় ও প্রোফাইলে বৈশিষ্ট্য চালু থাকলে ভয়েস ঘোষণা ডিভাইসের টেক্সট-টু-স্পিচ দিয়ে স্থানীয়ভাবে বার্তা পড়ে। EduForest-এ রেকর্ডিং পাঠানো হয় না।',
+    },
+  ],
+  ta: [
+    {
+      id: 1,
+      category: 'தொடக்கம்',
+      question: 'EduForest Parent செயலி எதற்காக?',
+      answer:
+        'உங்கள் குழந்தையின் நிறுவனம் EduForest மூலம் வருகையை பதிவு செய்யும்போது புதுப்பிப்புகளைப் பெறுவீர்கள். சுருக்கத்திற்கு Home, வரலாற்றிற்கு Attendance, அறிவிப்புகளுக்கு Alerts திறக்கவும்.',
+    },
+    {
+      id: 2,
+      category: 'உள்நுழைவு',
+      question: 'எந்த மொபைல் எண்ணைப் பயன்படுத்த வேண்டும்?',
+      answer:
+        'நிறுவனம் உங்கள் குழந்தைக்கு பாதுகாவலர் தொடர்பாக பதிவு செய்த அதே 10 இலக்க இந்திய மொபைல் எண்ணைப் பயன்படுத்தவும். இந்த எண்ணில் SMS OTP (Firebase) மூலம் உள்நுழைவு.',
+    },
+    {
+      id: 3,
+      category: 'உள்நுழைவு',
+      question: 'OTP கிடைக்கவில்லை. என்ன செய்வது?',
+      answer:
+        'மீண்டும் அனுப்பு டைமர் முடியும் வரை காத்திருந்து Resend OTP அழுத்தவும். எண், நெட்வொர்க் மற்றும் SMS தடை அமைப்புகளைச் சரிபார்க்கவும். எண்ணை மாற்ற Change அழுத்தவும். தொடர்ந்தால் securestepsai@gmail.com-க்கு எழுதவும்.',
+    },
+    {
+      id: 4,
+      category: 'அறிவிப்புகள்',
+      question: 'வருகை எச்சரிக்கைகள் ஏன் வரவில்லை?',
+      answer:
+        'கணினி அமைப்புகளில் EduForest Parent-க்கு அறிவிப்புகளை அனுமதிக்கவும். நிறுவனம் வருகையை பதிவு செய்ய வேண்டும்; சரியான பாதுகாவலர் எண் பதிவில் இருக்க வேண்டும். சிறந்த அனுபவத்திற்கு ஆன்லைனில் இருங்கள்.',
+    },
+    {
+      id: 5,
+      category: 'குரல்',
+      question: 'குரல் அறிவிப்புகள் என்றால் என்ன?',
+      answer:
+        'சுயவிவரத்தில் இயக்கினால், முன்புறத்தில் புஷ் வரும்போது செயலி வருகை செய்தியை உரக்கப் படிக்கலாம். சுயவிவரத்தில் எப்போதும் முடக்கலாம்.',
+    },
+    {
+      id: 6,
+      category: 'வருகை',
+      question: 'கடந்த வருகையை எங்கே பார்க்கலாம்?',
+      answer:
+        'வரலாறு மற்றும் சுருக்கத்திற்கு Attendance தாவலைத் திறக்கவும். நிறுவன அமைப்பின்படி Home-இல் சமீபத்திய சிறப்பம்சங்கள் தோன்றலாம்.',
+    },
+    {
+      id: 7,
+      category: 'தனியுரிமை',
+      question: 'தனியுரிமைக் கொள்கை மற்றும் விதிமுறைகள் எங்கே?',
+      answer:
+        'சுயவிவரத்தைத் திறந்து, தனியுரிமைக் கொள்கை, விதிமுறைகள் அல்லது உதவி. https://eduforest.co.in இலும் படிக்கலாம்.',
+    },
+    {
+      id: 8,
+      category: 'ஆதரவு',
+      question: 'தவறான வருகை அல்லது கணக்கு சிக்கலுக்கு யாரைத் தொடர்பு கொள்வது?',
+      answer:
+        'முதலில் உங்கள் நிறுவனத்தைத் தொடர்பு கொள்ளவும்—அவர்கள் பதிவுகளை நிர்வகிக்கிறார்கள். செயலி அல்லது உள்நுழைவுக்கு பதிவு செய்யப்பட்ட மொபைல் மற்றும் குறுகிய விவரத்துடன் securestepsai@gmail.com-க்கு எழுதவும்.',
+    },
+    {
+      id: 9,
+      category: 'அறிவிப்புகள் மற்றும் தனியுரிமை',
+      question: 'புஷ் அறிவிப்புகளுக்கு எந்தத் தகவல் பயன்படுகிறது?',
+      answer:
+        'நிறுவனம் EduForest வழியாக வருகை புதுப்பிப்புகளை அனுப்புகிறது; எச்சரிக்கைகள் உங்கள் தொலைபேசியை அடைய எங்கள் சேவையகங்கள் உங்கள் பெற்றோர் கணக்குடன் இணைக்கப்பட்ட FCM சாதன டோக்கனைச் சேமிக்கலாம். செய்திகள் செயலியில் எச்சரிக்கை காட்ட பயன்படுகின்றன. முழு விவரம் செயலியிலுள்ள தனியுரிமைக் கொள்கையில்.',
+    },
+    {
+      id: 10,
+      category: 'அறிவிப்புகள் மற்றும் தனியுரிமை',
+      question: 'குரல் அறிவிப்பு என் குரலை சேவையகத்திற்கு அனுப்புகிறதா?',
+      answer:
+        'இல்லை. செயலி செயலில் இருக்கும்போதும் சுயவிவரத்தில் அம்சம் இயக்கப்பட்டிருக்கும்போதும், குரல் அறிவிப்புகள் உங்கள் சாதனத்தின் உரை-குரல் மூலம் செய்தியை உள்ளூரில் படிக்கின்றன. EduForest-க்கு பதிவு அனுப்பப்படுவதில்லை.',
+    },
+  ],
+};
+
+export const getLocalizedParentHelpFaqs = (language: AppLanguage): LocalizedFaqItem[] => {
+  return PARENT_HELP_FAQS[language] ?? PARENT_HELP_FAQS.en;
+};
+
 export const PRIVACY_PAGE: Record<AppLanguage, {
   headerTitle: string;
   headerSubtitle: string;
@@ -561,14 +857,16 @@ export const PRIVACY_PAGE: Record<AppLanguage, {
     contactButton: 'Have questions? Email us',
     sections: [
       { title: '1. Introduction', icon: 'information-outline', content: 'EduForest respects your privacy and works to protect your personal data when you use our app and related services.' },
-      { title: '2. The Data We Collect', icon: 'database-outline', content: 'We may collect identity data, contact data, student records, profile settings, technical device information, and service usage information needed to operate the app.' },
-      { title: '3. How We Use Your Data', icon: 'briefcase-check-outline', content: 'We use data to provide educational management features, maintain accounts, secure the service, comply with law, and improve product quality.' },
+      { title: '2. The Data We Collect', icon: 'database-outline', content: 'We may collect identity data, contact data, student records, profile settings, technical device information, and service usage information needed to operate the app. For the Parent app, this may include a mobile push token (FCM) linked to your account so we can deliver attendance-related notifications you choose to receive.' },
+      { title: '3. How We Use Your Data', icon: 'briefcase-check-outline', content: 'We use data to provide educational management features, maintain accounts, secure the service, comply with law, and improve product quality. For the Parent app, we also use your account and device token as needed to deliver attendance-related push notifications you have enabled on your device.' },
       { title: '4. Data Security', icon: 'shield-lock-outline', content: 'We use reasonable technical and organizational measures to reduce unauthorized access, misuse, alteration, or disclosure of personal data.' },
       { title: '5. Data Retention', icon: 'clock-time-three-outline', content: 'We keep data only as long as needed for service delivery, legal obligations, dispute handling, security, and operational continuity.' },
       { title: '6. Your Legal Rights', icon: 'scale-balance', content: 'Depending on applicable law, you may request access, correction, deletion, restriction, objection, portability, or withdrawal of consent for your personal data.' },
       { title: '7. Children\'s Privacy', icon: 'account-child-outline', content: 'Student information is managed by authorized institutions or educators. They are responsible for obtaining any required guardian consent before submitting student data.' },
       { title: '8. Data Deletion and Account Closure', icon: 'delete-outline', content: 'You may request account closure or data deletion by contacting support. Requests are processed subject to legal, compliance, and retention requirements.' },
-      { title: '9. Contact Us', icon: 'email-outline', content: 'For privacy questions or data requests, contact securestepsai@gmail.com. Office address: B-251, Sector 19, Noida, UP 201301, India.' },
+      { title: '9. Push notifications and device messaging', icon: 'bell-ring-outline', content: 'The Parent app can deliver attendance-related alerts using push notifications (for example via Firebase Cloud Messaging). If you allow notifications on your device, your institute may send messages when attendance is updated. We may store a device push token linked to your parent account so the service can reach your device. Message payloads are used only to display alerts in the app; you can disable notifications in your device settings at any time.' },
+      { title: '10. Voice announcements (optional)', icon: 'volume-high', content: 'You may turn on optional voice announcements in Profile so the app can read attendance messages aloud using your device’s built-in text-to-speech when you are using the app (for example when a notification arrives in the foreground). This uses on-device speech playback; we do not collect or store audio recordings of your voice for this feature. You can disable voice announcements at any time in Profile.' },
+      { title: '11. Contact Us', icon: 'email-outline', content: 'For privacy questions or data requests, contact securestepsai@gmail.com. Office address: B-251, Sector 19, Noida, UP 201301, India.' },
     ],
   },
   hi: {
@@ -578,14 +876,16 @@ export const PRIVACY_PAGE: Record<AppLanguage, {
     contactButton: 'कोई सवाल है? हमें ईमेल करें',
     sections: [
       { title: '1. परिचय', icon: 'information-outline', content: 'EduForest आपकी गोपनीयता का सम्मान करता है और ऐप व संबंधित सेवाओं के उपयोग के दौरान आपके व्यक्तिगत डेटा की सुरक्षा के लिए प्रतिबद्ध है।' },
-      { title: '2. हम कौन-सा डेटा एकत्र करते हैं', icon: 'database-outline', content: 'हम पहचान संबंधी डेटा, संपर्क विवरण, छात्र अभिलेख, प्रोफाइल सेटिंग्स, डिवाइस की तकनीकी जानकारी और सेवा उपयोग से जुड़ा डेटा एकत्र कर सकते हैं।' },
-      { title: '3. हम आपके डेटा का उपयोग कैसे करते हैं', icon: 'briefcase-check-outline', content: 'डेटा का उपयोग शैक्षणिक प्रबंधन सुविधाएं देने, खाता बनाए रखने, सेवा की सुरक्षा बनाए रखने, कानूनी अनुपालन और उत्पाद सुधार के लिए किया जाता है।' },
+      { title: '2. हम कौन-सा डेटा एकत्र करते हैं', icon: 'database-outline', content: 'हम पहचान संबंधी डेटा, संपर्क विवरण, छात्र अभिलेख, प्रोफाइल सेटिंग्स, डिवाइस की तकनीकी जानकारी और सेवा उपयोग से जुड़ा डेटा एकत्र कर सकते हैं। पैरेंट ऐप के लिए इसमें आपके खाते से जुड़ा मोबाइल पुश टोकन (FCM) शामिल हो सकता है ताकि आप जो उपस्थिति संबंधी सूचनाएं प्राप्त करना चुनते हैं उन्हें भेजा जा सके।' },
+      { title: '3. हम आपके डेटा का उपयोग कैसे करते हैं', icon: 'briefcase-check-outline', content: 'डेटा का उपयोग शैक्षणिक प्रबंधन सुविधाएं देने, खाता बनाए रखने, सेवा की सुरक्षा बनाए रखने, कानूनी अनुपालन और उत्पाद सुधार के लिए किया जाता है। पैरेंट ऐप के लिए, जब आप डिवाइस पर सूचनाएं सक्षम करते हैं तो उपस्थिति से जुड़ी पुश सूचनाएं भेजने हेतु आपके खाते और डिवाइस टोकन का उपयोग भी किया जा सकता है।' },
       { title: '4. डेटा सुरक्षा', icon: 'shield-lock-outline', content: 'अनधिकृत पहुंच, दुरुपयोग, बदलाव या खुलासे के जोखिम को कम करने के लिए हम उचित तकनीकी और संगठनात्मक उपाय अपनाते हैं।' },
       { title: '5. डेटा संरक्षण अवधि', icon: 'clock-time-three-outline', content: 'हम डेटा उतनी ही अवधि तक रखते हैं जितनी सेवा प्रदान करने, कानूनी दायित्वों, विवाद निपटान, सुरक्षा और संचालन की निरंतरता के लिए आवश्यक हो।' },
       { title: '6. आपके कानूनी अधिकार', icon: 'scale-balance', content: 'लागू कानून के अनुसार आप अपने व्यक्तिगत डेटा तक पहुंच, संशोधन, हटाने, प्रतिबंध, आपत्ति, पोर्टेबिलिटी या सहमति वापस लेने का अनुरोध कर सकते हैं।' },
       { title: '7. बच्चों की गोपनीयता', icon: 'account-child-outline', content: 'छात्र संबंधी जानकारी अधिकृत संस्थानों या शिक्षकों द्वारा प्रबंधित की जाती है। छात्र डेटा जमा करने से पहले आवश्यक अभिभावक सहमति लेना उनकी जिम्मेदारी है।' },
       { title: '8. डेटा हटाना और अकाउंट बंद करना', icon: 'delete-outline', content: 'आप सपोर्ट से संपर्क करके अकाउंट बंद करने या डेटा हटाने का अनुरोध कर सकते हैं। अनुरोधों को कानूनी और अनुपालन नियमों के अनुसार संसाधित किया जाएगा।' },
-      { title: '9. संपर्क करें', icon: 'email-outline', content: 'गोपनीयता या डेटा संबंधी अनुरोधों के लिए securestepsai@gmail.com पर संपर्क करें। कार्यालय का पता: बी-251, सेक्टर 19, नोएडा, यूपी 201301, भारत।' },
+      { title: '9. पुश सूचनाएं और डिवाइस मैसेजिंग', icon: 'bell-ring-outline', content: 'पैरेंट ऐप उपस्थिति से जुड़े अलर्ट पुश सूचनाओं (जैसे Firebase Cloud Messaging) के जरिए भेज सकता है। यदि आप डिवाइस पर सूचनाएं अनुमति देते हैं, तो आपका संस्थान उपस्थिति अपडेट होने पर संदेश भेज सकता है। हम आपके पैरेंट खाते से जुड़ा डिवाइस पुश टोकन संग्रहीत कर सकते हैं ताकि सेवा आपके डिवाइस तक पहुंच सके। संदेश ऐप में अलर्ट दिखाने के लिए उपयोग होते हैं; आप कभी भी डिवाइस सेटिंग्स में सूचनाएं बंद कर सकते हैं।' },
+      { title: '10. वॉइस घोषणाएं (वैकल्पिक)', icon: 'volume-high', content: 'प्रोफाइल में वैकल्पिक वॉइस घोषणाएं चालू करने पर ऐप आपके डिवाइस के अंतर्निहित टेक्स्ट-टू-स्पीच का उपयोग करके उपस्थिति संदेशों को जोर से पढ़ सकता है (उदाहरण जब अग्रभूमि में सूचना आती है)। यह ऑन-डिवाइस प्लेबैक है; हम इस सुविधा के लिए आपकी आवाज़ की रिकॉर्डिंग एकत्र या संग्रहीत नहीं करते। आप प्रोफाइल से कभी भी वॉइस घोषणाएं बंद कर सकते हैं।' },
+      { title: '11. संपर्क करें', icon: 'email-outline', content: 'गोपनीयता या डेटा संबंधी अनुरोधों के लिए securestepsai@gmail.com पर संपर्क करें। कार्यालय का पता: बी-251, सेक्टर 19, नोएडा, यूपी 201301, भारत।' },
     ],
   },
   bn: {
@@ -595,14 +895,16 @@ export const PRIVACY_PAGE: Record<AppLanguage, {
     contactButton: 'প্রশ্ন আছে? আমাদের ইমেল করুন',
     sections: [
       { title: '1. পরিচিতি', icon: 'information-outline', content: 'EduForest আপনার গোপনীয়তাকে সম্মান করে এবং অ্যাপ ও সংশ্লিষ্ট পরিষেবা ব্যবহারের সময় আপনার ব্যক্তিগত তথ্য সুরক্ষিত রাখতে সচেষ্ট।' },
-      { title: '2. আমরা কোন তথ্য সংগ্রহ করি', icon: 'database-outline', content: 'আমরা পরিচয়সংক্রান্ত তথ্য, যোগাযোগের তথ্য, শিক্ষার্থীর রেকর্ড, প্রোফাইল সেটিংস, ডিভাইসের প্রযুক্তিগত তথ্য এবং পরিষেবা ব্যবহারের তথ্য সংগ্রহ করতে পারি।' },
-      { title: '3. আপনার তথ্য কীভাবে ব্যবহার করি', icon: 'briefcase-check-outline', content: 'এই তথ্য শিক্ষাপ্রশাসন সম্পর্কিত সুবিধা দেওয়া, অ্যাকাউন্ট রক্ষণাবেক্ষণ, পরিষেবার নিরাপত্তা, আইনি সম্মতি এবং পণ্যের উন্নতির জন্য ব্যবহার করা হয়।' },
+      { title: '2. আমরা কোন তথ্য সংগ্রহ করি', icon: 'database-outline', content: 'আমরা পরিচয়সংক্রান্ত তথ্য, যোগাযোগের তথ্য, শিক্ষার্থীর রেকর্ড, প্রোফাইল সেটিংস, ডিভাইসের প্রযুক্তিগত তথ্য এবং পরিষেবা ব্যবহারের তথ্য সংগ্রহ করতে পারি। প্যারেন্ট অ্যাপের জন্য এর মধ্যে আপনার অ্যাকাউন্টের সাথে যুক্ত মোবাইল পুশ টোকেন (FCM) থাকতে পারে যাতে আপনি যে উপস্থিতি-সম্পর্কিত বিজ্ঞপ্তি পেতে চান সেগুলো পাঠানো যায়।' },
+      { title: '3. আপনার তথ্য কীভাবে ব্যবহার করি', icon: 'briefcase-check-outline', content: 'এই তথ্য শিক্ষাপ্রশাসন সম্পর্কিত সুবিধা দেওয়া, অ্যাকাউন্ট রক্ষণাবেক্ষণ, পরিষেবার নিরাপত্তা, আইনি সম্মতি এবং পণ্যের উন্নতির জন্য ব্যবহার করা হয়। প্যারেন্ট অ্যাপের জন্য, ডিভাইসে বিজ্ঞপ্তি চালু থাকলে উপস্থিতি-সম্পর্কিত পুশ বিজ্ঞপ্তি পাঠাতে আপনার অ্যাকাউন্ট ও ডিভাইস টোকেনও প্রয়োজনীয় মতো ব্যবহার করা হতে পারে।' },
       { title: '4. তথ্যের নিরাপত্তা', icon: 'shield-lock-outline', content: 'অননুমোদিত প্রবেশ, অপব্যবহার, পরিবর্তন বা প্রকাশের ঝুঁকি কমাতে আমরা যুক্তিসঙ্গত প্রযুক্তিগত ও সাংগঠনিক ব্যবস্থা গ্রহণ করি।' },
       { title: '5. তথ্য সংরক্ষণের মেয়াদ', icon: 'clock-time-three-outline', content: 'পরিষেবা প্রদান, আইনি বাধ্যবাধকতা, বিরোধ নিষ্পত্তি, নিরাপত্তা এবং পরিচালনাগত ধারাবাহিকতার জন্য যতদিন প্রয়োজন ততদিন তথ্য সংরক্ষণ করা হয়।' },
       { title: '6. আপনার আইনি অধিকার', icon: 'scale-balance', content: 'প্রযোজ্য আইন অনুযায়ী আপনি আপনার ব্যক্তিগত তথ্য অ্যাক্সেস, সংশোধন, মুছে ফেলা, সীমাবদ্ধ করা, আপত্তি, স্থানান্তরযোগ্যতা বা সম্মতি প্রত্যাহারের অনুরোধ করতে পারেন।' },
       { title: '7. শিশুদের গোপনীয়তা', icon: 'account-child-outline', content: 'শিক্ষার্থীর তথ্য অনুমোদিত প্রতিষ্ঠান বা শিক্ষকেরা পরিচালনা করেন। শিক্ষার্থীর তথ্য জমা দেওয়ার আগে প্রয়োজনীয় অভিভাবক সম্মতি নেওয়া তাদের দায়িত্ব।' },
       { title: '8. তথ্য মুছে ফেলা ও অ্যাকাউন্ট বন্ধ', icon: 'delete-outline', content: 'সাপোর্টে যোগাযোগ করে আপনি অ্যাকাউন্ট বন্ধ বা তথ্য মুছে ফেলার অনুরোধ করতে পারেন। অনুরোধগুলি আইনি ও কমপ্লায়েন্স নিয়ম অনুযায়ী প্রক্রিয়াকরণ করা হবে।' },
-      { title: '9. যোগাযোগ করুন', icon: 'email-outline', content: 'গোপনীয়তা বা তথ্যসংক্রান্ত অনুরোধের জন্য securestepsai@gmail.com-এ যোগাযোগ করুন। অফিসের ঠিকানা: বি-251, সেক্টর 19, নয়ডা, ইউপি 201301, ভারত।' },
+      { title: '9. পুশ বিজ্ঞপ্তি ও ডিভাইস মেসেজিং', icon: 'bell-ring-outline', content: 'প্যারেন্ট অ্যাপ উপস্থিতি-সম্পর্কিত সতর্কতা পুশ বিজ্ঞপ্তির মাধ্যমে পাঠাতে পারে (যেমন Firebase Cloud Messaging)। আপনি ডিভাইসে বিজ্ঞপ্তির অনুমতি দিলে আপনার প্রতিষ্ঠান উপস্থিতি আপডেট হলে বার্তা পাঠাতে পারে। আমরা আপনার প্যারেন্ট অ্যাকাউন্টের সাথে যুক্ত ডিভাইস পুশ টোকেন সংরক্ষণ করতে পারি যাতে সেবা আপনার ডিভাইসে পৌঁছাতে পারে। বার্তাগুলো অ্যাপে সতর্কতা দেখানোর জন্য ব্যবহৃত হয়; আপনি যেকোনো সময় ডিভাইস সেটিংসে বিজ্ঞপ্তি বন্ধ করতে পারেন।' },
+      { title: '10. ভয়েস ঘোষণা (ঐচ্ছিক)', icon: 'volume-high', content: 'প্রোফাইলে ঐচ্ছিক ভয়েস ঘোষণা চালু করলে অ্যাপ আপনার ডিভাইসের অন্তর্নির্মিত টেক্সট-টু-স্পিচ ব্যবহার করে উপস্থিতি বার্তা জোরে পড়তে পারে (যেমন অ্যাপটি অগ্রভাগে থাকাকালীন বিজ্ঞপ্তি এলে)। এটি ডিভাইসে প্লেব্যাক; এই বৈশিষ্ট্যের জন্য আমরা আপনার কণ্ঠের রেকর্ড সংগ্রহ বা সংরক্ষণ করি না। আপনি যেকোনো সময় প্রোফাইল থেকে ভয়েস ঘোষণা বন্ধ করতে পারেন।' },
+      { title: '11. যোগাযোগ করুন', icon: 'email-outline', content: 'গোপনীয়তা বা তথ্যসংক্রান্ত অনুরোধের জন্য securestepsai@gmail.com-এ যোগাযোগ করুন। অফিসের ঠিকানা: বি-251, সেক্টর 19, নয়ডা, ইউপি 201301, ভারত।' },
     ],
   },
   ta: {
@@ -612,14 +914,16 @@ export const PRIVACY_PAGE: Record<AppLanguage, {
     contactButton: 'கேள்விகள் உள்ளனவா? எங்களுக்கு மின்னஞ்சல் செய்யவும்',
     sections: [
       { title: '1. அறிமுகம்', icon: 'information-outline', content: 'EduForest உங்கள் தனியுரிமையை மதிக்கிறது; பயன்பாடு மற்றும் தொடர்புடைய சேவைகளை பயன்படுத்தும் போது உங்கள் தனிப்பட்ட தகவலை பாதுகாக்க முயற்சிக்கிறது.' },
-      { title: '2. எங்கள் தகவல் சேகரிப்பு', icon: 'database-outline', content: 'அடையாளத் தகவல், தொடர்பு விவரங்கள், மாணவர் பதிவுகள், சுயவிவர அமைப்புகள், சாதனத்தின் தொழில்நுட்ப தகவல் மற்றும் சேவை பயன்பாட்டு விவரங்கள் போன்றவை சேகரிக்கப்படலாம்.' },
-      { title: '3. உங்கள் தகவல் எவ்வாறு பயன்படுத்தப்படுகிறது', icon: 'briefcase-check-outline', content: 'இந்த தகவல் கல்வி நிர்வாக வசதிகள் வழங்க, கணக்கை பராமரிக்க, சேவையின் பாதுகாப்பை உறுதி செய்ய, சட்ட பின்பற்றலை மேற்கொள்ள மற்றும் தயாரிப்பை மேம்படுத்த பயன்படுத்தப்படுகிறது.' },
+      { title: '2. எங்கள் தகவல் சேகரிப்பு', icon: 'database-outline', content: 'அடையாளத் தகவல், தொடர்பு விவரங்கள், மாணவர் பதிவுகள், சுயவிவர அமைப்புகள், சாதனத்தின் தொழில்நுட்ப தகவல் மற்றும் சேவை பயன்பாட்டு விவரங்கள் போன்றவை சேகரிக்கப்படலாம். பெற்றோர் செயலிக்கு, நீங்கள் பெற விரும்பும் வருகை தொடர்பான அறிவிப்புகளை அனுப்ப உங்கள் கணக்குடன் இணைக்கப்பட்ட மொபைல் புஷ் டோக்கன் (FCM) அடங்கலாம்.' },
+      { title: '3. உங்கள் தகவல் எவ்வாறு பயன்படுத்தப்படுகிறது', icon: 'briefcase-check-outline', content: 'இந்த தகவல் கல்வி நிர்வாக வசதிகள் வழங்க, கணக்கை பராமரிக்க, சேவையின் பாதுகாப்பை உறுதி செய்ய, சட்ட பின்பற்றலை மேற்கொள்ள மற்றும் தயாரிப்பை மேம்படுத்த பயன்படுத்தப்படுகிறது. பெற்றோர் செயலிக்கு, சாதனத்தில் அறிவிப்புகளை இயக்கியிருக்கும்போது வருகை தொடர்பான புஷ் அறிவிப்புகளை அனுப்ப உங்கள் கணக்கு மற்றும் சாதன டோக்கனும் தேவைப்படுமாறு பயன்படுத்தப்படலாம்.' },
       { title: '4. தகவல் பாதுகாப்பு', icon: 'shield-lock-outline', content: 'அனுமதியற்ற அணுகல், தவறான பயன்பாடு, மாற்றம் அல்லது வெளியீட்டை குறைக்க நியாயமான தொழில்நுட்ப மற்றும் அமைப்புசார்ந்த நடவடிக்கைகள் எடுக்கப்படுகின்றன.' },
       { title: '5. தகவல் பாதுகாப்பு காலம்', icon: 'clock-time-three-outline', content: 'சேவை வழங்கல், சட்டப் பொறுப்புகள், பிரச்சினை தீர்வு, பாதுகாப்பு மற்றும் செயல்பாட்டு தொடர்ச்சிக்கு தேவையான அளவு காலம் தகவல் வைத்திருக்கப்படுகிறது.' },
       { title: '6. உங்கள் சட்ட உரிமைகள்', icon: 'scale-balance', content: 'பொருந்தும் சட்டத்தின்படி உங்கள் தனிப்பட்ட தகவலை அணுக, திருத்த, நீக்க, கட்டுப்படுத்த, எதிர்ப்பு தெரிவிக்க, மாற்றிக்கொள்ள அல்லது ஒப்புதலை திரும்பப் பெற கோரலாம்.' },
       { title: '7. குழந்தைகளின் தனியுரிமை', icon: 'account-child-outline', content: 'மாணவர் தகவல்கள் அங்கீகரிக்கப்பட்ட நிறுவனம் அல்லது ஆசிரியர்களால் நிர்வகிக்கப்படுகின்றன. மாணவர் தகவலை சமர்ப்பிப்பதற்கு முன் தேவையான பாதுகாவலர் ஒப்புதலை பெறுவது அவர்களின் பொறுப்பு.' },
       { title: '8. தகவல் நீக்கம் மற்றும் கணக்கு மூடல்', icon: 'delete-outline', content: 'ஆதரவுத் அணியை தொடர்பு கொண்டு கணக்கை மூடவோ தகவலை நீக்கவோ கோரலாம். கோரிக்கைகள் சட்ட மற்றும் இணக்கப்பாட்டு விதிகளின்படி செயலாக்கப்படும்.' },
-      { title: '9. எங்களை தொடர்பு கொள்ளவும்', icon: 'email-outline', content: 'தனியுரிமை அல்லது தகவல் தொடர்பான கோரிக்கைகளுக்கு securestepsai@gmail.com-ஐ தொடர்பு கொள்ளவும். அலுவலக முகவரி: பி-251, செக்டர் 19, நொய்டா, யுபி 201301, இந்தியா.' },
+      { title: '9. புஷ் அறிவிப்புகள் மற்றும் சாதன செய்தியனுப்பு', icon: 'bell-ring-outline', content: 'பெற்றோர் செயலி வருகை தொடர்பான எச்சரிக்கைகளை புஷ் அறிவிப்புகள் வழியாக அனுப்பலாம் (எ.கா. Firebase Cloud Messaging). சாதனத்தில் அறிவிப்புகளை அனுமதித்தால், வருகை புதுப்பிக்கப்படும்போது உங்கள் நிறுவனம் செய்திகளை அனுப்பலாம். சேவை உங்கள் சாதனத்தை அடைய உங்கள் பெற்றோர் கணக்குடன் இணைக்கப்பட்ட புஷ் டோக்கனை நாங்கள் சேமிக்கலாம். செய்திகள் செயலியில் எச்சரிக்கைகளை காட்ட பயன்படுகின்றன; சாதன அமைப்புகளில் எப்போதும் அறிவிப்புகளை முடக்கலாம்.' },
+      { title: '10. குரல் அறிவிப்புகள் (விருப்பம்)', icon: 'volume-high', content: 'சுயவிவரத்தில் விருப்ப குரல் அறிவிப்புகளை இயக்கினால், செயலி முன்புறத்தில் இருக்கும்போது (எ.கா. அறிவிப்பு வரும்போது) உங்கள் சாதனத்தின் உள்ளமைக்கப்பட்ட உரை-குரல் மூலம் வருகை செய்திகளை உரக்க படிக்கலாம். இது சாதனத்திலேயே இயக்கம்; இந்த வசதிக்கு உங்கள் குரல் பதிவுகளை நாங்கள் சேகரிக்கவோ சேமிக்கவோ மாட்டோம். சுயவிவரத்தில் எப்போதும் குரல் அறிவிப்புகளை முடக்கலாம்.' },
+      { title: '11. எங்களை தொடர்பு கொள்ளவும்', icon: 'email-outline', content: 'தனியுரிமை அல்லது தகவல் தொடர்பான கோரிக்கைகளுக்கு securestepsai@gmail.com-ஐ தொடர்பு கொள்ளவும். அலுவலக முகவரி: பி-251, செக்டர் 19, நொய்டா, யுபி 201301, இந்தியா.' },
     ],
   },
 };
@@ -646,7 +950,8 @@ export const TERMS_PAGE: Record<AppLanguage, {
       { title: '7. Student Data and Educational Records', icon: 'school-outline', content: 'You are responsible for having authority to collect and manage student information and for complying with applicable data protection obligations.' },
       { title: '8. Limitation of Liability', icon: 'gavel', content: 'EduForest is not responsible for indirect losses, outages, or issues beyond reasonable operational control.' },
       { title: '9. Termination', icon: 'account-remove-outline', content: 'We may suspend or terminate access for misuse, harmful conduct, policy violations, or other justified reasons. You may also request closure of your account.' },
-      { title: '10. Contact Us', icon: 'email-outline', content: 'For complaints or clarification, contact securestepsai@gmail.com. Office address: B-251, Sector 19, Noida, UP 201301, India.' },
+      { title: '10. Notifications and voice (Parent app)', icon: 'bell-ring-outline', content: 'If you use the EduForest Parent app, you may receive push notifications about your child’s attendance when your device allows it and when your institute sends updates. Optional voice announcements use your device’s text-to-speech to read messages aloud while you use the app; you control this in Profile. You may withdraw notification consent in your device settings; voice can be turned off in the app at any time.' },
+      { title: '11. Contact Us', icon: 'email-outline', content: 'For complaints or clarification, contact securestepsai@gmail.com. Office address: B-251, Sector 19, Noida, UP 201301, India.' },
     ],
   },
   hi: {
@@ -664,7 +969,8 @@ export const TERMS_PAGE: Record<AppLanguage, {
       { title: '7. छात्र डेटा और शैक्षणिक अभिलेख', icon: 'school-outline', content: 'छात्र जानकारी एकत्र और प्रबंधित करने का उचित अधिकार होना तथा डेटा सुरक्षा से जुड़ी जिम्मेदारियों का पालन करना आपकी जिम्मेदारी है।' },
       { title: '8. दायित्व की सीमा', icon: 'gavel', content: 'अप्रत्यक्ष हानि, सेवा बाधा या हमारे उचित नियंत्रण से बाहर की समस्याओं के लिए EduForest जिम्मेदार नहीं होगा।' },
       { title: '9. समाप्ति', icon: 'account-remove-outline', content: 'दुरुपयोग, हानिकारक आचरण, नीति उल्लंघन या अन्य उचित कारणों पर पहुंच निलंबित या समाप्त की जा सकती है। आप अकाउंट बंद करने का अनुरोध भी कर सकते हैं।' },
-      { title: '10. संपर्क करें', icon: 'email-outline', content: 'शिकायत या जानकारी के लिए securestepsai@gmail.com पर संपर्क करें। कार्यालय का पता: बी-251, सेक्टर 19, नोएडा, यूपी 201301, भारत।' },
+      { title: '10. सूचनाएं और वॉइस (पैरेंट ऐप)', icon: 'bell-ring-outline', content: 'यदि आप EduForest पैरेंट ऐप का उपयोग करते हैं, तो जब आपका डिवाइस अनुमति देता है और आपका संस्थान अपडेट भेजता है, तो आपको अपने बच्चे की उपस्थिति के बारे में पुश सूचनाएं मिल सकती हैं। वैकल्पिक वॉइस घोषणाएं ऐप उपयोग के दौरान संदेशों को जोर से पढ़ने के लिए आपके डिवाइस के टेक्स्ट-टू-स्पीच का उपयोग करती हैं; इसे प्रोफाइल में नियंत्रित किया जाता है। आप डिवाइस सेटिंग्स में सूचना सहमति वापस ले सकते हैं; वॉइस को कभी भी ऐप में बंद किया जा सकता है।' },
+      { title: '11. संपर्क करें', icon: 'email-outline', content: 'शिकायत या जानकारी के लिए securestepsai@gmail.com पर संपर्क करें। कार्यालय का पता: बी-251, सेक्टर 19, नोएडা, यूपी 201301, भारत।' },
     ],
   },
   bn: {
@@ -682,7 +988,8 @@ export const TERMS_PAGE: Record<AppLanguage, {
       { title: '7. শিক্ষার্থীর তথ্য ও শিক্ষাবিষয়ক রেকর্ড', icon: 'school-outline', content: 'শিক্ষার্থীর তথ্য সংগ্রহ ও পরিচালনার যথাযথ অধিকার থাকা এবং তথ্য সুরক্ষা-সংক্রান্ত দায়িত্ব পালন করা আপনার দায়িত্ব।' },
       { title: '8. দায়বদ্ধতার সীমা', icon: 'gavel', content: 'পরোক্ষ ক্ষতি, পরিষেবা বিঘ্ন বা আমাদের যুক্তিসঙ্গত নিয়ন্ত্রণের বাইরে থাকা সমস্যার জন্য EduForest দায়ী নয়।' },
       { title: '9. সমাপ্তি', icon: 'account-remove-outline', content: 'অপব্যবহার, ক্ষতিকর আচরণ, নীতি লঙ্ঘন বা অন্য যৌক্তিক কারণে অ্যাক্সেস স্থগিত বা বন্ধ করা হতে পারে। আপনি অ্যাকাউন্ট বন্ধ করার অনুরোধও করতে পারেন।' },
-      { title: '10. যোগাযোগ করুন', icon: 'email-outline', content: 'অভিযোগ বা তথ্যের জন্য securestepsai@gmail.com-এ যোগাযোগ করুন। অফিসের ঠিকানা: বি-251, সেক্টর 19, নয়ডা, ইউপি 201301, ভারত।' },
+      { title: '10. বিজ্ঞপ্তি ও ভয়েস (প্যারেন্ট অ্যাপ)', icon: 'bell-ring-outline', content: 'আপনি EduForest প্যারেন্ট অ্যাপ ব্যবহার করলে, ডিভাইস অনুমতি দিলে এবং প্রতিষ্ঠান আপডেট পাঠালে আপনার সন্তানের উপস্থিতি সম্পর্কে পুশ বিজ্ঞপ্তি পেতে পারেন। ঐচ্ছিক ভয়েস ঘোষণা অ্যাপ ব্যবহারের সময় বার্তা জোরে পড়তে ডিভাইসের টেক্সট-টু-স্পিচ ব্যবহার করে; এটি প্রোফাইলে নিয়ন্ত্রিত হয়। ডিভাইস সেটিংসে বিজ্ঞপ্তি সম্মতি প্রত্যাহার করতে পারেন; ভয়েস যেকোনো সময় অ্যাপে বন্ধ করা যায়।' },
+      { title: '11. যোগাযোগ করুন', icon: 'email-outline', content: 'অভিযোগ বা তথ্যের জন্য securestepsai@gmail.com-এ যোগাযোগ করুন। অফিসের ঠিকানা: বি-251, সেক্টর 19, নয়ডা, ইউপি 201301, ভারত।' },
     ],
   },
   ta: {
@@ -700,7 +1007,8 @@ export const TERMS_PAGE: Record<AppLanguage, {
       { title: '7. மாணவர் தகவல் மற்றும் கல்வி பதிவுகள்', icon: 'school-outline', content: 'மாணவர் தகவலை சேகரித்து நிர்வகிக்கும் உரிய அதிகாரமும், தகவல் பாதுகாப்பு கடமைகளை பின்பற்றுவதும் உங்கள் பொறுப்பாகும்.' },
       { title: '8. பொறுப்பின் வரம்பு', icon: 'gavel', content: 'மறைமுக இழப்புகள், சேவை தடைகள் அல்லது எங்கள் நியாயமான கட்டுப்பாட்டிற்கு அப்பாற்பட்ட பிரச்சினைகளுக்கு EduForest பொறுப்பல்ல.' },
       { title: '9. நிறுத்தல்', icon: 'account-remove-outline', content: 'தவறான பயன்பாடு, தீங்கான நடத்தை, கொள்கை மீறல் அல்லது வேறு நியாயமான காரணங்களுக்காக அணுகலை இடைநிறுத்தவோ நிறுத்தவோ முடியும். கணக்கை மூடுவதற்கும் நீங்கள் கோரலாம்.' },
-      { title: '10. எங்களை தொடர்பு கொள்ளவும்', icon: 'email-outline', content: 'புகார்கள் அல்லது விளக்கங்களுக்கு securestepsai@gmail.com-ஐ தொடர்பு கொள்ளவும். அலுவலக முகவரி: பி-251, செக்டர் 19, நொய்டா, யுபி 201301, இந்தியா.' },
+      { title: '10. அறிவிப்புகள் மற்றும் குரல் (பெற்றோர் செயலி)', icon: 'bell-ring-outline', content: 'EduForest பெற்றோர் செயலியைப் பயன்படுத்தும்போது, சாதனம் அனுமதித்தாலும் உங்கள் நிறுவனம் புதுப்பிப்புகளை அனுப்பும்போதும் உங்கள் குழந்தையின் வருகை தொடர்பான புஷ் அறிவிப்புகளைப் பெறலாம். விருப்ப குரல் அறிவிப்புகள் செயலியைப் பயன்படுத்தும்போது செய்திகளை உரக்கப் படிக்க சாதனத்தின் உரை-குரலைப் பயன்படுகின்றன; இது சுயவிவரத்தில் கட்டுப்படுத்தப்படுகிறது. சாதன அமைப்புகளில் அறிவிப்பு ஒப்புதலைத் திரும்பப் பெறலாம்; குரலை எப்போதும் செயலியில் முடக்கலாம்.' },
+      { title: '11. எங்களை தொடர்பு கொள்ளவும்', icon: 'email-outline', content: 'புகார்கள் அல்லது விளக்கங்களுக்கு securestepsai@gmail.com-ஐ தொடர்பு கொள்ளவும். அலுவலக முகவரி: பி-251, செக்டர் 19, நொய்டா, யுபி 201301, இந்தியா.' },
     ],
   },
 };
