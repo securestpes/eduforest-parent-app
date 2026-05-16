@@ -2,12 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-
-function greetingLine(hour: number): string {
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
-}
+import { useAppLanguage } from '../../common';
 
 export function GreetingHeader({
   nameHint,
@@ -17,17 +12,20 @@ export function GreetingHeader({
   subtitle?: string;
 }) {
   const theme = useTheme();
+  const { t } = useAppLanguage();
   const { line, sub } = useMemo(() => {
     const hour = new Date().getHours();
+    const greetingLine =
+      hour < 12 ? t('greeting.morning') : hour < 17 ? t('greeting.afternoon') : t('greeting.evening');
     return {
-      line: greetingLine(hour),
+      line: greetingLine,
       sub:
         subtitle ??
         (nameHint
-          ? `Stay close to ${nameHint.split(' ')[0]}’s learning journey`
-          : 'Your family’s school updates in one place'),
+          ? t('greeting.subtitleWithName', { name: nameHint.split(' ')[0] })
+          : t('greeting.subtitleDefault')),
     };
-  }, [nameHint, subtitle]);
+  }, [nameHint, subtitle, t]);
 
   return (
     <View style={styles.wrap}>
@@ -39,7 +37,7 @@ export function GreetingHeader({
           {line}
         </Text>
         <Text variant="headlineSmall" style={[styles.title, { color: theme.colors.onBackground }]}>
-          EduForest Parent
+          {t('branding.appTitle')}
         </Text>
         <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
           {sub}

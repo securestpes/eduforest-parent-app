@@ -44,6 +44,12 @@ export async function getMe(): Promise<ApiEnvelope> {
   return data;
 }
 
+/** Soft-deletes the parent account on the server (sets {@code is_active} false, deactivates FCM tokens). */
+export async function deleteMyAccount(): Promise<ApiEnvelope> {
+  const { data } = await api.delete<ApiEnvelope>(`${prefix}/me`);
+  return data;
+}
+
 export async function getMyStudents(): Promise<
   ApiEnvelope & { data?: ParentStudent[] }
 > {

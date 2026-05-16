@@ -1,6 +1,6 @@
 import type { IApiResponse } from '../../../common/interfaces';
 import type { IUser } from '../../login/interfaces';
-import { getMe } from '../../../src/services/parent';
+import { deleteMyAccount as deleteParentAccountApi, getMe } from '../../../src/services/parent';
 
 /** JWT `sub` is `p` + parent id for EduForest Parent; `/parent/me` uses numeric `id`. */
 function parseParentNumericId(raw: unknown): number {
@@ -53,6 +53,17 @@ export class ParentProfileService {
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       throw new Error(`Fetch user failed: ${msg}`);
+    }
+  }
+
+  /** Soft-delete parent account (server marks parent and FCM tokens inactive). */
+  public static async deleteMyAccount(): Promise<IApiResponse> {
+    try {
+      const response = await deleteParentAccountApi();
+      return response as IApiResponse;
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Delete account failed: ${msg}`);
     }
   }
 }

@@ -4,6 +4,7 @@ export * from './constants';
 export * from './contexts';
 export * from './helpers/networkHelper';
 export * from './helpers/firebaseErrorHandler';
+export * from './helpers/notificationHelper';
 export * from './hooks/useNetworkError';
 export * from './interfaces';
 export * from './services/authClient';

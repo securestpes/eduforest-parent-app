@@ -32,18 +32,24 @@ import {
 } from '../utils/attendanceHistory';
 import type { MainTabParamList } from '../navigation/MainTabs';
 import type { AppTheme } from '../../theme';
+import { useAppLanguage, type TranslationKey } from '../../common';
 
-function statusLabel(kind: ReturnType<typeof kindFromStatus>, raw: string): string {
-  if (kind === 'present') return 'PRESENT';
-  if (kind === 'absent') return 'ABSENT';
-  if (kind === 'late') return 'LATE';
+function statusLabel(
+  kind: ReturnType<typeof kindFromStatus>,
+  raw: string,
+  t: (key: TranslationKey, params?: Record<string, string | number | undefined>) => string
+): string {
+  if (kind === 'present') return t('attendance.status.present');
+  if (kind === 'absent') return t('attendance.status.absent');
+  if (kind === 'late') return t('attendance.status.late');
   return raw.toUpperCase();
 }
 
 function SessionCard({ row, theme }: { row: ParentAttendanceRow; theme: AppTheme }) {
+  const { t } = useAppLanguage();
   const kind = kindFromStatus(row.status);
-  const label = statusLabel(kind, row.status);
-  const timeRange = `${row.startTime?.slice(0, 5) ?? '—'} – ${row.endTime?.slice(0, 5) ?? '—'}`;
+  const label = statusLabel(kind, row.status, t);
+  const timeRange = `${row.startTime?.slice(0, 5) ?? t('common.dash')} – ${row.endTime?.slice(0, 5) ?? t('common.dash')}`;
   const headerBg =
     kind === 'present' ? '#DCFCE7' : kind === 'absent' ? '#FEE2E2' : kind === 'late' ? '#FEF3C7' : theme.colors.surfaceVariant;
   const headerFg =
@@ -65,14 +71,14 @@ function SessionCard({ row, theme }: { row: ParentAttendanceRow; theme: AppTheme
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 6, flex: 1 }}>
             {timeRange}
             <Text style={{ color: theme.colors.outline }}> · </Text>
-            <Text style={{ color: theme.colors.onSurfaceVariant }}>Session</Text>
+            <Text style={{ color: theme.colors.onSurfaceVariant }}>{t('attendance.session')}</Text>
           </Text>
         </View>
         {kind === 'absent' ? (
           <View style={styles.infoRow}>
             <MaterialCommunityIcons name="information-outline" size={16} color={theme.colors.onSurfaceVariant} />
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 6, flex: 1 }}>
-              No check-in recorded
+              {t('attendance.noCheckIn')}
             </Text>
           </View>
         ) : null}
@@ -80,7 +86,7 @@ function SessionCard({ row, theme }: { row: ParentAttendanceRow; theme: AppTheme
           <View style={styles.warnRow}>
             <MaterialCommunityIcons name="alert-outline" size={16} color={theme.colors.warning} />
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 6, flex: 1 }}>
-              Marked late for this session
+              {t('attendance.markedLate')}
             </Text>
           </View>
         ) : null}
@@ -88,7 +94,7 @@ function SessionCard({ row, theme }: { row: ParentAttendanceRow; theme: AppTheme
           <View style={styles.infoRow}>
             <MaterialCommunityIcons name="check-circle-outline" size={16} color={theme.colors.success} />
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 6, flex: 1 }}>
-              Recorded for this class slot
+              {t('attendance.recordedPresent')}
             </Text>
           </View>
         ) : null}
@@ -106,6 +112,7 @@ function MonthSummaryBanner({
   stats: ReturnType<typeof monthSessionStats>;
   theme: AppTheme;
 }) {
+  const { t } = useAppLanguage();
   const mon = format(monthAnchor, 'MMM').toUpperCase();
   const yr = format(monthAnchor, 'yyyy');
   return (
@@ -120,22 +127,22 @@ function MonthSummaryBanner({
       </View>
       <View style={styles.summaryRight}>
         <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: '700' }}>
-          Summary: {stats.pctPresent}% Present this month
+          {t('attendance.summaryPresentMonth', { pct: stats.pctPresent })}
         </Text>
         <View style={styles.summaryChips}>
           <View style={[styles.miniChip, { backgroundColor: '#DCFCE7' }]}>
             <Text variant="labelSmall" style={{ color: theme.colors.success, fontWeight: '700' }}>
-              {stats.present} Present
+              {t('attendance.countPresent', { n: stats.present })}
             </Text>
           </View>
           <View style={[styles.miniChip, { backgroundColor: '#FEE2E2' }]}>
             <Text variant="labelSmall" style={{ color: theme.colors.error, fontWeight: '700' }}>
-              {stats.absent} Absent
+              {t('attendance.countAbsent', { n: stats.absent })}
             </Text>
           </View>
           <View style={[styles.miniChip, { backgroundColor: '#FEF3C7' }]}>
             <Text variant="labelSmall" style={{ color: theme.colors.warning, fontWeight: '700' }}>
-              {stats.late} Late
+              {t('attendance.countLate', { n: stats.late })}
             </Text>
           </View>
         </View>
@@ -144,16 +151,20 @@ function MonthSummaryBanner({
   );
 }
 
-const FILTER_OPTIONS: { key: AttendanceFilter; label: string }[] = [
-  { key: 'all', label: 'All statuses' },
-  { key: 'present', label: 'Present only' },
-  { key: 'absent', label: 'Absent only' },
-  { key: 'late', label: 'Late only' },
-];
-
 export function AttendanceScreen() {
   const theme = useTheme() as AppTheme;
+  const { t } = useAppLanguage();
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  const FILTER_OPTIONS = useMemo(
+    () =>
+      [
+        { key: 'all' as const, label: t('attendance.filterAll') },
+        { key: 'present' as const, label: t('attendance.filterPresentOnly') },
+        { key: 'absent' as const, label: t('attendance.filterAbsentOnly') },
+        { key: 'late' as const, label: t('attendance.filterLateOnly') },
+      ] satisfies { key: AttendanceFilter; label: string }[],
+    [t]
+  );
   const studentId = useSelectionStore((s) => s.selectedStudentId);
 
   const [student, setStudent] = useState<ParentStudent | null>(null);
@@ -188,16 +199,16 @@ export function AttendanceScreen() {
         setAllRows(attRes.data.content);
       } else {
         setAllRows([]);
-        setError(attRes.message || 'Could not load attendance.');
+        setError(attRes.message || t('attendance.couldNotLoad'));
       }
     } catch {
       setAllRows([]);
-      setError('Network error.');
+      setError(t('attendance.networkError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [studentId]);
+  }, [studentId, t]);
 
   useEffect(() => {
     load();
@@ -210,9 +221,9 @@ export function AttendanceScreen() {
 
   const batchSubtitle = useMemo(() => {
     if (!student) return '';
-    const b = student.batchNames?.length ? student.batchNames.join(' · ') : '—';
+    const b = student.batchNames?.length ? student.batchNames.join(' · ') : t('common.dash');
     return `${student.instituteName}  |  ${b}`;
-  }, [student]);
+  }, [student, t]);
 
   const monthChoices = useMemo(() => lastNMonthAnchors(12), []);
 
@@ -223,8 +234,8 @@ export function AttendanceScreen() {
           <View style={styles.center}>
             <EmptyState
               icon="gesture-tap"
-              title="Pick a student first"
-              message="Open the Home tab and select a child. Their attendance history will open here."
+              title={t('attendance.pickStudentTitle')}
+              message={t('attendance.pickStudentMessage')}
             />
           </View>
         </SafeAreaView>
@@ -239,7 +250,7 @@ export function AttendanceScreen() {
           <Pressable hitSlop={12} style={styles.backBtn} onPress={() => navigation.navigate('Home')}>
             <MaterialCommunityIcons name="arrow-left" size={22} color={theme.colors.onBackground} />
             <Text variant="labelLarge" style={{ color: theme.colors.primary, fontWeight: '700', marginLeft: 4 }}>
-              Home
+              {t('attendance.backHome')}
             </Text>
           </Pressable>
           <View style={styles.topActions}>
@@ -254,14 +265,14 @@ export function AttendanceScreen() {
 
         <View style={styles.titleBlock}>
           <Text variant="titleLarge" style={[styles.title, { color: theme.colors.onBackground }]} numberOfLines={2}>
-            {student?.name ?? 'Student'} · Attendance history
+            {t('attendance.historyTitle', { name: student?.name ?? t('common.student') })}
           </Text>
           <Text
             variant="bodyMedium"
             style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}
             numberOfLines={4}
           >
-            {batchSubtitle || 'Loading…'}
+            {batchSubtitle || t('common.loading')}
           </Text>
         </View>
 
@@ -285,7 +296,9 @@ export function AttendanceScreen() {
               <MonthSummaryBanner monthAnchor={focusMonth} stats={stats} theme={theme} />
               {filter !== 'all' ? (
                 <Text variant="labelMedium" style={{ color: theme.colors.primary, marginTop: 8 }}>
-                  Filter: {FILTER_OPTIONS.find((f) => f.key === filter)?.label}
+                  {t('attendance.filterActive', {
+                    label: FILTER_OPTIONS.find((f) => f.key === filter)?.label ?? '',
+                  })}
                 </Text>
               ) : null}
             </View>
@@ -298,12 +311,12 @@ export function AttendanceScreen() {
             ) : (
               <EmptyState
                 icon={error ? 'alert-circle-outline' : 'calendar-blank-outline'}
-                title={error ? 'Could not load' : 'No sessions this month'}
+                title={error ? t('attendance.emptyCouldNotLoad') : t('attendance.emptyNoSessions')}
                 message={
                   error ??
                   (filter !== 'all'
-                    ? 'Try changing the filter or pick another month.'
-                    : 'No attendance rows for this month yet. Pull to refresh or choose another month.')
+                    ? t('attendance.tryFilterOrMonth')
+                    : t('attendance.noRowsThisMonth'))
                 }
               />
             )
@@ -320,23 +333,20 @@ export function AttendanceScreen() {
           ListFooterComponent={
             <View style={styles.footer}>
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 10 }}>
-                Need to report an absence?
+                {t('attendance.reportAbsence')}
               </Text>
               <Button
                 mode="contained-tonal"
                 onPress={() =>
-                  Alert.alert(
-                    'Contact the institute',
-                    'Please message or call your school through the channels they have shared (office, class teacher, or parent group). This app does not route messages to teachers yet.'
-                  )
+                  Alert.alert(t('attendance.contactInstituteTitle'), t('attendance.contactInstituteMessage'))
                 }
                 icon="phone-outline"
               >
-                Contact teacher / school
+                {t('attendance.contactButton')}
               </Button>
               <View style={styles.legend}>
                 <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                  Legend: Present · Absent · Late
+                  {t('attendance.legend')}
                 </Text>
               </View>
             </View>
@@ -347,7 +357,7 @@ export function AttendanceScreen() {
           <Pressable style={styles.modalBackdrop} onPress={() => setFilterModal(false)}>
             <Pressable style={[styles.modalCard, { backgroundColor: theme.colors.surface }]} onPress={(e) => e.stopPropagation()}>
               <Text variant="titleMedium" style={{ fontWeight: '700', marginBottom: 12 }}>
-                Filter by status
+                {t('attendance.filterByStatus')}
               </Text>
               {FILTER_OPTIONS.map((opt) => (
                 <Pressable
@@ -369,7 +379,7 @@ export function AttendanceScreen() {
           <Pressable style={styles.modalBackdrop} onPress={() => setMonthModal(false)}>
             <Pressable style={[styles.modalCard, { backgroundColor: theme.colors.surface }]} onPress={(e) => e.stopPropagation()}>
               <Text variant="titleMedium" style={{ fontWeight: '700', marginBottom: 12 }}>
-                Jump to month
+                {t('attendance.jumpToMonth')}
               </Text>
               <ScrollView style={{ maxHeight: 360 }}>
                 {monthChoices.map((d) => {
