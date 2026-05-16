@@ -9,12 +9,14 @@
     "start:dev": "dotenv -e ./env/.env.development -- node -p \"process.env.API_URL\"",
     "start:prod": "dotenv -e ./env/.env.production -- npx expo start",
     "android": "dotenv -e ./env/.env.development -- npx expo run:android",
+    "android:prod": "dotenv -e ./env/.env.development -- npx expo run:android --variant=release",
     "ios": "dotenv -e ./env/.env.development -- npx expo run:ios",
     "web": "dotenv -e ./env/.env.development -- npx expo start --web"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.0.2",
+    "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-firebase/app": "^23.8.8",
@@ -28,7 +30,6 @@
     "date-fns": "^4.1.0",
     "expo": "^54.0.0",
     "expo-constants": "~18.0.8",
-    "expo-notifications": "~0.32.17",
     "expo-speech": "^55.0.13",
     "expo-status-bar": "~3.0.8",
     "jwt-decode": "^4.0.0",
