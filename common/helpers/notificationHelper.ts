@@ -3,6 +3,9 @@ import { localStorageKeys } from 'common/constants';
 import notifee, { AndroidImportance } from '@notifee/react-native';
 import * as Speech from 'expo-speech';
 import { FCM_ATTENDANCE_CHANNEL_ID } from '@/constants/fcmAndroid';
+import type { AppLanguage } from '../contexts/parentTranslations';
+import { buildLocalizedNotificationContent } from './attendanceNotificationBuilder';
+import { buildLocalizedVoiceMessage } from './voiceAnnouncementBuilder';
 
 export const isVoiceAnnouncementsEnabled = async () => {
   const raw = await AsyncStorage.getItem(
@@ -14,9 +17,8 @@ export const isVoiceAnnouncementsEnabled = async () => {
 
 const playVoiceAnnouncement = async (
   voiceMessage: string,
-  language?: string
+  ttsLocale: string
 ) => {
-  console.log('Language:', language);
   if (typeof voiceMessage === 'string' && voiceMessage.length > 0) {
     try {
       const enabled = await isVoiceAnnouncementsEnabled();
@@ -25,7 +27,7 @@ const playVoiceAnnouncement = async (
 
       if (enabled && !alreadySpeaking) {
         Speech.speak(voiceMessage, {
-          language,
+          language: ttsLocale,
           pitch: 0.95,
           rate: 0.82,
           volume: 1,
@@ -37,48 +39,70 @@ const playVoiceAnnouncement = async (
   }
 };
 
+function fcmDataAsStrings(
+  data: Record<string, string | object> | undefined
+): Record<string, string> | undefined {
+  if (!data) {
+    return undefined;
+  }
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value === 'string') {
+      out[key] = value;
+    } else if (value != null) {
+      out[key] = String(value);
+    }
+  }
+  return out;
+}
+
 export const displayNotification = async (
-  remoteMessage: any,
-  language?: string
+  remoteMessage: { data?: Record<string, string | object> },
+  language: AppLanguage = 'en'
 ) => {
-  const imageUrl = remoteMessage.data?.image;
+  const data = fcmDataAsStrings(remoteMessage.data);
+  const localizedPush = buildLocalizedNotificationContent(data, language);
   await notifee.displayNotification({
-    title: remoteMessage.data?.title ?? 'New Notification',
-
-    body: remoteMessage.data?.body ?? 'You have a new message',
-
-    data: remoteMessage.data,
-
+    title:
+      localizedPush?.title ??
+      data?.title ??
+      'New Notification',
+    body:
+      localizedPush?.body ??
+      data?.body ??
+      data?.short_message ??
+      'You have a new message',
+    data,
     android: {
       channelId: FCM_ATTENDANCE_CHANNEL_ID,
       importance: AndroidImportance.HIGH,
       smallIcon: 'ic_launcher',
-
       pressAction: {
         id: 'default',
         launchActivity: 'default',
       },
-
       sound: 'default',
-      // Small round image
-      // largeIcon: imageUrl,
-
-      // // Big expandable image
-      // style: imageUrl
-      //   ? {
-      //       type: AndroidStyle.BIGPICTURE,
-      //       picture: imageUrl,
-      //     }
-      //   : undefined,
     },
   });
 
-  if (remoteMessage.data?.voice_message) {
-    await playVoiceAnnouncement(remoteMessage.data.voice_message, language);
+  const shouldPlayVoice =
+    data?.play_voice?.toLowerCase() === 'true' || Boolean(data?.voice_message);
+
+  if (!shouldPlayVoice) {
+    return;
+  }
+
+  const localizedVoice = buildLocalizedVoiceMessage(data, language);
+
+  if (localizedVoice) {
+    await playVoiceAnnouncement(
+      localizedVoice,
+      mapNoticationLanguage(language)
+    );
   }
 };
 
-export const mapNoticationLanguage = (language: string) => {
+export const mapNoticationLanguage = (language: string): string => {
   if (language.startsWith('hi')) {
     return 'hi-IN';
   }
@@ -90,3 +114,16 @@ export const mapNoticationLanguage = (language: string) => {
   }
   return 'en-US';
 };
+
+export async function resolveStoredAppLanguage(): Promise<AppLanguage> {
+  const stored = await AsyncStorage.getItem(localStorageKeys.APP_LANGUAGE);
+  if (
+    stored === 'hi' ||
+    stored === 'bn' ||
+    stored === 'ta' ||
+    stored === 'en'
+  ) {
+    return stored;
+  }
+  return 'en';
+}

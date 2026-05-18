@@ -18,7 +18,7 @@ const packageJson = JSON.parse(
 );
 const appVersion = process.env.APP_VERSION || packageJson.version || '1.0.0';
 /** Android versionCode / iOS build number; bump each store release. */
-const appBuildNumber = process.env.APP_BUILD_NUMBER || '103';
+const appBuildNumber = process.env.APP_BUILD_NUMBER || '7';
 
 const config: ExpoConfig = {
   name: 'EduForest Parent',

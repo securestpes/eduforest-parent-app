@@ -17,8 +17,17 @@ class AttendanceFcmReceiver : BroadcastReceiver() {
 
     val extras = intent.extras ?: return
     val type = extras.getString("type") ?: ""
-    val title = extras.getString("title") ?: "Attendance Update"
-    val shortMessage = extras.getString("short_message") ?: "Attendance updated."
+    val language = AppLanguageStorage.get(context)
+    val englishTitle = extras.getString("title") ?: "Attendance Update"
+    val englishBody = extras.getString("short_message") ?: "Attendance updated."
+    val title = VoiceMessageBuilder.notificationTitle(language).ifBlank { englishTitle }
+    val body = VoiceMessageBuilder.notificationBody(
+      languageCode = language,
+      statusRaw = extras.getString("status"),
+      studentName = extras.getString("studentName") ?: extras.getString("child_name"),
+      timestampIso = extras.getString("timestamp"),
+      englishFallback = englishBody
+    ).ifBlank { englishBody }
     val playVoice = extras.getString("play_voice")?.equals("true", ignoreCase = true) ?: false
     val voiceMessage = extras.getString("voice_message")?.trim().orEmpty()
 
@@ -28,7 +37,7 @@ class AttendanceFcmReceiver : BroadcastReceiver() {
     val notification = NotificationCompat.Builder(context, "eduforest_attendance")
       .setSmallIcon(android.R.drawable.ic_dialog_info)
       .setContentTitle(title)
-      .setContentText(shortMessage)
+      .setContentText(body)
       .setAutoCancel(true)
       .setPriority(NotificationCompat.PRIORITY_HIGH)
       .setDefaults(NotificationCompat.DEFAULT_ALL)
@@ -36,9 +45,22 @@ class AttendanceFcmReceiver : BroadcastReceiver() {
     val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     nm.notify(Random.nextInt(100000, 999999), notification)
 
-    if (playVoice && voiceMessage.isNotBlank()) {
+    if (playVoice) {
+      val legacyText = listOfNotNull(
+        voiceMessage,
+        extras.getString("short_message"),
+        extras.getString("body")
+      ).joinToString(" ").trim()
+
       val serviceIntent = Intent(context, VoiceAnnouncementService::class.java).apply {
-        putExtra(VoiceAnnouncementService.EXTRA_MESSAGE, voiceMessage)
+        putExtra(VoiceAnnouncementService.EXTRA_MESSAGE, legacyText)
+        putExtra(VoiceAnnouncementService.EXTRA_STATUS, extras.getString("status"))
+        putExtra(
+          VoiceAnnouncementService.EXTRA_STUDENT_NAME,
+          extras.getString("studentName") ?: extras.getString("child_name")
+        )
+        putExtra(VoiceAnnouncementService.EXTRA_PARENT_TITLE, extras.getString("parent_title"))
+        putExtra(VoiceAnnouncementService.EXTRA_TIMESTAMP, extras.getString("timestamp"))
       }
       ContextCompat.startForegroundService(context, serviceIntent)
     }

@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { localStorageKeys } from '../constants';
+import { syncNativeAppLanguage } from '../helpers/syncNativeAppLanguage';
 import {
   type AppLanguage,
   parentTranslations,
@@ -60,6 +61,7 @@ export const AppLanguageProvider = ({ children }: { children: React.ReactNode })
           storedLanguage === 'ta'
         ) {
           setCurrentLanguage(storedLanguage);
+          syncNativeAppLanguage(storedLanguage);
         }
       } finally {
         setIsReady(true);
@@ -72,6 +74,7 @@ export const AppLanguageProvider = ({ children }: { children: React.ReactNode })
   const setLanguage = useCallback(async (nextLanguage: AppLanguage) => {
     setCurrentLanguage(nextLanguage);
     await AsyncStorage.setItem(localStorageKeys.APP_LANGUAGE, nextLanguage);
+    syncNativeAppLanguage(nextLanguage);
   }, []);
 
   const t = useCallback(

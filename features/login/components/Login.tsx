@@ -8,6 +8,7 @@ import {
   ScrollView,
   Keyboard,
   Pressable,
+  Linking,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import auth from '@react-native-firebase/auth';
@@ -27,6 +28,7 @@ import { createStyles } from '../styles';
 import { AuthService, firebasePhoneMatchesIndiaLocal } from '../services';
 import type { ILoginFormState } from '../interfaces';
 import type { RootStackParamList } from '../../../navigation/Navigation';
+import { legalWebUrls } from '../../../common/constants';
 
 const initialLoginState: ILoginFormState = {
   mobileNumber: {
@@ -214,6 +216,32 @@ export const Login: React.FC<Props> = ({ navigation }) => {
                 >
                   {t('login.continue')}
                 </StyledButton>
+
+                <Text
+                  style={{
+                    marginTop: theme.margin.lg,
+                    fontSize: 12,
+                    lineHeight: 18,
+                    textAlign: 'center',
+                    color: theme.colors.secondaryText,
+                  }}
+                >
+                  {t('login.legalPrefix')}{' '}
+                  <Text
+                    style={{ color: theme.colors.primary, textDecorationLine: 'underline' }}
+                    onPress={() => void Linking.openURL(legalWebUrls.termsAndConditions)}
+                  >
+                    {t('legalConsent.acceptTerms.link')}
+                  </Text>
+                  {t('login.legalMiddle')}
+                  <Text
+                    style={{ color: theme.colors.primary, textDecorationLine: 'underline' }}
+                    onPress={() => void Linking.openURL(legalWebUrls.privacyPolicy)}
+                  >
+                    {t('legalConsent.acceptPrivacy.link')}
+                  </Text>
+                  {t('login.legalSuffix')}
+                </Text>
               </View>
             </View>
           </ScrollView>

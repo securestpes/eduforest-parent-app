@@ -1,7 +1,7 @@
 {
   "name": "eduforest-parent",
   "license": "0BSD",
-  "version": "1.0.0",
+  "version": "1.0.6",
   "main": "index.ts",
   "scripts": {
     "start": "dotenv -e ./env/.env.development -- npx expo start",
@@ -9,7 +9,9 @@
     "start:dev": "dotenv -e ./env/.env.development -- node -p \"process.env.API_URL\"",
     "start:prod": "dotenv -e ./env/.env.production -- npx expo start",
     "android": "dotenv -e ./env/.env.development -- npx expo run:android",
-    "android:prod": "dotenv -e ./env/.env.development -- npx expo run:android --variant=release",
+    "android:prod": "dotenv -e ./env/.env.production -- npx expo run:android --variant=release",
+    "bundleRelease": "cd ./android && ./gradlew bundleRelease",
+    "bundleRelease:prod": "cd ./android && APP_ENV=production ./gradlew bundleRelease",
     "ios": "dotenv -e ./env/.env.development -- npx expo run:ios",
     "web": "dotenv -e ./env/.env.development -- npx expo start --web"
   },

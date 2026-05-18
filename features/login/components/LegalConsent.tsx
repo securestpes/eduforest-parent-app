@@ -5,7 +5,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Checkbox, Text } from 'react-native-paper';
 import { createAppStyles, StyledButton, useAppLanguage, useAppTheme } from '../../../common';
-import { localStorageKeys } from '../../../common/constants';
+import { legalWebUrls, localStorageKeys } from '../../../common/constants';
 import type { RootStackParamList } from '../../../navigation/Navigation';
 import { createStyles as createLoginStyles } from '../styles';
 
@@ -29,9 +29,7 @@ export const LegalConsent: React.FC<LegalConsentProps> = ({ navigation }) => {
 
   const handleOpenUrl = async (url: string) => {
     try {
-      if (await Linking.canOpenURL(url)) {
-        await Linking.openURL(url);
-      }
+      await Linking.openURL(url);
     } catch {
       /* ignore */
     }
@@ -79,7 +77,11 @@ export const LegalConsent: React.FC<LegalConsentProps> = ({ navigation }) => {
                 {t('legalConsent.acceptTerms.prefix')}{' '}
                 <Text
                   style={{ color: theme.colors.primary, textDecorationLine: 'underline' }}
-                  onPress={() => void handleOpenUrl('https://eduforest.co.in/terms-and-conditions')}
+                  onPress={() =>
+                    void handleOpenUrl(
+                      'https://eduforest.co.in/terms-and-conditions?app=parent'
+                    )
+                  }
                 >
                   {t('legalConsent.acceptTerms.link')}
                 </Text>
@@ -93,7 +95,7 @@ export const LegalConsent: React.FC<LegalConsentProps> = ({ navigation }) => {
                 {t('legalConsent.acceptPrivacy.prefix')}{' '}
                 <Text
                   style={{ color: theme.colors.primary, textDecorationLine: 'underline' }}
-                  onPress={() => void handleOpenUrl('https://eduforest.co.in/privacy-policy')}
+                  onPress={() => void handleOpenUrl(legalWebUrls.privacyPolicy)}
                 >
                   {t('legalConsent.acceptPrivacy.link')}
                 </Text>

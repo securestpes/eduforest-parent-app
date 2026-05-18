@@ -28,3 +28,12 @@ allprojects {
 
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
+
+// Release lint (lintVital*) can OOM on large RN dependency graphs.
+subprojects { subproject ->
+  subproject.tasks.configureEach { task ->
+    if (task.name.contains('lintVital')) {
+      task.enabled = false
+    }
+  }
+}

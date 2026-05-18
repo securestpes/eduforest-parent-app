@@ -1,3 +1,13 @@
+/** Public legal pages on eduforest.co.in (Parent app — use `?app=parent` on legal pages). */
+export const LEGAL_WEB_BASE_URL = 'https://eduforest.co.in';
+
+export const legalWebUrls = {
+  privacyPolicy: `${LEGAL_WEB_BASE_URL}/privacy-policy?app=parent`,
+  termsAndConditions: `${LEGAL_WEB_BASE_URL}/terms-and-conditions?app=parent`,
+  helpAndSupport: `${LEGAL_WEB_BASE_URL}/help-and-support?app=parent`,
+  deleteAccount: `${LEGAL_WEB_BASE_URL}/delete-account?app=parent`,
+} as const;
+
 /** Same keys as gentrack-app `common/constants` (parent app aligns auth + storage). */
 export const localStorageKeys = {
   ACCESS_TOKEN: 'access_token',

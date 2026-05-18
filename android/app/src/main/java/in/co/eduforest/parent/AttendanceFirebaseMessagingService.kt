@@ -15,21 +15,42 @@ class AttendanceFirebaseMessagingService : FirebaseMessagingService() {
     super.onMessageReceived(remoteMessage)
 
     val data = remoteMessage.data
-    val title = remoteMessage.notification?.title
+    val language = AppLanguageStorage.get(this)
+    val englishTitle = remoteMessage.notification?.title
       ?: data["title"]
       ?: "Attendance Update"
-    val body = remoteMessage.notification?.body
+    val englishBody = remoteMessage.notification?.body
       ?: data["short_message"]
       ?: "Attendance updated."
+    val title = VoiceMessageBuilder.notificationTitle(language).ifBlank { englishTitle }
+    val body = VoiceMessageBuilder.notificationBody(
+      languageCode = language,
+      statusRaw = data["status"],
+      studentName = data["studentName"] ?: data["child_name"],
+      timestampIso = data["timestamp"],
+      englishFallback = englishBody
+    ).ifBlank { englishBody }
 
     showNotification(title, body)
 
     val playVoice = data["play_voice"]?.equals("true", ignoreCase = true) ?: false
-    val voiceMessage = data["voice_message"]?.trim().orEmpty()
-    if (!playVoice || voiceMessage.isBlank()) return
+    if (!playVoice) return
+
+    val legacyText = listOfNotNull(
+      data["voice_message"],
+      data["short_message"],
+      data["body"]
+    ).joinToString(" ").trim()
 
     val serviceIntent = Intent(this, VoiceAnnouncementService::class.java).apply {
-      putExtra(VoiceAnnouncementService.EXTRA_MESSAGE, voiceMessage)
+      putExtra(VoiceAnnouncementService.EXTRA_MESSAGE, legacyText)
+      putExtra(VoiceAnnouncementService.EXTRA_STATUS, data["status"])
+      putExtra(
+        VoiceAnnouncementService.EXTRA_STUDENT_NAME,
+        data["studentName"] ?: data["child_name"]
+      )
+      putExtra(VoiceAnnouncementService.EXTRA_PARENT_TITLE, data["parent_title"])
+      putExtra(VoiceAnnouncementService.EXTRA_TIMESTAMP, data["timestamp"])
     }
     ContextCompat.startForegroundService(this, serviceIntent)
   }
