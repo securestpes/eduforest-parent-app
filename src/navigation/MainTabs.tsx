@@ -1,14 +1,12 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import React, { useState } from 'react';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useState } from 'react';
 import { BottomNavigation, useTheme } from 'react-native-paper';
 import { HomeScreen } from '../screens/HomeScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { AttendanceScreen } from '../screens/AttendanceScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
-import type { AppTheme } from '../../theme';
+import { AppTheme } from '../../theme';
 import { useAppLanguage } from '../../common';
-import { OpaqueColorValue } from 'react-native';
 
 export type MainTabParamList = {
   Home: undefined;
@@ -28,74 +26,26 @@ export function MainTabs() {
     {
       key: 'home',
       title: t('nav.home'),
-      focusedIcon: ({
-        size,
-        color,
-      }: {
-        size: number;
-        color: string | OpaqueColorValue;
-      }) => (
-        <MaterialCommunityIcons
-          name="home-variant-outline"
-          size={size}
-          color={color}
-        />
-      ),
-      // unfocusedIcon: '',
+      focusedIcon: 'home-variant',
+      unfocusedIcon: 'home-variant-outline',
     },
     {
       key: 'notifications',
       title: t('nav.alerts'),
-      focusedIcon: ({
-        size,
-        color,
-      }: {
-        size: number;
-        color: string | OpaqueColorValue;
-      }) => (
-        <MaterialCommunityIcons
-          name="bell-ring-outline"
-          size={size}
-          color={color}
-        />
-      ),
-      // unfocusedIcon: '',
+      focusedIcon: 'bell-ring',
+      unfocusedIcon: 'bell-ring-outline',
     },
     {
       key: 'attendance',
       title: t('nav.attendance'),
-      focusedIcon: ({
-        size,
-        color,
-      }: {
-        size: number;
-        color: string | OpaqueColorValue;
-      }) => (
-        <MaterialCommunityIcons
-          name="calendar-check"
-          size={size}
-          color={color}
-        />
-      ),
-      // unfocusedIcon: 'cog-outline', // just use the string if no color/props
+      focusedIcon: 'calendar-check',
+      unfocusedIcon: 'calendar-check-outline', // just use the string if no color/props
     },
     {
       key: 'profile',
       title: t('nav.profile'),
-      focusedIcon: ({
-        size,
-        color,
-      }: {
-        size: number;
-        color: string | OpaqueColorValue;
-      }) => (
-        <MaterialCommunityIcons
-          name="account-circle-outline"
-          size={size}
-          color={color}
-        />
-      ),
-      // unfocusedIcon: '', // just use the string if no color/props
+      focusedIcon: 'account-circle',
+      unfocusedIcon: 'account-circle-outline', // just use the string if no color/props
     },
   ];
 
