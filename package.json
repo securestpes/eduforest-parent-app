@@ -4,6 +4,7 @@
   "version": "1.0.6",
   "main": "index.ts",
   "scripts": {
+    "generate:assets": "node scripts/generate-assets.js",
     "start": "dotenv -e ./env/.env.development -- npx expo start",
     "start:clear": "dotenv -e ./env/.env.development -- npx expo start --clear",
     "start:dev": "dotenv -e ./env/.env.development -- node -p \"process.env.API_URL\"",
@@ -54,7 +55,8 @@
     "@types/react": "~19.1.10",
     "dotenv": "^17.2.1",
     "dotenv-cli": "^8.0.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "sharp": "^0.32.1"
   },
   "private": true
 }
