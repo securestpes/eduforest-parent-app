@@ -8,21 +8,25 @@ import messaging from '@react-native-firebase/messaging';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { Provider as ReduxProvider } from 'react-redux';
-import { Provider as PaperProvider, Snackbar } from 'react-native-paper';
+import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { store } from './redux/store';
 import { Navigation } from './navigation';
-import { lightTheme } from './theme';
 import { FCM_ATTENDANCE_CHANNEL_ID } from '@/constants/fcmAndroid';
 import { displayNotification } from 'common/helpers/notificationHelper';
 import {
   AppLanguageProvider,
   useAppLanguage,
 } from 'common/contexts/LanguageContext';
-
-// ========================================
-// CREATE CHANNEL
-// ========================================
+import { AppThemeProvider, useAppTheme } from 'common/contexts/ThemeContext';
+import { handleIncomingPushNotification } from './src/services/pendingPushNotifications';
+import {
+  navigateFromNotification,
+  navigationRef,
+  parseNotificationNavigation,
+} from './src/navigation/navigationRef';
+import { ForceUpdateModal } from './features/versionCheck/ForceUpdateModal';
+import { VersionService } from './features/versionCheck/versionService';
 
 async function createNotificationChannel() {
   if (Platform.OS !== 'android') return;
@@ -38,99 +42,85 @@ async function createNotificationChannel() {
   });
 }
 
-// ========================================
-// REQUEST PERMISSION
-// ========================================
-
 async function requestNotificationPermission() {
   if (Platform.OS === 'android' && Platform.Version >= 33) {
-    await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
-    );
+    await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
   }
 
   await messaging().requestPermission();
 }
 
+function handleNotificationOpen(data: Record<string, string> | undefined) {
+  const payload = parseNotificationNavigation(data);
+  if (payload) {
+    navigateFromNotification(payload);
+  }
+}
+
 function AppContent() {
   const { language } = useAppLanguage();
-  const [bannerVisible, setBannerVisible] = useState(false);
-  const [bannerMessage, setBannerMessage] = useState('');
-
-  // ========================================
-  // INIT
-  // ========================================
+  const { theme, isDark } = useAppTheme();
+  const [forceUpdateVisible, setForceUpdateVisible] = useState(false);
 
   useEffect(() => {
     async function initializeNotifications() {
       await requestNotificationPermission();
       await createNotificationChannel();
-
       const token = await messaging().getToken();
-
       console.log('FCM TOKEN:', token);
     }
 
-    initializeNotifications();
+    void initializeNotifications();
   }, []);
 
-  // ========================================
-  // FOREGROUND
-  // ========================================
+  useEffect(() => {
+    void VersionService.checkAppVersion().then((result) => {
+      if (result.forceUpdate) setForceUpdateVisible(true);
+    });
+  }, []);
 
   useEffect(() => {
     const unsubscribe = messaging().onMessage(async (remoteMessage) => {
       console.log('FOREGROUND MESSAGE:', remoteMessage);
-
       await displayNotification(remoteMessage, language);
+      handleIncomingPushNotification(remoteMessage.data);
     });
 
     return unsubscribe;
   }, [language]);
 
-  // ========================================
-  // NOTIFICATION CLICK
-  // ========================================
-
   useEffect(() => {
-    const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
+    const unsubscribeFg = notifee.onForegroundEvent(({ type, detail }) => {
       if (type === EventType.PRESS) {
-        console.log('Notification clicked', detail.notification);
-
-        // Example:
-        // navigationRef.navigate('Attendance');
+        handleNotificationOpen(detail.notification?.data as Record<string, string> | undefined);
       }
     });
 
-    return unsubscribe;
+    const unsubscribeOpened = messaging().onNotificationOpenedApp((remoteMessage) => {
+      handleNotificationOpen(remoteMessage.data as Record<string, string> | undefined);
+    });
+
+    void messaging()
+      .getInitialNotification()
+      .then((remoteMessage) => {
+        if (remoteMessage?.data) {
+          handleNotificationOpen(remoteMessage.data as Record<string, string>);
+        }
+      });
+
+    return () => {
+      unsubscribeFg();
+      unsubscribeOpened();
+    };
   }, []);
 
-  // ========================================
-  // UI
-  // ========================================
-
   return (
-    <PaperProvider theme={lightTheme}>
-      <NavigationContainer>
-        <StatusBar barStyle="dark-content" />
-
+    <PaperProvider theme={theme}>
+      <NavigationContainer ref={navigationRef}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <Navigation />
       </NavigationContainer>
-
-      <Snackbar
-        visible={bannerVisible}
-        onDismiss={() => setBannerVisible(false)}
-        duration={4500}
-        action={{
-          label: 'OK',
-          onPress: () => setBannerVisible(false),
-        }}
-        wrapperStyle={{
-          bottom: 72,
-        }}
-      >
-        {bannerMessage}
-      </Snackbar>
+      <ForceUpdateModal visible={forceUpdateVisible} />
     </PaperProvider>
   );
 }
@@ -141,7 +131,9 @@ export default function App() {
       <ReduxProvider store={store}>
         <SafeAreaProvider>
           <AppLanguageProvider>
-            <AppContent />
+            <AppThemeProvider>
+              <AppContent />
+            </AppThemeProvider>
           </AppLanguageProvider>
         </SafeAreaProvider>
       </ReduxProvider>

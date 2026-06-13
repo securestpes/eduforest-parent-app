@@ -17,4 +17,6 @@ export const localStorageKeys = {
   VOICE_ANNOUNCEMENTS_ENABLED: 'voice_announcements_enabled',
   /** First-launch Terms & Privacy acceptance (same flow as gentrack-app). */
   LEGAL_CONSENT_ACCEPTED: 'legal_consent_accepted',
+  DARK_MODE_ENABLED: 'dark_mode_enabled',
+  PARENT_ONBOARDING_COMPLETED: 'parent_onboarding_completed',
 } as const;

@@ -16,6 +16,8 @@ import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import type { AppTheme } from '../../../theme';
 import type { RootStackParamList } from '../../../navigation/Navigation';
 import type { MainTabParamList } from '../../../src/navigation/MainTabs';
+import { navigateToChildScreen, navigateToTab } from '../../../src/navigation/navigationRef';
+import type { ChildHubSection } from '../../../src/navigation/navigationRef';
 import { AppInfoFooter } from './AppInfoFooter';
 import { getLocalizedParentHelpFaqs } from '../content/localizedStaticContent';
 
@@ -33,7 +35,7 @@ type QuickStartItem = {
   description: string;
   icon: string;
   color: 'primary' | 'secondary' | 'tertiary';
-  screen: keyof MainTabParamList;
+  destination: { type: 'tab'; screen: keyof MainTabParamList } | { type: 'hub'; section: ChildHubSection };
 };
 
 export const HelpAndSupport = () => {
@@ -52,7 +54,7 @@ export const HelpAndSupport = () => {
       description: t('help.parentQuickHomeDesc'),
       icon: 'home-variant-outline',
       color: 'primary',
-      screen: 'Home',
+      destination: { type: 'tab', screen: 'Home' },
     },
     {
       id: 'attendance',
@@ -60,7 +62,7 @@ export const HelpAndSupport = () => {
       description: t('help.parentQuickAttendanceDesc'),
       icon: 'calendar-check',
       color: 'secondary',
-      screen: 'Attendance',
+      destination: { type: 'hub', section: 'attendance' },
     },
     {
       id: 'alerts',
@@ -68,7 +70,7 @@ export const HelpAndSupport = () => {
       description: t('help.parentQuickAlertsDesc'),
       icon: 'bell-ring-outline',
       color: 'tertiary',
-      screen: 'Notifications',
+      destination: { type: 'hub', section: 'notifications' },
     },
   ];
 
@@ -133,7 +135,14 @@ export const HelpAndSupport = () => {
                   key={item.id}
                   style={styles.quickStartCard}
                   elevation={0}
-                  onPress={() => navigation.navigate('MainTabs', { screen: item.screen })}
+                  onPress={() => {
+                    navigation.navigate('MainTabs');
+                    if (item.destination.type === 'tab') {
+                      navigateToTab({ tab: item.destination.screen });
+                    } else {
+                      navigateToChildScreen({ section: item.destination.section });
+                    }
+                  }}
                 >
                   <Card.Content style={styles.quickStartContent}>
                     <View

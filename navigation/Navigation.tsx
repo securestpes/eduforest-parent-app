@@ -11,6 +11,7 @@ import {
   ParentProfileService,
 } from '../features/profile/services/ParentProfileService';
 import type { MainTabParamList } from '../src/navigation/MainTabs';
+import type { ChildChipAction } from '../src/components/ChildActionChips';
 import { AuthNavigation } from './AuthNavigation';
 import { AppNavigation } from './AppNavigation';
 import type { RootState } from '../redux/store';
@@ -25,6 +26,7 @@ export type RootStackParamList = {
     prefilledOtp?: string;
   };
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
+  ChildHub: { studentId?: number; section?: ChildChipAction } | undefined;
   PrivacyPolicy: undefined;
   TermsAndConditions: undefined;
   HelpAndSupport: undefined;
