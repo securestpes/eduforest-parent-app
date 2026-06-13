@@ -14,8 +14,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { getMyStudents, getStudentAttendance, type ParentAttendanceRow, type ParentStudent } from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
@@ -30,7 +28,7 @@ import {
   type AttendanceFilter,
   type DaySection,
 } from '../utils/attendanceHistory';
-import type { MainTabParamList } from '../navigation/MainTabs';
+import { AttendanceCalendarView } from '../components/AttendanceCalendarView';
 import type { AppTheme } from '../../theme';
 import { useAppLanguage, type TranslationKey } from '../../common';
 
@@ -51,7 +49,7 @@ function SessionCard({ row, theme }: { row: ParentAttendanceRow; theme: AppTheme
   const label = statusLabel(kind, row.status, t);
   const timeRange = `${row.startTime?.slice(0, 5) ?? t('common.dash')} – ${row.endTime?.slice(0, 5) ?? t('common.dash')}`;
   const headerBg =
-    kind === 'present' ? '#DCFCE7' : kind === 'absent' ? '#FEE2E2' : kind === 'late' ? '#FEF3C7' : theme.colors.surfaceVariant;
+    kind === 'present' ? theme.palette.successSoft : kind === 'absent' ? theme.palette.dangerSoft : kind === 'late' ? theme.palette.warningSoft : theme.colors.surfaceVariant;
   const headerFg =
     kind === 'present' ? theme.colors.success : kind === 'absent' ? theme.colors.error : kind === 'late' ? theme.colors.warning : theme.colors.onSurfaceVariant;
 
@@ -130,17 +128,17 @@ function MonthSummaryBanner({
           {t('attendance.summaryPresentMonth', { pct: stats.pctPresent })}
         </Text>
         <View style={styles.summaryChips}>
-          <View style={[styles.miniChip, { backgroundColor: '#DCFCE7' }]}>
+          <View style={[styles.miniChip, { backgroundColor: theme.palette.successSoft }]}>
             <Text variant="labelSmall" style={{ color: theme.colors.success, fontWeight: '700' }}>
               {t('attendance.countPresent', { n: stats.present })}
             </Text>
           </View>
-          <View style={[styles.miniChip, { backgroundColor: '#FEE2E2' }]}>
+          <View style={[styles.miniChip, { backgroundColor: theme.palette.dangerSoft }]}>
             <Text variant="labelSmall" style={{ color: theme.colors.error, fontWeight: '700' }}>
               {t('attendance.countAbsent', { n: stats.absent })}
             </Text>
           </View>
-          <View style={[styles.miniChip, { backgroundColor: '#FEF3C7' }]}>
+          <View style={[styles.miniChip, { backgroundColor: theme.palette.warningSoft }]}>
             <Text variant="labelSmall" style={{ color: theme.colors.warning, fontWeight: '700' }}>
               {t('attendance.countLate', { n: stats.late })}
             </Text>
@@ -151,10 +149,9 @@ function MonthSummaryBanner({
   );
 }
 
-export function AttendanceScreen() {
+export function AttendanceScreen({ embedded }: { embedded?: boolean } = {}) {
   const theme = useTheme() as AppTheme;
   const { t } = useAppLanguage();
-  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const FILTER_OPTIONS = useMemo(
     () =>
       [
@@ -169,6 +166,10 @@ export function AttendanceScreen() {
 
   const [student, setStudent] = useState<ParentStudent | null>(null);
   const [allRows, setAllRows] = useState<ParentAttendanceRow[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -180,6 +181,8 @@ export function AttendanceScreen() {
   const [filterModal, setFilterModal] = useState(false);
   const [monthModal, setMonthModal] = useState(false);
 
+  const PAGE_SIZE = 25;
+
   const load = useCallback(async () => {
     if (!studentId) {
       setStudent(null);
@@ -188,8 +191,12 @@ export function AttendanceScreen() {
     }
     setError(null);
     setLoading(true);
+    setPage(0);
     try {
-      const [stRes, attRes] = await Promise.all([getMyStudents(), getStudentAttendance(studentId, 0, 120)]);
+      const [stRes, attRes] = await Promise.all([
+        getMyStudents(),
+        getStudentAttendance(studentId, 0, PAGE_SIZE),
+      ]);
       if (stRes.status && Array.isArray(stRes.data)) {
         setStudent(stRes.data.find((s) => s.id === studentId) ?? null);
       } else {
@@ -197,18 +204,39 @@ export function AttendanceScreen() {
       }
       if (attRes.status && attRes.data?.content) {
         setAllRows(attRes.data.content);
+        setHasMore((attRes.data.number ?? 0) + 1 < (attRes.data.totalPages ?? 1));
       } else {
         setAllRows([]);
+        setHasMore(false);
         setError(attRes.message || t('attendance.couldNotLoad'));
       }
     } catch {
       setAllRows([]);
+      setHasMore(false);
       setError(t('attendance.networkError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [studentId, t]);
+
+  const loadMore = useCallback(async () => {
+    if (!studentId || !hasMore || loadingMore) return;
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    try {
+      const attRes = await getStudentAttendance(studentId, nextPage, PAGE_SIZE);
+      if (attRes.status && attRes.data?.content) {
+        setAllRows((prev) => [...prev, ...attRes.data!.content!]);
+        setPage(nextPage);
+        setHasMore(nextPage + 1 < (attRes.data.totalPages ?? 1));
+      } else {
+        setHasMore(false);
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [studentId, hasMore, loadingMore, page]);
 
   useEffect(() => {
     load();
@@ -228,6 +256,7 @@ export function AttendanceScreen() {
   const monthChoices = useMemo(() => lastNMonthAnchors(12), []);
 
   if (!studentId) {
+    if (embedded) return null;
     return (
       <ScreenDecor>
         <SafeAreaView style={styles.safe} edges={['top']}>
@@ -243,16 +272,9 @@ export function AttendanceScreen() {
     );
   }
 
-  return (
-    <ScreenDecor>
-      <SafeAreaView style={styles.safe} edges={['top']}>
+  const body = (
+    <>
         <View style={styles.topBar}>
-          <Pressable hitSlop={12} style={styles.backBtn} onPress={() => navigation.navigate('Home')}>
-            <MaterialCommunityIcons name="arrow-left" size={22} color={theme.colors.onBackground} />
-            <Text variant="labelLarge" style={{ color: theme.colors.primary, fontWeight: '700', marginLeft: 4 }}>
-              {t('attendance.backHome')}
-            </Text>
-          </Pressable>
           <View style={styles.topActions}>
             <Pressable hitSlop={10} style={styles.iconBtn} onPress={() => setFilterModal(true)}>
               <MaterialCommunityIcons name="filter-variant" size={24} color={theme.colors.onBackground} />
@@ -276,6 +298,46 @@ export function AttendanceScreen() {
           </Text>
         </View>
 
+        <View style={styles.viewToggleRow}>
+          <Pressable
+            onPress={() => setViewMode('list')}
+            style={[
+              styles.viewToggleBtn,
+              viewMode === 'list' && { backgroundColor: theme.colors.primaryContainer },
+            ]}
+          >
+            <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>{t('attendance.listView')}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setViewMode('calendar')}
+            style={[
+              styles.viewToggleBtn,
+              viewMode === 'calendar' && { backgroundColor: theme.colors.primaryContainer },
+            ]}
+          >
+            <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>{t('attendance.calendarView')}</Text>
+          </Pressable>
+        </View>
+
+        {viewMode === 'calendar' ? (
+          <View style={{ paddingHorizontal: 16 }}>
+            <MonthSummaryBanner monthAnchor={focusMonth} stats={stats} theme={theme} />
+            <AttendanceCalendarView monthAnchor={focusMonth} rows={monthRows} />
+            {sections.map((section) => (
+              <View key={section.title}>
+                <View style={[styles.dayHeader, { backgroundColor: theme.colors.background }]}>
+                  <MaterialCommunityIcons name="calendar" size={18} color={theme.colors.primary} />
+                  <Text variant="titleSmall" style={{ color: theme.colors.onBackground, fontWeight: '700', marginLeft: 8 }}>
+                    {section.title}
+                  </Text>
+                </View>
+                {section.data.map((item) => (
+                  <SessionCard key={item.attendanceId} row={item} theme={theme} />
+                ))}
+              </View>
+            ))}
+          </View>
+        ) : (
         <SectionList
           sections={sections}
           keyExtractor={(item) => String(item.attendanceId)}
@@ -332,6 +394,11 @@ export function AttendanceScreen() {
           renderItem={({ item }) => <SessionCard row={item} theme={theme} />}
           ListFooterComponent={
             <View style={styles.footer}>
+              {hasMore ? (
+                <Button mode="outlined" loading={loadingMore} onPress={() => void loadMore()} style={{ marginBottom: 16 }}>
+                  {t('attendance.loadMore')}
+                </Button>
+              ) : null}
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 10 }}>
                 {t('attendance.reportAbsence')}
               </Text>
@@ -352,6 +419,7 @@ export function AttendanceScreen() {
             </View>
           }
         />
+        )}
 
         <Modal visible={filterModal} transparent animationType="fade" onRequestClose={() => setFilterModal(false)}>
           <Pressable style={styles.modalBackdrop} onPress={() => setFilterModal(false)}>
@@ -404,6 +472,17 @@ export function AttendanceScreen() {
             </Pressable>
           </Pressable>
         </Modal>
+    </>
+  );
+
+  if (embedded) {
+    return <View style={styles.embedded}>{body}</View>;
+  }
+
+  return (
+    <ScreenDecor>
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        {body}
       </SafeAreaView>
     </ScreenDecor>
   );
@@ -411,15 +490,15 @@ export function AttendanceScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  embedded: { flex: 1 },
   center: { flex: 1, padding: 20, justifyContent: 'center' },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
     marginTop: 4,
   },
-  backBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingRight: 8 },
   topActions: { flexDirection: 'row', alignItems: 'center' },
   iconBtn: { padding: 8, marginLeft: 4 },
   titleBlock: {
@@ -481,4 +560,18 @@ const styles = StyleSheet.create({
   },
   modalCard: { borderRadius: 16, padding: 16, maxHeight: '80%' },
   modalRow: { paddingVertical: 14, paddingHorizontal: 12, borderRadius: 10 },
+  viewToggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  viewToggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
 });

@@ -99,24 +99,32 @@ export function sessionTimeRange(row: ParentAttendanceRow): string {
   return st || en || '';
 }
 
-export function formatTimeAgo(at: Date, now = new Date()): string {
-  if (at > now) return 'Just now';
+export function formatTimeAgo(
+  at: Date,
+  t: (key: import('../../common/contexts/parentTranslations').TranslationKey, params?: Record<string, string | number>) => string,
+  now = new Date()
+): string {
+  if (at > now) return t('timeAgo.justNow');
   const hrs = differenceInHours(now, at);
-  if (hrs < 1) return 'Just now';
-  if (hrs < 24) return `${hrs} hour${hrs === 1 ? '' : 's'} ago`;
+  if (hrs < 1) return t('timeAgo.justNow');
+  if (hrs < 24) return hrs === 1 ? t('timeAgo.hourAgo') : t('timeAgo.hoursAgo', { count: hrs });
   const days = differenceInDays(now, at);
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days} days ago`;
+  if (days === 1) return t('timeAgo.yesterday');
+  if (days < 7) return t('timeAgo.daysAgo', { count: days });
   return format(at, 'dd MMM yyyy');
 }
 
 export function notificationsFromAttendance(
   students: ParentStudent[],
   perStudentRows: Map<number, ParentAttendanceRow[]>,
-  limit = 6
+  limit = 6,
+  t?: (key: import('../../common/contexts/parentTranslations').TranslationKey, params?: Record<string, string | number>) => string,
+  studentId?: number | null
 ): DashboardNotif[] {
+  const scopedStudents =
+    studentId != null ? students.filter((s) => s.id === studentId) : students;
   const items: { row: ParentAttendanceRow; studentName: string; at: Date }[] = [];
-  for (const s of students) {
+  for (const s of scopedStudents) {
     const rows = perStudentRows.get(s.id) ?? [];
     for (const row of rows) {
       const at = parseRowDate(row);
@@ -125,6 +133,7 @@ export function notificationsFromAttendance(
   }
   items.sort((a, b) => b.at.getTime() - a.at.getTime());
 
+  const singleChild = scopedStudents.length === 1;
   const out: DashboardNotif[] = [];
   for (let i = 0; i < Math.min(limit, items.length); i++) {
     const { row, studentName, at } = items[i];
@@ -132,7 +141,12 @@ export function notificationsFromAttendance(
     const accent: DashboardNotif['accent'] =
       k === 'absent' ? 'danger' : k === 'late' ? 'warning' : k === 'present' ? 'success' : 'neutral';
     let headline: string;
-    if (k === 'absent') {
+    if (singleChild) {
+      if (k === 'absent') headline = `Marked absent · ${row.batchName}`;
+      else if (k === 'late') headline = `Late · ${row.batchName}`;
+      else if (k === 'present') headline = `Present · ${row.batchName}`;
+      else headline = `${row.status} · ${row.batchName}`;
+    } else if (k === 'absent') {
       headline = `${studentName} marked ABSENT in ${row.batchName}`;
     } else if (k === 'late') {
       headline = `${studentName} was LATE (${row.batchName})`;
@@ -148,7 +162,7 @@ export function notificationsFromAttendance(
       accent,
       headline,
       detail,
-      timeLabel: formatTimeAgo(at),
+      timeLabel: t ? formatTimeAgo(at, t) : format(at, 'dd MMM yyyy'),
     });
   }
   return out;

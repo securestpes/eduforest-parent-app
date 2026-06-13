@@ -27,12 +27,14 @@ import type { AppTheme } from '../../theme';
 import {
   ConfirmationPopup,
   useAppLanguage,
+  useAppTheme,
   useNetworkError,
 } from '../../common';
 
 export function ProfileScreen() {
   const theme = useTheme() as AppTheme;
   const { t, language, setLanguage, supportedLanguages } = useAppLanguage();
+  const { isDark, toggleTheme } = useAppTheme();
   const { isConnected } = useNetworkError(null);
   const dispatch = useDispatch();
   const navigation = useNavigation();
@@ -284,6 +286,38 @@ export function ProfileScreen() {
             value={voiceAnnouncementsEnabled}
             onValueChange={(value) => void onToggleVoiceAnnouncements(value)}
           />
+        </View>
+
+        <View
+          style={[
+            styles.infoCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.outlineVariant,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.infoIcon,
+              { backgroundColor: theme.colors.secondaryContainer },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="theme-light-dark"
+              size={24}
+              color={theme.colors.secondary}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text
+              variant="titleSmall"
+              style={{ color: theme.colors.onSurface, fontWeight: '700' }}
+            >
+              {t('settings.darkMode')}
+            </Text>
+          </View>
+          <Switch value={isDark} onValueChange={() => toggleTheme()} />
         </View>
 
         <View

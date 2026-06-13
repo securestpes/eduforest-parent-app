@@ -89,3 +89,15 @@ export async function registerDeviceToken(
   );
   return data;
 }
+
+export async function getNotificationReads(): Promise<Set<string>> {
+  const { data } = await api.get<ApiEnvelope>(`${prefix}/me/notification-reads`);
+  const body = data?.data as { readIds?: string[] } | undefined;
+  const ids = body?.readIds ?? [];
+  return new Set(ids.filter((x): x is string => typeof x === 'string'));
+}
+
+export async function mergeNotificationReads(readIds: string[]): Promise<ApiEnvelope> {
+  const { data } = await api.post<ApiEnvelope>(`${prefix}/me/notification-reads`, { readIds });
+  return data;
+}

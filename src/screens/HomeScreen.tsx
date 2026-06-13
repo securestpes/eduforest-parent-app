@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, type ComponentProps } from 'react';
 import {
   ActivityIndicator,
-  DeviceEventEmitter,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,28 +10,26 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
-import { useFocusEffect } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NavigationProp } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { useSelector } from 'react-redux';
 import { getMe, getMyStudents, getStudentAttendance, type ParentAttendanceRow, type ParentStudent } from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
+import { NotificationBellButton } from '../components/NotificationBellButton';
 import { initials, avatarHue } from '../utils/attendanceVisuals';
 import {
   aggregateFamilyStats,
   formatLastSessionLine,
   kindFromStatus,
   latestRow,
-  notificationsFromAttendance,
-  type DashboardNotif,
 } from '../utils/dashboardHome';
-import type { MainTabParamList } from '../navigation/MainTabs';
+import { useMainTabNavigation } from '../navigation/TabNavigationContext';
 import type { AppTheme } from '../../theme';
 import type { RootState } from '../../redux/store';
-import { APP_NOTIFICATION_RECEIVED_EVENT } from '../constants/notifications';
+import type { RootStackParamList } from '../../navigation/Navigation';
 import { useAppLanguage, type TranslationKey } from '../../common';
 
 type Translate = (key: TranslationKey, params?: Record<string, string | number | undefined>) => string;
@@ -56,8 +53,8 @@ function StatCard({
     tint === 'primary'
       ? theme.colors.primaryContainer
       : tint === 'success'
-        ? '#DCFCE7'
-        : '#FEF3C7';
+        ? theme.palette.successSoft
+        : theme.palette.warningSoft;
   const fg =
     tint === 'primary' ? theme.colors.primary : tint === 'success' ? theme.colors.success : theme.colors.warning;
   return (
@@ -90,11 +87,11 @@ function StatusBadge({ kind, theme }: { kind: ReturnType<typeof kindFromStatus>;
           : t('common.dash');
   const bg =
     kind === 'present'
-      ? '#DCFCE7'
+      ? theme.palette.successSoft
       : kind === 'absent'
-        ? '#FEE2E2'
+        ? theme.palette.dangerSoft
         : kind === 'late'
-          ? '#FEF3C7'
+          ? theme.palette.warningSoft
           : theme.colors.surfaceVariant;
   const fg =
     kind === 'present' ? theme.colors.success : kind === 'absent' ? theme.colors.error : kind === 'late' ? theme.colors.warning : theme.colors.onSurfaceVariant;
@@ -110,15 +107,13 @@ function StatusBadge({ kind, theme }: { kind: ReturnType<typeof kindFromStatus>;
 
 function ChildOverviewCard({
   item,
-  selected,
-  onSelect,
+  onPress,
   theme,
   lastRow,
   t,
 }: {
   item: ParentStudent;
-  selected: boolean;
-  onSelect: () => void;
+  onPress: () => void;
   theme: AppTheme;
   lastRow: ParentAttendanceRow | null;
   t: Translate;
@@ -129,14 +124,14 @@ function ChildOverviewCard({
   const batchLine = item.batchNames?.length ? item.batchNames.join(' · ') : t('common.dash');
 
   return (
-    <Pressable onPress={onSelect} style={({ pressed }) => [{ opacity: pressed ? 0.94 : 1 }]}>
+    <Pressable onPress={onPress} style={({ pressed }) => [{ opacity: pressed ? 0.94 : 1 }]}>
       <View
         style={[
           styles.childCard,
           {
             backgroundColor: theme.colors.surface,
-            borderColor: selected ? theme.colors.primary : theme.colors.outlineVariant,
-            borderWidth: selected ? 2 : 1,
+            borderColor: theme.colors.outlineVariant,
+            borderWidth: 1,
           },
         ]}
       >
@@ -169,32 +164,11 @@ function ChildOverviewCard({
   );
 }
 
-function NotifRow({ n, theme }: { n: DashboardNotif; theme: AppTheme }) {
-  const dot =
-    n.accent === 'danger' ? theme.colors.error : n.accent === 'warning' ? theme.colors.warning : n.accent === 'success' ? theme.colors.success : theme.colors.primary;
-  return (
-    <View style={[styles.notifCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
-      <View style={styles.notifTop}>
-        <View style={[styles.notifDot, { backgroundColor: dot }]} />
-        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, flex: 1 }}>
-          {n.timeLabel}
-        </Text>
-      </View>
-      <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, fontWeight: '600', marginTop: 6 }}>
-        {n.headline}
-      </Text>
-      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-        {n.detail}
-      </Text>
-    </View>
-  );
-}
-
 export function HomeScreen() {
   const theme = useTheme() as AppTheme;
   const { t } = useAppLanguage();
-  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
-  const scrollRef = useRef<ScrollView>(null);
+  const { navigateToTab } = useMainTabNavigation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const user = useSelector((s: RootState) => s.auth.user);
 
   const [students, setStudents] = useState<ParentStudent[]>([]);
@@ -205,8 +179,8 @@ export function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
 
-  const selectedId = useSelectionStore((s) => s.selectedStudentId);
   const setSelected = useSelectionStore((s) => s.setSelectedStudentId);
+  const selectedStudentId = useSelectionStore((s) => s.selectedStudentId);
 
   const load = useCallback(async () => {
     setError(null);
@@ -238,7 +212,7 @@ export function HomeScreen() {
       await Promise.all(
         list.map(async (s) => {
           try {
-            const ar = await getStudentAttendance(s.id, 0, 80);
+            const ar = await getStudentAttendance(s.id, 0, 5);
             if (ar.status && ar.data?.content) map.set(s.id, ar.data.content);
             else map.set(s.id, []);
           } catch {
@@ -266,29 +240,7 @@ export function HomeScreen() {
     }, [load])
   );
 
-  useEffect(() => {
-    const sub = DeviceEventEmitter.addListener(
-      APP_NOTIFICATION_RECEIVED_EVENT,
-      () => {
-        void load();
-      }
-    );
-    return () => sub.remove();
-  }, [load]);
-
-  useEffect(() => {
-    if (students.length === 0) return;
-    if (!selectedId || !students.some((s) => s.id === selectedId)) {
-      setSelected(students[0].id);
-    }
-  }, [students, selectedId, setSelected]);
-
   const stats = useMemo(() => aggregateFamilyStats(rowsByStudent), [rowsByStudent]);
-
-  const notifications = useMemo(
-    () => notificationsFromAttendance(students, rowsByStudent, 6),
-    [students, rowsByStudent]
-  );
 
   const todayLine = useMemo(() => {
     const now = new Date();
@@ -308,8 +260,15 @@ export function HomeScreen() {
     return t('home.waveGreeting', { greeting: gm, name });
   }, [parentLabel, user?.name, t]);
 
-  const onViewAllChildren = () => {
-    scrollRef.current?.scrollToEnd({ animated: true });
+  const openChild = (id: number) => {
+    setSelected(id);
+    navigation.navigate('ChildHub', { studentId: id, section: 'attendance' });
+  };
+
+  const openNotifications = () => {
+    const id = selectedStudentId ?? students[0]?.id;
+    if (id != null) setSelected(id);
+    navigation.navigate('ChildHub', { studentId: id, section: 'notifications' });
   };
 
   if (loading) {
@@ -331,7 +290,6 @@ export function HomeScreen() {
     <ScreenDecor>
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScrollView
-          ref={scrollRef}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           refreshControl={
@@ -350,10 +308,8 @@ export function HomeScreen() {
               👋 {greeting}
             </Text>
             <View style={styles.topIcons}>
-              <Pressable hitSlop={12} onPress={() => navigation.navigate('Notifications')} style={styles.iconBtn}>
-                <MaterialCommunityIcons name="bell-outline" size={24} color={theme.colors.onBackground} />
-              </Pressable>
-              <Pressable hitSlop={12} onPress={() => navigation.navigate('Profile')} style={styles.iconBtn}>
+              <NotificationBellButton onPress={openNotifications} />
+              <Pressable hitSlop={12} onPress={() => navigateToTab('Profile')} style={styles.iconBtn} accessibilityLabel={t('nav.profile')}>
                 <MaterialCommunityIcons name="account-circle-outline" size={26} color={theme.colors.onBackground} />
               </Pressable>
             </View>
@@ -406,13 +362,9 @@ export function HomeScreen() {
             <Text variant="titleMedium" style={{ color: theme.colors.onBackground, fontWeight: '700' }}>
               {t('home.myChildren')}
             </Text>
-            {students.length > 0 ? (
-              <Pressable onPress={onViewAllChildren}>
-                <Text variant="labelLarge" style={{ color: theme.colors.primary, fontWeight: '600' }}>
-                  {t('home.viewAll')}
-                </Text>
-              </Pressable>
-            ) : null}
+            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+              {t('home.tapToOpen')}
+            </Text>
           </View>
 
           {students.length === 0 && !error ? (
@@ -426,41 +378,13 @@ export function HomeScreen() {
               <ChildOverviewCard
                 key={s.id}
                 item={s}
-                selected={selectedId === s.id}
-                onSelect={() => setSelected(s.id)}
+                onPress={() => openChild(s.id)}
                 theme={theme}
                 lastRow={latestRow(rowsByStudent.get(s.id) ?? [])}
                 t={t}
               />
             ))
           )}
-
-          <View style={styles.notifSection}>
-            <View style={styles.sectionHeader}>
-              <Text variant="titleMedium" style={{ color: theme.colors.onBackground, fontWeight: '700' }}>
-                {t('home.recentNotifications')}
-              </Text>
-              <Pressable onPress={() => navigation.navigate('Notifications')}>
-                <Text variant="labelMedium" style={{ color: theme.colors.primary, opacity: 0.85 }}>
-                  {t('home.markAllRead')}
-                </Text>
-              </Pressable>
-            </View>
-            <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
-              {t('home.fromLatestActivity')}
-            </Text>
-
-            {notifications.length === 0 ? (
-              <View style={[styles.notifEmpty, { borderColor: theme.colors.outlineVariant }]}>
-                <MaterialCommunityIcons name="bell-sleep-outline" size={36} color={theme.colors.outline} />
-                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 8 }}>
-                  {t('home.noRecentActivity')}
-                </Text>
-              </View>
-            ) : (
-              notifications.map((n) => <NotifRow key={n.id} n={n} theme={theme} />)
-            )}
-          </View>
         </ScrollView>
       </SafeAreaView>
     </ScreenDecor>

@@ -1,27 +1,43 @@
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BottomNavigation, useTheme } from 'react-native-paper';
 import { HomeScreen } from '../screens/HomeScreen';
-import { NotificationsScreen } from '../screens/NotificationsScreen';
-import { AttendanceScreen } from '../screens/AttendanceScreen';
+import { FamilyScheduleScreen } from '../screens/FamilyScheduleScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { AppTheme } from '../../theme';
 import { useAppLanguage } from '../../common';
+import { TabNavigationProvider } from './TabNavigationContext';
+import { registerTabNavigateHandler, unregisterTabNavigateHandler } from './navigationRef';
+import { useSelectionStore } from '../store/selectionStore';
 
 export type MainTabParamList = {
   Home: undefined;
-  Notifications: undefined;
-  Attendance: undefined;
+  Schedule: undefined;
   Profile: undefined;
 };
-
-const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export function MainTabs() {
   const theme = useTheme() as AppTheme;
   const { t } = useAppLanguage();
+  const hydrateSelection = useSelectionStore((s) => s.hydrate);
+  const setSelectedStudentId = useSelectionStore((s) => s.setSelectedStudentId);
 
   const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    void hydrateSelection();
+  }, [hydrateSelection]);
+
+  useEffect(() => {
+    registerTabNavigateHandler(({ tab, studentId }) => {
+      const tabIndex = tab === 'Profile' ? 2 : tab === 'Schedule' ? 1 : 0;
+      setIndex(tabIndex);
+      if (studentId != null) {
+        setSelectedStudentId(studentId);
+      }
+    });
+    return () => unregisterTabNavigateHandler();
+  }, [setSelectedStudentId]);
+
   const routes = [
     {
       key: 'home',
@@ -30,40 +46,37 @@ export function MainTabs() {
       unfocusedIcon: 'home-variant-outline',
     },
     {
-      key: 'notifications',
-      title: t('nav.alerts'),
-      focusedIcon: 'bell-ring',
-      unfocusedIcon: 'bell-ring-outline',
-    },
-    {
-      key: 'attendance',
-      title: t('nav.attendance'),
-      focusedIcon: 'calendar-check',
-      unfocusedIcon: 'calendar-check-outline', // just use the string if no color/props
+      key: 'schedule',
+      title: t('nav.schedule'),
+      focusedIcon: 'calendar-clock',
+      unfocusedIcon: 'calendar-clock-outline',
     },
     {
       key: 'profile',
       title: t('nav.profile'),
       focusedIcon: 'account-circle',
-      unfocusedIcon: 'account-circle-outline', // just use the string if no color/props
+      unfocusedIcon: 'account-circle-outline',
     },
   ];
 
   const renderScene = BottomNavigation.SceneMap({
     home: HomeScreen,
-    notifications: NotificationsScreen,
-    attendance: AttendanceScreen,
+    schedule: FamilyScheduleScreen,
     profile: ProfileScreen,
   });
 
   return (
-    <BottomNavigation
-      navigationState={{ index, routes }}
-      onIndexChange={setIndex}
-      renderScene={renderScene}
-      barStyle={{
-        backgroundColor: theme.palette.card4_alpha,
-      }}
-    />
+    <TabNavigationProvider index={index} setIndex={setIndex}>
+      <BottomNavigation
+        navigationState={{ index, routes }}
+        onIndexChange={setIndex}
+        renderScene={renderScene}
+        barStyle={{
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.outlineVariant,
+          borderTopWidth: 1,
+        }}
+      />
+    </TabNavigationProvider>
   );
 }

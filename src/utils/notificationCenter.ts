@@ -25,7 +25,8 @@ function statusUpperFromKind(kind: ReturnType<typeof kindFromStatus>, raw: strin
 
 export function collectCenterNotifications(
   students: ParentStudent[],
-  perStudentRows: Map<number, ParentAttendanceRow[]>
+  perStudentRows: Map<number, ParentAttendanceRow[]>,
+  t?: (key: import('../../common/contexts/parentTranslations').TranslationKey, params?: Record<string, string | number>) => string
 ): CenterNotification[] {
   const items: CenterNotification[] = [];
   for (const s of students) {
@@ -54,7 +55,7 @@ export function collectCenterNotifications(
         statusLabel: statusUpperFromKind(k, row.status),
         headline,
         detail,
-        timeLabel: formatTimeAgo(at),
+        timeLabel: t ? formatTimeAgo(at, t) : format(at, 'dd MMM yyyy'),
         at,
         row,
         studentName: s.name,

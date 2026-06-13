@@ -12,12 +12,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
-import { useFocusEffect } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NavigationProp } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { getMyStudents, getStudentAttendance, type ParentAttendanceRow, type ParentStudent } from '../services/parent';
 import { loadReadNotificationIds, saveReadNotificationIds } from '../services/notificationReadStore';
+import { useSelectionStore } from '../store/selectionStore';
+import { markNotificationRead } from '../services/notificationReadStore';
+import {
+  computeUnreadNotificationCount,
+  getPendingPushNotifications,
+} from '../services/pendingPushNotifications';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import {
@@ -27,8 +32,8 @@ import {
   type CenterNotification,
   type WeeklySummaryBlock,
 } from '../utils/notificationCenter';
-import type { MainTabParamList } from '../navigation/MainTabs';
 import type { AppTheme } from '../../theme';
+import type { RootStackParamList } from '../../navigation/Navigation';
 import { APP_NOTIFICATION_RECEIVED_EVENT } from '../constants/notifications';
 import { useAppLanguage } from '../../common';
 
@@ -60,7 +65,7 @@ function NotifCard({
       : item.accent === 'warning'
         ? theme.colors.secondaryContainer
         : item.accent === 'success'
-          ? '#DCFCE7'
+          ? theme.palette.successSoft
           : theme.colors.primaryContainer;
   return (
     <View
@@ -141,10 +146,18 @@ function SectionTitle({ emoji, text, theme }: { emoji: string; text: string; the
   );
 }
 
-export function NotificationsScreen() {
+export function NotificationsScreen({
+  embedded,
+  onSwitchToAttendance,
+}: {
+  embedded?: boolean;
+  onSwitchToAttendance?: () => void;
+} = {}) {
   const theme = useTheme() as AppTheme;
   const { t } = useAppLanguage();
-  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const selectedStudentId = useSelectionStore((s) => s.selectedStudentId);
+  const setSelectedStudentId = useSelectionStore((s) => s.setSelectedStudentId);
 
   const [students, setStudents] = useState<ParentStudent[]>([]);
   const [rowsMap, setRowsMap] = useState<Map<number, ParentAttendanceRow[]>>(new Map());
@@ -214,8 +227,19 @@ export function NotificationsScreen() {
     return () => sub.remove();
   }, [load, loadReads]);
 
-  const allItems = useMemo(() => collectCenterNotifications(students, rowsMap), [students, rowsMap]);
-  const { today, thisWeekNotToday, earlier } = useMemo(() => splitNotificationsByRecency(allItems), [allItems]);
+  const allItems = useMemo(() => collectCenterNotifications(students, rowsMap, t), [students, rowsMap, t]);
+  const selectedStudent = useMemo(
+    () => students.find((s) => s.id === selectedStudentId) ?? null,
+    [students, selectedStudentId]
+  );
+  const visibleItems = useMemo(() => {
+    if (!embedded || !selectedStudent) return allItems;
+    return allItems.filter((n) => n.studentName === selectedStudent.name);
+  }, [allItems, embedded, selectedStudent]);
+  const { today, thisWeekNotToday, earlier } = useMemo(
+    () => splitNotificationsByRecency(visibleItems),
+    [visibleItems]
+  );
   const todaySorted = useMemo(() => [...today].sort((a, b) => b.at.getTime() - a.at.getTime()), [today]);
   const thisWeekSorted = useMemo(
     () => [...thisWeekNotToday].sort((a, b) => b.at.getTime() - a.at.getTime()),
@@ -224,10 +248,16 @@ export function NotificationsScreen() {
   const earlierSorted = useMemo(() => [...earlier].sort((a, b) => b.at.getTime() - a.at.getTime()), [earlier]);
   const weekly = useMemo(() => buildWeeklySummary(students, rowsMap), [students, rowsMap]);
 
-  const unreadCount = useMemo(
-    () => allItems.filter((n) => !readIds.has(n.id)).length,
-    [allItems, readIds]
-  );
+  const unreadCount = useMemo(() => {
+    if (embedded && selectedStudent) {
+      const apiUnread = visibleItems.filter((n) => !readIds.has(n.id)).length;
+      const pushUnread = getPendingPushNotifications().filter(
+        (p) => !readIds.has(p.id) && p.studentId === selectedStudent.id
+      ).length;
+      return apiUnread + pushUnread;
+    }
+    return computeUnreadNotificationCount(allItems, readIds, students);
+  }, [allItems, embedded, readIds, selectedStudent, students, visibleItems]);
   const lastUpdatedLabel = useMemo(() => {
     if (!lastUpdatedAt) return null;
     const secondsAgo = Math.floor((Date.now() - lastUpdatedAt) / 1000);
@@ -237,32 +267,56 @@ export function NotificationsScreen() {
 
   const markAllRead = async () => {
     const next = new Set(readIds);
-    allItems.forEach((n) => next.add(n.id));
+    visibleItems.forEach((n) => next.add(n.id));
+    getPendingPushNotifications().forEach((p) => {
+      if (!embedded || !selectedStudent || p.studentId === selectedStudent.id) {
+        next.add(p.id);
+      }
+    });
     setReadIds(next);
     await saveReadNotificationIds(next);
+  };
+
+  const goToAttendance = () => {
+    if (embedded && onSwitchToAttendance) {
+      onSwitchToAttendance();
+      return;
+    }
+    navigation.navigate('ChildHub', { section: 'attendance', studentId: selectedStudentId ?? undefined });
+  };
+
+  const openDetails = async (item: CenterNotification) => {
+    const student = students.find((s) => s.name === item.studentName);
+    if (student) setSelectedStudentId(student.id);
+    const next = await markNotificationRead(item.id, readIds);
+    setReadIds(next);
+    goToAttendance();
   };
 
   const openContact = () =>
     Alert.alert(t('notifications.contactTitle'), t('notifications.contactMessage'));
 
   if (loading) {
+    const loader = (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text variant="bodyLarge" style={{ marginTop: 14, color: theme.colors.onSurfaceVariant }}>
+          {t('notifications.loading')}
+        </Text>
+      </View>
+    );
+    if (embedded) return <View style={styles.embedded}>{loader}</View>;
     return (
       <ScreenDecor>
         <SafeAreaView style={styles.safe} edges={['top']}>
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text variant="bodyLarge" style={{ marginTop: 14, color: theme.colors.onSurfaceVariant }}>
-              {t('notifications.loading')}
-            </Text>
-          </View>
+          {loader}
         </SafeAreaView>
       </ScreenDecor>
     );
   }
 
-  return (
-    <ScreenDecor>
-      <SafeAreaView style={styles.safe} edges={['top']}>
+  const body = (
+    <>
         <View style={styles.headerRow}>
           <View style={styles.headerTitleWrap}>
             <MaterialCommunityIcons name="bell-ring-outline" size={22} color={theme.colors.primary} style={{ marginRight: 8 }} />
@@ -272,8 +326,8 @@ export function NotificationsScreen() {
           </View>
           <Pressable
             onPress={() => void markAllRead()}
-            disabled={allItems.length === 0 || unreadCount === 0}
-            style={{ opacity: allItems.length === 0 || unreadCount === 0 ? 0.45 : 1 }}
+            disabled={visibleItems.length === 0 || unreadCount === 0}
+            style={{ opacity: visibleItems.length === 0 || unreadCount === 0 ? 0.45 : 1 }}
           >
             <Text variant="labelLarge" style={{ color: theme.colors.primary, fontWeight: '700' }}>
               {t('notifications.markAllRead')}
@@ -312,7 +366,7 @@ export function NotificationsScreen() {
               title={t('notifications.emptyNoStudentsTitle')}
               message={t('notifications.emptyNoStudentsMessage')}
             />
-          ) : allItems.length === 0 ? (
+          ) : visibleItems.length === 0 ? (
             <EmptyState
               icon="bell-sleep-outline"
               title={t('notifications.emptyNoActivityTitle')}
@@ -329,7 +383,7 @@ export function NotificationsScreen() {
                       item={item}
                       theme={theme}
                       unread={!readIds.has(item.id)}
-                      onViewDetails={() => navigation.navigate('Attendance')}
+                      onViewDetails={() => void openDetails(item)}
                       onContact={openContact}
                     />
                   ))}
@@ -343,7 +397,7 @@ export function NotificationsScreen() {
                     <WeeklyCard
                       block={weekly}
                       theme={theme}
-                      onOpenAttendance={() => navigation.navigate('Attendance')}
+                      onOpenAttendance={goToAttendance}
                     />
                   ) : null}
                   {thisWeekSorted.map((item) => (
@@ -352,7 +406,7 @@ export function NotificationsScreen() {
                       item={item}
                       theme={theme}
                       unread={!readIds.has(item.id)}
-                      onViewDetails={() => navigation.navigate('Attendance')}
+                      onViewDetails={() => void openDetails(item)}
                       onContact={openContact}
                     />
                   ))}
@@ -368,7 +422,7 @@ export function NotificationsScreen() {
                       item={item}
                       theme={theme}
                       unread={!readIds.has(item.id)}
-                      onViewDetails={() => navigation.navigate('Attendance')}
+                      onViewDetails={() => void openDetails(item)}
                       onContact={openContact}
                     />
                   ))}
@@ -377,6 +431,17 @@ export function NotificationsScreen() {
             </>
           )}
         </ScrollView>
+    </>
+  );
+
+  if (embedded) {
+    return <View style={styles.embedded}>{body}</View>;
+  }
+
+  return (
+    <ScreenDecor>
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        {body}
       </SafeAreaView>
     </ScreenDecor>
   );
@@ -384,6 +449,7 @@ export function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  embedded: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   headerRow: {
     flexDirection: 'row',
