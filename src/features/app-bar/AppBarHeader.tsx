@@ -1,20 +1,18 @@
 import { View, Image, StyleSheet } from 'react-native';
 import { Appbar, Text } from 'react-native-paper';
-import { useSelector } from 'react-redux';
 import { AppTheme } from '../../theme';
-import { useAppLanguage, useAppTheme, useNetworkError } from '../../common';
-import { RootState } from '@/redux/store';
+import { useAppTheme, useNetworkError } from '../../common';
+import { NotificationBellButton } from '../../components/NotificationBellButton';
+import { openNotificationCenter } from '../../services/openNotificationCenter';
 
 export function AppBarHeader() {
   const { theme } = useAppTheme();
-  const { t } = useAppLanguage();
   const styles = createStyles(theme);
 
-  const user = useSelector((s: RootState) => s.auth.user);
   const { isConnected } = useNetworkError(null);
 
   const handleNotificationPress = () => {
-    // Alert.alert(t('common.comingSoon'), t('common.notificationsSoon'));
+    void openNotificationCenter();
   };
 
   return (
@@ -47,10 +45,7 @@ export function AppBarHeader() {
             resizeMode="cover"
           />
           <Text style={{ flex: 1 }}>{''}</Text>
-          <Appbar.Action
-            icon={'bell-ring-outline'}
-            onPress={handleNotificationPress}
-          />
+          <NotificationBellButton onPress={handleNotificationPress} />
         </Appbar.Header>
       </View>
     </View>

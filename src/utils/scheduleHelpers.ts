@@ -1,6 +1,7 @@
 import { format, getDay, isSameDay, parseISO } from 'date-fns';
 import type { ParentAttendanceRow, ParentSchedule } from '../services/parent';
 import { kindFromStatus, parseRowDate } from './dashboardHome';
+import { formatApiTimeRange } from './localDateTime';
 
 const JS_DAY_TO_JAVA: Record<number, string> = {
   0: 'SUNDAY',
@@ -43,10 +44,7 @@ export function schedulesForDate(schedules: ParentSchedule[], date: Date): Paren
 }
 
 export function formatScheduleTimeRange(schedule: ParentSchedule): string {
-  const st = schedule.startTime?.slice(0, 5) ?? '';
-  const en = schedule.endTime?.slice(0, 5) ?? '';
-  if (st && en) return `${st} – ${en}`;
-  return st || en || '';
+  return formatApiTimeRange(schedule.startTime, schedule.endTime);
 }
 
 export type TodayStatusKind = 'present' | 'absent' | 'late' | 'not_marked' | 'no_class';

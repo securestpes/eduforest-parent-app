@@ -1,6 +1,7 @@
 import { format, parseISO } from 'date-fns';
 import type { ParentAttendanceRow } from '../services/parent';
 import { kindFromStatus, parseRowDate } from './dashboardHome';
+import { formatLocalDate } from './localDateTime';
 
 export type AttendanceFilter = 'all' | 'present' | 'absent' | 'late';
 
@@ -57,7 +58,7 @@ export function groupRowsByDay(rows: ParentAttendanceRow[]): DaySection[] {
     const d = parseISO(`${k}T12:00:00`);
     return {
       dayKey: k,
-      title: format(d, 'EEEE, dd MMM yyyy'),
+      title: format(d, 'EEEE, ') + formatLocalDate(d),
       data: map.get(k)!.sort((a, b) => {
         const ta = (a.startTime || '').localeCompare(b.startTime || '');
         if (ta !== 0) return -ta;

@@ -13,7 +13,7 @@ import { Button, Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-import { format } from 'date-fns';
+import { formatLocalDateTime } from '../utils/localDateTime';
 import {
   getMyStudents,
   getStudentAttendance,
@@ -323,7 +323,7 @@ export function NotificationsScreen({
     const secondsAgo = Math.floor((Date.now() - lastUpdatedAt) / 1000);
     if (secondsAgo < 60) return t('common.updatedJustNow');
     return t('common.updatedAt', {
-      time: format(new Date(lastUpdatedAt), 'hh:mm a'),
+      time: formatLocalDateTime(lastUpdatedAt),
     });
   }, [lastUpdatedAt, t]);
 

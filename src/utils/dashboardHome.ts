@@ -7,6 +7,13 @@ import {
   startOfWeek,
 } from 'date-fns';
 import type { ParentAttendanceRow, ParentStudent } from '../services/parent';
+import {
+  formatApiTime,
+  formatApiTimeRange,
+  formatLocalDateTime,
+  formatRowLocalDateTime,
+  parseRowLocalDateTime,
+} from './localDateTime';
 
 export type StatusKind = 'present' | 'absent' | 'late' | 'unknown';
 
@@ -82,24 +89,8 @@ export type DashboardNotif = {
   timeLabel: string;
 };
 
-function toAmPm(raw?: string): string {
-  if (!raw) return '';
-  const cleaned = raw.trim();
-  const m = cleaned.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-  if (!m) return cleaned;
-  const hours = Number(m[1]);
-  const mins = m[2];
-  if (Number.isNaN(hours) || hours < 0 || hours > 23) return cleaned;
-  const meridiem = hours >= 12 ? 'PM' : 'AM';
-  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
-  return `${String(hour12).padStart(2, '0')}:${mins} ${meridiem}`;
-}
-
 export function sessionTimeRange(row: ParentAttendanceRow): string {
-  const st = toAmPm(row.startTime);
-  const en = toAmPm(row.endTime);
-  if (st && en) return `${st} – ${en}`;
-  return st || en || '';
+  return formatApiTimeRange(row.startTime, row.endTime);
 }
 
 export function formatTimeAgo(
@@ -120,7 +111,7 @@ export function formatTimeAgo(
   const days = differenceInDays(now, at);
   if (days === 1) return t('timeAgo.yesterday');
   if (days < 7) return t('timeAgo.daysAgo', { count: days });
-  return format(at, 'dd MMM yyyy');
+  return formatLocalDateTime(at);
 }
 
 export function notificationsFromAttendance(
@@ -140,7 +131,7 @@ export function notificationsFromAttendance(
   for (const s of scopedStudents) {
     const rows = perStudentRows.get(s.id) ?? [];
     for (const row of rows) {
-      const at = parseRowDate(row);
+      const at = parseRowLocalDateTime(row) ?? parseRowDate(row);
       if (at) items.push({ row, studentName: s.name, at });
     }
   }
@@ -181,20 +172,18 @@ export function notificationsFromAttendance(
       accent,
       headline,
       detail,
-      timeLabel: t ? formatTimeAgo(at, t) : format(at, 'dd MMM yyyy'),
+      timeLabel: formatRowLocalDateTime(row),
     });
   }
   return out;
 }
 
 export function formatLastSessionLine(row: ParentAttendanceRow): string {
-  const dt = parseRowDate(row);
-  const dateStr = dt ? format(dt, 'dd MMM yyyy') : row.sessionDate;
-  const t = row.endTime?.slice(0, 5) || row.startTime?.slice(0, 5) || '';
+  const when = formatRowLocalDateTime(row);
   const k = kindFromStatus(row.status);
   if (k === 'present') {
-    const check = row.startTime?.slice(0, 5) ?? t;
-    return check ? `Checked in: ${check}` : `Present · ${dateStr}`;
+    const check = formatApiTime(row.startTime);
+    return check ? `Checked in: ${check} · ${when}` : `Present · ${when}`;
   }
-  return t ? `Last: ${dateStr} · ${t}` : `Last: ${dateStr}`;
+  return when ? `Last: ${when}` : '';
 }

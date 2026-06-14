@@ -27,13 +27,13 @@ export function pushNotificationIdFromFcm(data: Record<string, string>): string 
 }
 
 /** Call when FCM delivers a message (foreground or background JS handler). */
-export function handleIncomingPushNotification(
+export async function handleIncomingPushNotification(
   data: Record<string, string | object> | undefined
-): void {
+): Promise<void> {
   const normalized = normalizeFcmData(data);
   if (normalized) {
     const id = pushNotificationIdFromFcm(normalized);
-    void incrementLocalBadgeFromPush(id);
+    await incrementLocalBadgeFromPush(id);
   }
   DeviceEventEmitter.emit(APP_NOTIFICATION_RECEIVED_EVENT, normalized);
 }

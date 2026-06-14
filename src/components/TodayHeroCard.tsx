@@ -12,6 +12,7 @@ import {
   resolveTodayStatus,
   type TodayStatusKind,
 } from '../utils/scheduleHelpers';
+import { formatApiTime } from '../utils/localDateTime';
 import type { AppTheme } from '../theme';
 import { useAppLanguage, type TranslationKey } from '../common';
 
@@ -123,7 +124,7 @@ export function TodayHeroCard({ student, schedules, rows }: Props) {
           style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}
         >
           {row.batchName}
-          {row.startTime ? ` · ${row.startTime.slice(0, 5)}` : ''}
+          {row.startTime ? ` · ${formatApiTime(row.startTime)}` : ''}
         </Text>
       ) : null}
 

@@ -25,6 +25,7 @@ import {
   navigationRef,
   parseNotificationNavigation,
 } from './navigation/navigationRef';
+import { resetLocalBadgeCount } from './services/localNotificationBadge';
 import { ForceUpdateModal } from './features/versionCheck/ForceUpdateModal';
 import { VersionService } from './features/versionCheck/versionService';
 
@@ -53,6 +54,7 @@ async function requestNotificationPermission() {
 }
 
 function handleNotificationOpen(data: Record<string, string> | undefined) {
+  void resetLocalBadgeCount();
   const payload = parseNotificationNavigation(data);
   if (payload) {
     navigateToChildScreen(payload);
@@ -85,7 +87,7 @@ function AppContent() {
     const unsubscribe = messaging().onMessage(async (remoteMessage) => {
       console.log('FOREGROUND MESSAGE:', remoteMessage);
       await displayNotification(remoteMessage, language);
-      handleIncomingPushNotification(remoteMessage.data);
+      await handleIncomingPushNotification(remoteMessage.data);
     });
 
     return unsubscribe;

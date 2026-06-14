@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { DeviceEventEmitter } from 'react-native';
+import { AppState, DeviceEventEmitter } from 'react-native';
 import { getLocalBadgeCount } from '../../services/localNotificationBadge';
 import {
   APP_NOTIFICATION_RECEIVED_EVENT,
@@ -28,10 +28,16 @@ export function useUnreadNotificationCount(): number {
         setCount(typeof value === 'number' ? value : 0);
       }
     );
+    const onAppState = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void refresh();
+      }
+    });
 
     return () => {
       onPush.remove();
       onBadge.remove();
+      onAppState.remove();
     };
   }, [refresh]);
 

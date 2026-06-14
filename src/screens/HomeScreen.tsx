@@ -30,8 +30,6 @@ import {
 import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
-import { NotificationBellButton } from '../components/NotificationBellButton';
-import { resetLocalBadgeCount } from '../services/localNotificationBadge';
 import { initials, avatarHue } from '../utils/attendanceVisuals';
 import {
   aggregateFamilyStats,
@@ -39,6 +37,7 @@ import {
   kindFromStatus,
   latestRow,
 } from '../utils/dashboardHome';
+import { formatLocalDateTime } from '../utils/localDateTime';
 import { useMainTabNavigation } from '../navigation/TabNavigationContext';
 import { AppTheme } from '../theme';
 import { RootState } from '../redux/store';
@@ -335,7 +334,7 @@ export function HomeScreen() {
     const secondsAgo = Math.floor((Date.now() - lastUpdatedAt) / 1000);
     if (secondsAgo < 60) return t('common.updatedJustNow');
     return t('common.updatedAt', {
-      time: format(new Date(lastUpdatedAt), 'hh:mm a'),
+      time: formatLocalDateTime(lastUpdatedAt),
     });
   }, [lastUpdatedAt, t]);
 
@@ -355,16 +354,6 @@ export function HomeScreen() {
   const openChild = (id: number) => {
     setSelected(id);
     navigation.navigate('ChildHub', { studentId: id, section: 'attendance' });
-  };
-
-  const openNotifications = () => {
-    void resetLocalBadgeCount();
-    const id = selectedStudentId ?? students[0]?.id;
-    if (id != null) setSelected(id);
-    navigation.navigate('ChildHub', {
-      studentId: id,
-      section: 'notifications',
-    });
   };
 
   if (loading) {

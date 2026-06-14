@@ -2,6 +2,7 @@ import { createNavigationContainerRef } from '@react-navigation/native';
 import type { RootStackParamList } from './Navigation';
 import type { ChildChipAction } from '../components/ChildActionChips';
 import { useSelectionStore } from '../store/selectionStore';
+import { resetLocalBadgeCount } from '../services/localNotificationBadge';
 
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
@@ -25,6 +26,10 @@ function applyStudentId(studentId?: number) {
 
 export function navigateToChildScreen(payload: ChildNavigationPayload): void {
   applyStudentId(payload.studentId);
+
+  if (payload.section === 'notifications') {
+    void resetLocalBadgeCount();
+  }
 
   if (!navigationRef.isReady()) {
     pendingNavigation = payload;

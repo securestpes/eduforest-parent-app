@@ -1,6 +1,5 @@
 import {
   endOfWeek,
-  format,
   isSameDay,
   isThisWeek,
   isWithinInterval,
@@ -11,8 +10,8 @@ import {
   kindFromStatus,
   parseRowDate,
   sessionTimeRange,
-  formatTimeAgo,
 } from './dashboardHome';
+import { formatLocalDate, formatRowLocalDateTime, parseRowLocalDateTime } from './localDateTime';
 
 export type NotifAccent = 'danger' | 'warning' | 'success' | 'neutral';
 
@@ -50,7 +49,7 @@ export function collectCenterNotifications(
   for (const s of students) {
     const rows = perStudentRows.get(s.id) ?? [];
     for (const row of rows) {
-      const at = parseRowDate(row);
+      const at = parseRowLocalDateTime(row) ?? parseRowDate(row);
       if (!at) continue;
       const k = kindFromStatus(row.status);
       const accent: NotifAccent =
@@ -79,7 +78,7 @@ export function collectCenterNotifications(
         statusLabel: statusUpperFromKind(k, row.status),
         headline,
         detail,
-        timeLabel: t ? formatTimeAgo(at, t) : format(at, 'dd MMM yyyy'),
+        timeLabel: formatRowLocalDateTime(row),
         at,
         row,
         studentName: s.name,
@@ -146,7 +145,7 @@ export function buildWeeklySummary(
   if (lines.length === 0) return null;
   return {
     title: 'Weekly report',
-    dateStr: format(now, 'dd MMM yyyy'),
+    dateStr: formatLocalDate(now),
     lines,
   };
 }

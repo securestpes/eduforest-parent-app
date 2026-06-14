@@ -14,6 +14,7 @@ import {
 } from '@react-navigation/native';
 import { getMyStudents, type ParentStudent } from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
+import { resetLocalBadgeCount } from '../services/localNotificationBadge';
 import { ScreenDecor } from '../components/ScreenDecor';
 import {
   ChildActionChips,
@@ -88,7 +89,12 @@ export function ChildHubScreen() {
             variant="hub"
             selected={section}
             onPress={(action) => {
-              if (isEnabledSection(action)) setSection(action);
+              if (isEnabledSection(action)) {
+                if (action === 'notifications') {
+                  void resetLocalBadgeCount();
+                }
+                setSection(action);
+              }
             }}
           />
         </View>

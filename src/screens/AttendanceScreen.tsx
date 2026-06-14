@@ -23,7 +23,7 @@ import {
 import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
-import { kindFromStatus } from '../utils/dashboardHome';
+import { kindFromStatus, sessionTimeRange } from '../utils/dashboardHome';
 import {
   filterRowsByKind,
   groupRowsByDay,
@@ -61,7 +61,9 @@ function SessionCard({
   const { t } = useAppLanguage();
   const kind = kindFromStatus(row.status);
   const label = statusLabel(kind, row.status, t);
-  const timeRange = `${row.startTime?.slice(0, 5) ?? t('common.dash')} – ${row.endTime?.slice(0, 5) ?? t('common.dash')}`;
+  const timeRange =
+    sessionTimeRange(row) ||
+    `${t('common.dash')} – ${t('common.dash')}`;
   const headerBg =
     kind === 'present'
       ? theme.palette.successSoft
