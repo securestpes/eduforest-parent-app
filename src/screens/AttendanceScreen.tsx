@@ -14,7 +14,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { getMyStudents, getStudentAttendance, type ParentAttendanceRow, type ParentStudent } from '../services/parent';
+import {
+  getMyStudents,
+  getStudentAttendance,
+  type ParentAttendanceRow,
+  type ParentStudent,
+} from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
@@ -29,13 +34,16 @@ import {
   type DaySection,
 } from '../utils/attendanceHistory';
 import { AttendanceCalendarView } from '../components/AttendanceCalendarView';
-import type { AppTheme } from '../../theme';
-import { useAppLanguage, type TranslationKey } from '../../common';
+import type { AppTheme } from '../theme';
+import { useAppLanguage, type TranslationKey } from '../common';
 
 function statusLabel(
   kind: ReturnType<typeof kindFromStatus>,
   raw: string,
-  t: (key: TranslationKey, params?: Record<string, string | number | undefined>) => string
+  t: (
+    key: TranslationKey,
+    params?: Record<string, string | number | undefined>
+  ) => string
 ): string {
   if (kind === 'present') return t('attendance.status.present');
   if (kind === 'absent') return t('attendance.status.absent');
@@ -43,55 +51,133 @@ function statusLabel(
   return raw.toUpperCase();
 }
 
-function SessionCard({ row, theme }: { row: ParentAttendanceRow; theme: AppTheme }) {
+function SessionCard({
+  row,
+  theme,
+}: {
+  row: ParentAttendanceRow;
+  theme: AppTheme;
+}) {
   const { t } = useAppLanguage();
   const kind = kindFromStatus(row.status);
   const label = statusLabel(kind, row.status, t);
   const timeRange = `${row.startTime?.slice(0, 5) ?? t('common.dash')} – ${row.endTime?.slice(0, 5) ?? t('common.dash')}`;
   const headerBg =
-    kind === 'present' ? theme.palette.successSoft : kind === 'absent' ? theme.palette.dangerSoft : kind === 'late' ? theme.palette.warningSoft : theme.colors.surfaceVariant;
+    kind === 'present'
+      ? theme.palette.successSoft
+      : kind === 'absent'
+        ? theme.palette.dangerSoft
+        : kind === 'late'
+          ? theme.palette.warningSoft
+          : theme.colors.surfaceVariant;
   const headerFg =
-    kind === 'present' ? theme.colors.success : kind === 'absent' ? theme.colors.error : kind === 'late' ? theme.colors.warning : theme.colors.onSurfaceVariant;
+    kind === 'present'
+      ? theme.colors.success
+      : kind === 'absent'
+        ? theme.colors.error
+        : kind === 'late'
+          ? theme.colors.warning
+          : theme.colors.onSurfaceVariant;
 
   return (
-    <View style={[styles.sessionOuter, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surface }]}>
+    <View
+      style={[
+        styles.sessionOuter,
+        {
+          borderColor: theme.colors.outlineVariant,
+          backgroundColor: theme.colors.surface,
+        },
+      ]}
+    >
       <View style={[styles.sessionHeader, { backgroundColor: headerBg }]}>
-        <Text variant="titleSmall" style={{ color: headerFg, fontWeight: '800' }}>
+        <Text
+          variant="titleSmall"
+          style={{ color: headerFg, fontWeight: '800' }}
+        >
           {label}
         </Text>
-        <Text variant="labelMedium" style={{ color: headerFg, marginTop: 2, opacity: 0.9 }}>
+        <Text
+          variant="labelMedium"
+          style={{ color: headerFg, marginTop: 2, opacity: 0.9 }}
+        >
           {row.batchName}
         </Text>
       </View>
       <View style={styles.sessionBody}>
         <View style={styles.sessionRow}>
-          <MaterialCommunityIcons name="clock-outline" size={16} color={theme.colors.onSurfaceVariant} />
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 6, flex: 1 }}>
+          <MaterialCommunityIcons
+            name="clock-outline"
+            size={16}
+            color={theme.colors.onSurfaceVariant}
+          />
+          <Text
+            variant="bodySmall"
+            style={{
+              color: theme.colors.onSurfaceVariant,
+              marginLeft: 6,
+              flex: 1,
+            }}
+          >
             {timeRange}
             <Text style={{ color: theme.colors.outline }}> · </Text>
-            <Text style={{ color: theme.colors.onSurfaceVariant }}>{t('attendance.session')}</Text>
+            <Text style={{ color: theme.colors.onSurfaceVariant }}>
+              {t('attendance.session')}
+            </Text>
           </Text>
         </View>
         {kind === 'absent' ? (
           <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="information-outline" size={16} color={theme.colors.onSurfaceVariant} />
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 6, flex: 1 }}>
+            <MaterialCommunityIcons
+              name="information-outline"
+              size={16}
+              color={theme.colors.onSurfaceVariant}
+            />
+            <Text
+              variant="bodySmall"
+              style={{
+                color: theme.colors.onSurfaceVariant,
+                marginLeft: 6,
+                flex: 1,
+              }}
+            >
               {t('attendance.noCheckIn')}
             </Text>
           </View>
         ) : null}
         {kind === 'late' ? (
           <View style={styles.warnRow}>
-            <MaterialCommunityIcons name="alert-outline" size={16} color={theme.colors.warning} />
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 6, flex: 1 }}>
+            <MaterialCommunityIcons
+              name="alert-outline"
+              size={16}
+              color={theme.colors.warning}
+            />
+            <Text
+              variant="bodySmall"
+              style={{
+                color: theme.colors.onSurfaceVariant,
+                marginLeft: 6,
+                flex: 1,
+              }}
+            >
               {t('attendance.markedLate')}
             </Text>
           </View>
         ) : null}
         {kind === 'present' ? (
           <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="check-circle-outline" size={16} color={theme.colors.success} />
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 6, flex: 1 }}>
+            <MaterialCommunityIcons
+              name="check-circle-outline"
+              size={16}
+              color={theme.colors.success}
+            />
+            <Text
+              variant="bodySmall"
+              style={{
+                color: theme.colors.onSurfaceVariant,
+                marginLeft: 6,
+                flex: 1,
+              }}
+            >
               {t('attendance.recordedPresent')}
             </Text>
           </View>
@@ -114,32 +200,86 @@ function MonthSummaryBanner({
   const mon = format(monthAnchor, 'MMM').toUpperCase();
   const yr = format(monthAnchor, 'yyyy');
   return (
-    <View style={[styles.summaryBanner, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
-      <View style={[styles.summaryLeft, { backgroundColor: theme.colors.primaryContainer }]}>
-        <Text variant="labelLarge" style={{ color: theme.colors.primary, fontWeight: '800', textAlign: 'center' }}>
+    <View
+      style={[
+        styles.summaryBanner,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.outlineVariant,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.summaryLeft,
+          { backgroundColor: theme.colors.primaryContainer },
+        ]}
+      >
+        <Text
+          variant="labelLarge"
+          style={{
+            color: theme.colors.primary,
+            fontWeight: '800',
+            textAlign: 'center',
+          }}
+        >
           {mon}
         </Text>
-        <Text variant="labelMedium" style={{ color: theme.colors.primary, textAlign: 'center', marginTop: 2 }}>
+        <Text
+          variant="labelMedium"
+          style={{
+            color: theme.colors.primary,
+            textAlign: 'center',
+            marginTop: 2,
+          }}
+        >
           {yr}
         </Text>
       </View>
       <View style={styles.summaryRight}>
-        <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: '700' }}>
+        <Text
+          variant="titleSmall"
+          style={{ color: theme.colors.onSurface, fontWeight: '700' }}
+        >
           {t('attendance.summaryPresentMonth', { pct: stats.pctPresent })}
         </Text>
         <View style={styles.summaryChips}>
-          <View style={[styles.miniChip, { backgroundColor: theme.palette.successSoft }]}>
-            <Text variant="labelSmall" style={{ color: theme.colors.success, fontWeight: '700' }}>
+          <View
+            style={[
+              styles.miniChip,
+              { backgroundColor: theme.palette.successSoft },
+            ]}
+          >
+            <Text
+              variant="labelSmall"
+              style={{ color: theme.colors.success, fontWeight: '700' }}
+            >
               {t('attendance.countPresent', { n: stats.present })}
             </Text>
           </View>
-          <View style={[styles.miniChip, { backgroundColor: theme.palette.dangerSoft }]}>
-            <Text variant="labelSmall" style={{ color: theme.colors.error, fontWeight: '700' }}>
+          <View
+            style={[
+              styles.miniChip,
+              { backgroundColor: theme.palette.dangerSoft },
+            ]}
+          >
+            <Text
+              variant="labelSmall"
+              style={{ color: theme.colors.error, fontWeight: '700' }}
+            >
               {t('attendance.countAbsent', { n: stats.absent })}
             </Text>
           </View>
-          <View style={[styles.miniChip, { backgroundColor: theme.palette.warningSoft }]}>
-            <Text variant="labelSmall" style={{ color: theme.colors.warning, fontWeight: '700' }}>
+          <View
+            style={[
+              styles.miniChip,
+              { backgroundColor: theme.palette.warningSoft },
+            ]}
+          >
+            <Text
+              variant="labelSmall"
+              style={{ color: theme.colors.warning, fontWeight: '700' }}
+            >
               {t('attendance.countLate', { n: stats.late })}
             </Text>
           </View>
@@ -204,7 +344,9 @@ export function AttendanceScreen({ embedded }: { embedded?: boolean } = {}) {
       }
       if (attRes.status && attRes.data?.content) {
         setAllRows(attRes.data.content);
-        setHasMore((attRes.data.number ?? 0) + 1 < (attRes.data.totalPages ?? 1));
+        setHasMore(
+          (attRes.data.number ?? 0) + 1 < (attRes.data.totalPages ?? 1)
+        );
       } else {
         setAllRows([]);
         setHasMore(false);
@@ -242,14 +384,25 @@ export function AttendanceScreen({ embedded }: { embedded?: boolean } = {}) {
     load();
   }, [load]);
 
-  const monthRows = useMemo(() => rowsInCalendarMonth(allRows, focusMonth), [allRows, focusMonth]);
-  const filteredMonthRows = useMemo(() => filterRowsByKind(monthRows, filter), [monthRows, filter]);
+  const monthRows = useMemo(
+    () => rowsInCalendarMonth(allRows, focusMonth),
+    [allRows, focusMonth]
+  );
+  const filteredMonthRows = useMemo(
+    () => filterRowsByKind(monthRows, filter),
+    [monthRows, filter]
+  );
   const stats = useMemo(() => monthSessionStats(monthRows), [monthRows]);
-  const sections: DaySection[] = useMemo(() => groupRowsByDay(filteredMonthRows), [filteredMonthRows]);
+  const sections: DaySection[] = useMemo(
+    () => groupRowsByDay(filteredMonthRows),
+    [filteredMonthRows]
+  );
 
   const batchSubtitle = useMemo(() => {
     if (!student) return '';
-    const b = student.batchNames?.length ? student.batchNames.join(' · ') : t('common.dash');
+    const b = student.batchNames?.length
+      ? student.batchNames.join(' · ')
+      : t('common.dash');
     return `${student.instituteName}  |  ${b}`;
   }, [student, t]);
 
@@ -274,70 +427,120 @@ export function AttendanceScreen({ embedded }: { embedded?: boolean } = {}) {
 
   const body = (
     <>
-        <View style={styles.topBar}>
-          <View style={styles.topActions}>
-            <Pressable hitSlop={10} style={styles.iconBtn} onPress={() => setFilterModal(true)}>
-              <MaterialCommunityIcons name="filter-variant" size={24} color={theme.colors.onBackground} />
-            </Pressable>
-            <Pressable hitSlop={10} style={styles.iconBtn} onPress={() => setMonthModal(true)}>
-              <MaterialCommunityIcons name="calendar-month-outline" size={24} color={theme.colors.onBackground} />
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.titleBlock}>
-          <Text variant="titleLarge" style={[styles.title, { color: theme.colors.onBackground }]} numberOfLines={2}>
-            {t('attendance.historyTitle', { name: student?.name ?? t('common.student') })}
-          </Text>
-          <Text
-            variant="bodyMedium"
-            style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}
-            numberOfLines={4}
-          >
-            {batchSubtitle || t('common.loading')}
-          </Text>
-        </View>
-
-        <View style={styles.viewToggleRow}>
+      <View style={styles.topBar}>
+        <View style={styles.topActions}>
           <Pressable
-            onPress={() => setViewMode('list')}
-            style={[
-              styles.viewToggleBtn,
-              viewMode === 'list' && { backgroundColor: theme.colors.primaryContainer },
-            ]}
+            hitSlop={10}
+            style={styles.iconBtn}
+            onPress={() => setFilterModal(true)}
           >
-            <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>{t('attendance.listView')}</Text>
+            <MaterialCommunityIcons
+              name="filter-variant"
+              size={24}
+              color={theme.colors.onBackground}
+            />
           </Pressable>
           <Pressable
-            onPress={() => setViewMode('calendar')}
-            style={[
-              styles.viewToggleBtn,
-              viewMode === 'calendar' && { backgroundColor: theme.colors.primaryContainer },
-            ]}
+            hitSlop={10}
+            style={styles.iconBtn}
+            onPress={() => setMonthModal(true)}
           >
-            <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>{t('attendance.calendarView')}</Text>
+            <MaterialCommunityIcons
+              name="calendar-month-outline"
+              size={24}
+              color={theme.colors.onBackground}
+            />
           </Pressable>
         </View>
+      </View>
 
-        {viewMode === 'calendar' ? (
-          <View style={{ paddingHorizontal: 16 }}>
-            <MonthSummaryBanner monthAnchor={focusMonth} stats={stats} theme={theme} />
-            <AttendanceCalendarView monthAnchor={focusMonth} rows={monthRows} />
-            {sections.map((section) => (
-              <View key={section.title}>
-                <View style={[styles.dayHeader, { backgroundColor: theme.colors.background }]}>
-                  <MaterialCommunityIcons name="calendar" size={18} color={theme.colors.primary} />
-                  <Text variant="titleSmall" style={{ color: theme.colors.onBackground, fontWeight: '700', marginLeft: 8 }}>
-                    {section.title}
-                  </Text>
-                </View>
-                {section.data.map((item) => (
-                  <SessionCard key={item.attendanceId} row={item} theme={theme} />
-                ))}
+      <View style={styles.titleBlock}>
+        <Text
+          variant="titleLarge"
+          style={[styles.title, { color: theme.colors.onBackground }]}
+          numberOfLines={2}
+        >
+          {t('attendance.historyTitle', {
+            name: student?.name ?? t('common.student'),
+          })}
+        </Text>
+        <Text
+          variant="bodyMedium"
+          style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}
+          numberOfLines={4}
+        >
+          {batchSubtitle || t('common.loading')}
+        </Text>
+      </View>
+
+      <View style={styles.viewToggleRow}>
+        <Pressable
+          onPress={() => setViewMode('list')}
+          style={[
+            styles.viewToggleBtn,
+            viewMode === 'list' && {
+              backgroundColor: theme.colors.primaryContainer,
+            },
+          ]}
+        >
+          <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>
+            {t('attendance.listView')}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setViewMode('calendar')}
+          style={[
+            styles.viewToggleBtn,
+            viewMode === 'calendar' && {
+              backgroundColor: theme.colors.primaryContainer,
+            },
+          ]}
+        >
+          <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>
+            {t('attendance.calendarView')}
+          </Text>
+        </Pressable>
+      </View>
+
+      {viewMode === 'calendar' ? (
+        <View style={{ paddingHorizontal: 16 }}>
+          <MonthSummaryBanner
+            monthAnchor={focusMonth}
+            stats={stats}
+            theme={theme}
+          />
+          <AttendanceCalendarView monthAnchor={focusMonth} rows={monthRows} />
+          {sections.map((section) => (
+            <View key={section.title}>
+              <View
+                style={[
+                  styles.dayHeader,
+                  { backgroundColor: theme.colors.background },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name="calendar"
+                  size={18}
+                  color={theme.colors.primary}
+                />
+                <Text
+                  variant="titleSmall"
+                  style={{
+                    color: theme.colors.onBackground,
+                    fontWeight: '700',
+                    marginLeft: 8,
+                  }}
+                >
+                  {section.title}
+                </Text>
               </View>
-            ))}
-          </View>
-        ) : (
+              {section.data.map((item) => (
+                <SessionCard key={item.attendanceId} row={item} theme={theme} />
+              ))}
+            </View>
+          ))}
+        </View>
+      ) : (
         <SectionList
           sections={sections}
           keyExtractor={(item) => String(item.attendanceId)}
@@ -355,11 +558,19 @@ export function AttendanceScreen({ embedded }: { embedded?: boolean } = {}) {
           }
           ListHeaderComponent={
             <View style={{ marginBottom: 12 }}>
-              <MonthSummaryBanner monthAnchor={focusMonth} stats={stats} theme={theme} />
+              <MonthSummaryBanner
+                monthAnchor={focusMonth}
+                stats={stats}
+                theme={theme}
+              />
               {filter !== 'all' ? (
-                <Text variant="labelMedium" style={{ color: theme.colors.primary, marginTop: 8 }}>
+                <Text
+                  variant="labelMedium"
+                  style={{ color: theme.colors.primary, marginTop: 8 }}
+                >
                   {t('attendance.filterActive', {
-                    label: FILTER_OPTIONS.find((f) => f.key === filter)?.label ?? '',
+                    label:
+                      FILTER_OPTIONS.find((f) => f.key === filter)?.label ?? '',
                   })}
                 </Text>
               ) : null}
@@ -373,7 +584,11 @@ export function AttendanceScreen({ embedded }: { embedded?: boolean } = {}) {
             ) : (
               <EmptyState
                 icon={error ? 'alert-circle-outline' : 'calendar-blank-outline'}
-                title={error ? t('attendance.emptyCouldNotLoad') : t('attendance.emptyNoSessions')}
+                title={
+                  error
+                    ? t('attendance.emptyCouldNotLoad')
+                    : t('attendance.emptyNoSessions')
+                }
                 message={
                   error ??
                   (filter !== 'all'
@@ -384,9 +599,25 @@ export function AttendanceScreen({ embedded }: { embedded?: boolean } = {}) {
             )
           }
           renderSectionHeader={({ section: { title } }) => (
-            <View style={[styles.dayHeader, { backgroundColor: theme.colors.background }]}>
-              <MaterialCommunityIcons name="calendar" size={18} color={theme.colors.primary} />
-              <Text variant="titleSmall" style={{ color: theme.colors.onBackground, fontWeight: '700', marginLeft: 8 }}>
+            <View
+              style={[
+                styles.dayHeader,
+                { backgroundColor: theme.colors.background },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="calendar"
+                size={18}
+                color={theme.colors.primary}
+              />
+              <Text
+                variant="titleSmall"
+                style={{
+                  color: theme.colors.onBackground,
+                  fontWeight: '700',
+                  marginLeft: 8,
+                }}
+              >
                 {title}
               </Text>
             </View>
@@ -395,83 +626,157 @@ export function AttendanceScreen({ embedded }: { embedded?: boolean } = {}) {
           ListFooterComponent={
             <View style={styles.footer}>
               {hasMore ? (
-                <Button mode="outlined" loading={loadingMore} onPress={() => void loadMore()} style={{ marginBottom: 16 }}>
+                <Button
+                  mode="outlined"
+                  loading={loadingMore}
+                  onPress={() => void loadMore()}
+                  style={{ marginBottom: 16 }}
+                >
                   {t('attendance.loadMore')}
                 </Button>
               ) : null}
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 10 }}>
+              <Text
+                variant="bodySmall"
+                style={{
+                  color: theme.colors.onSurfaceVariant,
+                  marginBottom: 10,
+                }}
+              >
                 {t('attendance.reportAbsence')}
               </Text>
               <Button
                 mode="contained-tonal"
                 onPress={() =>
-                  Alert.alert(t('attendance.contactInstituteTitle'), t('attendance.contactInstituteMessage'))
+                  Alert.alert(
+                    t('attendance.contactInstituteTitle'),
+                    t('attendance.contactInstituteMessage')
+                  )
                 }
                 icon="phone-outline"
               >
                 {t('attendance.contactButton')}
               </Button>
               <View style={styles.legend}>
-                <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                <Text
+                  variant="labelSmall"
+                  style={{ color: theme.colors.onSurfaceVariant }}
+                >
                   {t('attendance.legend')}
                 </Text>
               </View>
             </View>
           }
         />
-        )}
+      )}
 
-        <Modal visible={filterModal} transparent animationType="fade" onRequestClose={() => setFilterModal(false)}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setFilterModal(false)}>
-            <Pressable style={[styles.modalCard, { backgroundColor: theme.colors.surface }]} onPress={(e) => e.stopPropagation()}>
-              <Text variant="titleMedium" style={{ fontWeight: '700', marginBottom: 12 }}>
-                {t('attendance.filterByStatus')}
-              </Text>
-              {FILTER_OPTIONS.map((opt) => (
-                <Pressable
-                  key={opt.key}
-                  style={[styles.modalRow, filter === opt.key && { backgroundColor: theme.colors.primaryContainer }]}
-                  onPress={() => {
-                    setFilter(opt.key);
-                    setFilterModal(false);
+      <Modal
+        visible={filterModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFilterModal(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setFilterModal(false)}
+        >
+          <Pressable
+            style={[
+              styles.modalCard,
+              { backgroundColor: theme.colors.surface },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text
+              variant="titleMedium"
+              style={{ fontWeight: '700', marginBottom: 12 }}
+            >
+              {t('attendance.filterByStatus')}
+            </Text>
+            {FILTER_OPTIONS.map((opt) => (
+              <Pressable
+                key={opt.key}
+                style={[
+                  styles.modalRow,
+                  filter === opt.key && {
+                    backgroundColor: theme.colors.primaryContainer,
+                  },
+                ]}
+                onPress={() => {
+                  setFilter(opt.key);
+                  setFilterModal(false);
+                }}
+              >
+                <Text
+                  style={{
+                    color: theme.colors.onSurface,
+                    fontWeight: filter === opt.key ? '700' : '400',
                   }}
                 >
-                  <Text style={{ color: theme.colors.onSurface, fontWeight: filter === opt.key ? '700' : '400' }}>{opt.label}</Text>
-                </Pressable>
-              ))}
-            </Pressable>
+                  {opt.label}
+                </Text>
+              </Pressable>
+            ))}
           </Pressable>
-        </Modal>
+        </Pressable>
+      </Modal>
 
-        <Modal visible={monthModal} transparent animationType="fade" onRequestClose={() => setMonthModal(false)}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setMonthModal(false)}>
-            <Pressable style={[styles.modalCard, { backgroundColor: theme.colors.surface }]} onPress={(e) => e.stopPropagation()}>
-              <Text variant="titleMedium" style={{ fontWeight: '700', marginBottom: 12 }}>
-                {t('attendance.jumpToMonth')}
-              </Text>
-              <ScrollView style={{ maxHeight: 360 }}>
-                {monthChoices.map((d) => {
-                  const active =
-                    d.getFullYear() === focusMonth.getFullYear() && d.getMonth() === focusMonth.getMonth();
-                  return (
-                    <Pressable
-                      key={`${d.getFullYear()}-${d.getMonth()}`}
-                      style={[styles.modalRow, active && { backgroundColor: theme.colors.primaryContainer }]}
-                      onPress={() => {
-                        setFocusMonth(new Date(d.getFullYear(), d.getMonth(), 1));
-                        setMonthModal(false);
+      <Modal
+        visible={monthModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMonthModal(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setMonthModal(false)}
+        >
+          <Pressable
+            style={[
+              styles.modalCard,
+              { backgroundColor: theme.colors.surface },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text
+              variant="titleMedium"
+              style={{ fontWeight: '700', marginBottom: 12 }}
+            >
+              {t('attendance.jumpToMonth')}
+            </Text>
+            <ScrollView style={{ maxHeight: 360 }}>
+              {monthChoices.map((d) => {
+                const active =
+                  d.getFullYear() === focusMonth.getFullYear() &&
+                  d.getMonth() === focusMonth.getMonth();
+                return (
+                  <Pressable
+                    key={`${d.getFullYear()}-${d.getMonth()}`}
+                    style={[
+                      styles.modalRow,
+                      active && {
+                        backgroundColor: theme.colors.primaryContainer,
+                      },
+                    ]}
+                    onPress={() => {
+                      setFocusMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+                      setMonthModal(false);
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: theme.colors.onSurface,
+                        fontWeight: active ? '700' : '400',
                       }}
                     >
-                      <Text style={{ color: theme.colors.onSurface, fontWeight: active ? '700' : '400' }}>
-                        {format(d, 'MMMM yyyy')}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </Pressable>
+                      {format(d, 'MMMM yyyy')}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </Pressable>
-        </Modal>
+        </Pressable>
+      </Modal>
     </>
   );
 
@@ -530,7 +835,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryRight: { flex: 1, padding: 14, justifyContent: 'center' },
-  summaryChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  summaryChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
   miniChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   dayHeader: {
     flexDirection: 'row',

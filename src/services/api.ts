@@ -1,7 +1,7 @@
 import axios, { type AxiosInstance } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Env } from '../../config/envConfig';
-import { localStorageKeys } from '../../common/constants';
+import { localStorageKeys } from '../common/constants';
 
 const baseUrl = Env.apiUrl;
 if (!baseUrl) {
@@ -23,7 +23,9 @@ export const api: AxiosInstance = axios.create({
 async function readAccessToken(): Promise<string | null> {
   let token = await AsyncStorage.getItem(localStorageKeys.ACCESS_TOKEN);
   if (!token) {
-    const leg = await AsyncStorage.getItem(localStorageKeys.LEGACY_ACCESS_TOKEN);
+    const leg = await AsyncStorage.getItem(
+      localStorageKeys.LEGACY_ACCESS_TOKEN
+    );
     if (leg) {
       await AsyncStorage.setItem(localStorageKeys.ACCESS_TOKEN, leg);
       await AsyncStorage.removeItem(localStorageKeys.LEGACY_ACCESS_TOKEN);
@@ -37,7 +39,8 @@ api.interceptors.request.use(async (config) => {
   config.headers = config.headers ?? {};
 
   const hasAuth =
-    typeof config.headers.Authorization === 'string' && config.headers.Authorization.length > 0;
+    typeof config.headers.Authorization === 'string' &&
+    config.headers.Authorization.length > 0;
   if (!hasAuth) {
     const token = await readAccessToken();
     if (token) {
@@ -52,12 +55,13 @@ api.interceptors.response.use(
   async (error) => {
     if (error?.response?.status === 401) {
       try {
-        const { AuthService } = await import('../../features/login/services/AuthService');
+        const { AuthService } =
+          await import('../features/login/services/AuthService');
         await AuthService.firebaseSignOut();
         await AsyncStorage.removeItem(localStorageKeys.ACCESS_TOKEN);
         await AsyncStorage.removeItem(localStorageKeys.LEGACY_ACCESS_TOKEN);
-        const { store } = await import('../../redux/store');
-        const { logout } = await import('../../features/login/slices/authSlice');
+        const { store } = await import('../redux/store');
+        const { logout } = await import('../features/login/slices/authSlice');
         store.dispatch(logout());
       } catch (e) {
         console.error('[api] 401 logout failed', e);

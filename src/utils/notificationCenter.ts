@@ -1,6 +1,18 @@
-import { endOfWeek, format, isSameDay, isThisWeek, isWithinInterval, startOfWeek } from 'date-fns';
+import {
+  endOfWeek,
+  format,
+  isSameDay,
+  isThisWeek,
+  isWithinInterval,
+  startOfWeek,
+} from 'date-fns';
 import type { ParentAttendanceRow, ParentStudent } from '../services/parent';
-import { kindFromStatus, parseRowDate, sessionTimeRange, formatTimeAgo } from './dashboardHome';
+import {
+  kindFromStatus,
+  parseRowDate,
+  sessionTimeRange,
+  formatTimeAgo,
+} from './dashboardHome';
 
 export type NotifAccent = 'danger' | 'warning' | 'success' | 'neutral';
 
@@ -16,7 +28,10 @@ export type CenterNotification = {
   studentName: string;
 };
 
-function statusUpperFromKind(kind: ReturnType<typeof kindFromStatus>, raw: string): string {
+function statusUpperFromKind(
+  kind: ReturnType<typeof kindFromStatus>,
+  raw: string
+): string {
   if (kind === 'present') return 'PRESENT';
   if (kind === 'absent') return 'ABSENT';
   if (kind === 'late') return 'LATE';
@@ -26,7 +41,10 @@ function statusUpperFromKind(kind: ReturnType<typeof kindFromStatus>, raw: strin
 export function collectCenterNotifications(
   students: ParentStudent[],
   perStudentRows: Map<number, ParentAttendanceRow[]>,
-  t?: (key: import('../../common/contexts/parentTranslations').TranslationKey, params?: Record<string, string | number>) => string
+  t?: (
+    key: import('../common/contexts/parentTranslations').TranslationKey,
+    params?: Record<string, string | number>
+  ) => string
 ): CenterNotification[] {
   const items: CenterNotification[] = [];
   for (const s of students) {
@@ -36,7 +54,13 @@ export function collectCenterNotifications(
       if (!at) continue;
       const k = kindFromStatus(row.status);
       const accent: NotifAccent =
-        k === 'absent' ? 'danger' : k === 'late' ? 'warning' : k === 'present' ? 'success' : 'neutral';
+        k === 'absent'
+          ? 'danger'
+          : k === 'late'
+            ? 'warning'
+            : k === 'present'
+              ? 'success'
+              : 'neutral';
       let headline: string;
       if (k === 'absent') {
         headline = `${s.name} was marked ABSENT in ${row.batchName}`;
@@ -66,7 +90,10 @@ export function collectCenterNotifications(
   return items;
 }
 
-export function splitNotificationsByRecency(items: CenterNotification[], now = new Date()) {
+export function splitNotificationsByRecency(
+  items: CenterNotification[],
+  now = new Date()
+) {
   const today: CenterNotification[] = [];
   const thisWeekNotToday: CenterNotification[] = [];
   const earlier: CenterNotification[] = [];

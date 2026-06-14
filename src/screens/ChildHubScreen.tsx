@@ -1,20 +1,39 @@
-import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, type NavigationProp, type RouteProp } from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  type NavigationProp,
+  type RouteProp,
+} from '@react-navigation/native';
 import { getMyStudents, type ParentStudent } from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
-import { ChildActionChips, type ChildChipAction } from '../components/ChildActionChips';
+import {
+  ChildActionChips,
+  type ChildChipAction,
+} from '../components/ChildActionChips';
 import { AttendanceScreen } from './AttendanceScreen';
 import { NotificationsScreen } from './NotificationsScreen';
 import { ScheduleScreen } from './ScheduleScreen';
-import type { RootStackParamList } from '../../navigation/Navigation';
-import { useAppLanguage } from '../../common';
+import type { RootStackParamList } from '../navigation/Navigation';
+import { useAppLanguage } from '../common';
 
-const ENABLED_SECTIONS: ChildChipAction[] = ['attendance', 'schedule', 'notifications'];
+const ENABLED_SECTIONS: ChildChipAction[] = [
+  'attendance',
+  'schedule',
+  'notifications',
+];
 
-function isEnabledSection(section: ChildChipAction): section is (typeof ENABLED_SECTIONS)[number] {
+function isEnabledSection(
+  section: ChildChipAction
+): section is (typeof ENABLED_SECTIONS)[number] {
   return ENABLED_SECTIONS.includes(section);
 }
 
@@ -27,7 +46,9 @@ export function ChildHubScreen() {
   const setSelectedStudentId = useSelectionStore((s) => s.setSelectedStudentId);
 
   const [students, setStudents] = useState<ParentStudent[]>([]);
-  const [section, setSection] = useState<ChildChipAction>(route.params?.section ?? 'attendance');
+  const [section, setSection] = useState<ChildChipAction>(
+    route.params?.section ?? 'attendance'
+  );
 
   const loadStudents = useCallback(async () => {
     const res = await getMyStudents();
@@ -75,7 +96,10 @@ export function ChildHubScreen() {
         <View style={styles.content}>
           {section === 'attendance' ? <AttendanceScreen embedded /> : null}
           {section === 'notifications' ? (
-            <NotificationsScreen embedded onSwitchToAttendance={() => setSection('attendance')} />
+            <NotificationsScreen
+              embedded
+              onSwitchToAttendance={() => setSection('attendance')}
+            />
           ) : null}
           {section === 'schedule' ? <ScheduleScreen embedded /> : null}
         </View>

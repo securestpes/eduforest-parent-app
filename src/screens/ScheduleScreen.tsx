@@ -8,15 +8,23 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, useTheme } from 'react-native-paper';
-import { getMyStudents, getStudentSchedules, type ParentSchedule, type ParentStudent } from '../services/parent';
+import {
+  getMyStudents,
+  getStudentSchedules,
+  type ParentSchedule,
+  type ParentStudent,
+} from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import { ScheduleSection } from '../components/ScheduleSection';
 import { TodayHeroCard } from '../components/TodayHeroCard';
-import { getStudentAttendance, type ParentAttendanceRow } from '../services/parent';
-import type { AppTheme } from '../../theme';
-import { useAppLanguage } from '../../common';
+import {
+  getStudentAttendance,
+  type ParentAttendanceRow,
+} from '../services/parent';
+import type { AppTheme } from '../theme';
+import { useAppLanguage } from '../common';
 
 export function ScheduleScreen({ embedded }: { embedded?: boolean } = {}) {
   const theme = useTheme() as AppTheme;
@@ -46,7 +54,8 @@ export function ScheduleScreen({ embedded }: { embedded?: boolean } = {}) {
       if (stRes.status && Array.isArray(stRes.data)) {
         setStudent(stRes.data.find((s) => s.id === studentId) ?? null);
       }
-      if (schRes.status && Array.isArray(schRes.data)) setSchedules(schRes.data);
+      if (schRes.status && Array.isArray(schRes.data))
+        setSchedules(schRes.data);
       else setSchedules([]);
       if (attRes.status && attRes.data?.content) setRows(attRes.data.content);
       else setRows([]);
@@ -90,11 +99,22 @@ export function ScheduleScreen({ embedded }: { embedded?: boolean } = {}) {
       }
     >
       {loading ? (
-        <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 40 }} />
+        <ActivityIndicator
+          size="large"
+          color={theme.colors.primary}
+          style={{ marginTop: 40 }}
+        />
       ) : (
         <>
           {!embedded ? (
-            <Text variant="headlineSmall" style={{ color: theme.colors.onBackground, fontWeight: '800', marginTop: 8 }}>
+            <Text
+              variant="headlineSmall"
+              style={{
+                color: theme.colors.onBackground,
+                fontWeight: '800',
+                marginTop: 8,
+              }}
+            >
               {student?.name ?? t('common.student')}
             </Text>
           ) : null}

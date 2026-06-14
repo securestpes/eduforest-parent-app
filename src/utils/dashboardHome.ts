@@ -58,11 +58,14 @@ export function aggregateFamilyStats(
     }
   }
 
-  const monthPct = monthTotal > 0 ? Math.round((100 * monthPresent) / monthTotal) : 0;
+  const monthPct =
+    monthTotal > 0 ? Math.round((100 * monthPresent) / monthTotal) : 0;
   return { monthPct, weekPresent, monthLate };
 }
 
-export function latestRow(rows: ParentAttendanceRow[]): ParentAttendanceRow | null {
+export function latestRow(
+  rows: ParentAttendanceRow[]
+): ParentAttendanceRow | null {
   if (!rows.length) return null;
   return [...rows].sort((a, b) => {
     const da = parseRowDate(a)?.getTime() ?? 0;
@@ -101,13 +104,19 @@ export function sessionTimeRange(row: ParentAttendanceRow): string {
 
 export function formatTimeAgo(
   at: Date,
-  t: (key: import('../../common/contexts/parentTranslations').TranslationKey, params?: Record<string, string | number>) => string,
+  t: (
+    key: import('../common/contexts/parentTranslations').TranslationKey,
+    params?: Record<string, string | number>
+  ) => string,
   now = new Date()
 ): string {
   if (at > now) return t('timeAgo.justNow');
   const hrs = differenceInHours(now, at);
   if (hrs < 1) return t('timeAgo.justNow');
-  if (hrs < 24) return hrs === 1 ? t('timeAgo.hourAgo') : t('timeAgo.hoursAgo', { count: hrs });
+  if (hrs < 24)
+    return hrs === 1
+      ? t('timeAgo.hourAgo')
+      : t('timeAgo.hoursAgo', { count: hrs });
   const days = differenceInDays(now, at);
   if (days === 1) return t('timeAgo.yesterday');
   if (days < 7) return t('timeAgo.daysAgo', { count: days });
@@ -118,12 +127,16 @@ export function notificationsFromAttendance(
   students: ParentStudent[],
   perStudentRows: Map<number, ParentAttendanceRow[]>,
   limit = 6,
-  t?: (key: import('../../common/contexts/parentTranslations').TranslationKey, params?: Record<string, string | number>) => string,
+  t?: (
+    key: import('../common/contexts/parentTranslations').TranslationKey,
+    params?: Record<string, string | number>
+  ) => string,
   studentId?: number | null
 ): DashboardNotif[] {
   const scopedStudents =
     studentId != null ? students.filter((s) => s.id === studentId) : students;
-  const items: { row: ParentAttendanceRow; studentName: string; at: Date }[] = [];
+  const items: { row: ParentAttendanceRow; studentName: string; at: Date }[] =
+    [];
   for (const s of scopedStudents) {
     const rows = perStudentRows.get(s.id) ?? [];
     for (const row of rows) {
@@ -139,7 +152,13 @@ export function notificationsFromAttendance(
     const { row, studentName, at } = items[i];
     const k = kindFromStatus(row.status);
     const accent: DashboardNotif['accent'] =
-      k === 'absent' ? 'danger' : k === 'late' ? 'warning' : k === 'present' ? 'success' : 'neutral';
+      k === 'absent'
+        ? 'danger'
+        : k === 'late'
+          ? 'warning'
+          : k === 'present'
+            ? 'success'
+            : 'neutral';
     let headline: string;
     if (singleChild) {
       if (k === 'absent') headline = `Marked absent · ${row.batchName}`;

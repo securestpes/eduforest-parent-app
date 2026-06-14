@@ -2,8 +2,8 @@ import React from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import type { AppTheme } from '../../theme';
-import { useAppLanguage, type TranslationKey } from '../../common';
+import type { AppTheme } from '../theme';
+import { useAppLanguage, type TranslationKey } from '../common';
 
 export type ChildChipAction =
   | 'attendance'
@@ -21,12 +21,42 @@ type ChipDef = {
 };
 
 const CHIPS: ChipDef[] = [
-  { action: 'attendance', icon: 'calendar-check', labelKey: 'childChips.attendance', enabled: true },
-  { action: 'schedule', icon: 'calendar-clock', labelKey: 'childChips.schedule', enabled: true },
-  { action: 'notifications', icon: 'bell-ring-outline', labelKey: 'childChips.notifications', enabled: true },
-  { action: 'report', icon: 'file-chart-outline', labelKey: 'childChips.report', enabled: false },
-  { action: 'homework', icon: 'book-open-outline', labelKey: 'childChips.homework', enabled: false },
-  { action: 'assessment', icon: 'clipboard-check-outline', labelKey: 'childChips.assessment', enabled: false },
+  {
+    action: 'attendance',
+    icon: 'calendar-check',
+    labelKey: 'childChips.attendance',
+    enabled: true,
+  },
+  {
+    action: 'schedule',
+    icon: 'calendar-clock',
+    labelKey: 'childChips.schedule',
+    enabled: true,
+  },
+  {
+    action: 'notifications',
+    icon: 'bell-ring-outline',
+    labelKey: 'childChips.notifications',
+    enabled: true,
+  },
+  {
+    action: 'report',
+    icon: 'file-chart-outline',
+    labelKey: 'childChips.report',
+    enabled: false,
+  },
+  {
+    action: 'homework',
+    icon: 'book-open-outline',
+    labelKey: 'childChips.homework',
+    enabled: false,
+  },
+  {
+    action: 'assessment',
+    icon: 'clipboard-check-outline',
+    labelKey: 'childChips.assessment',
+    enabled: false,
+  },
 ];
 
 type Props = {
@@ -35,7 +65,11 @@ type Props = {
   variant?: 'card' | 'hub';
 };
 
-export function ChildActionChips({ onPress, selected, variant = 'card' }: Props) {
+export function ChildActionChips({
+  onPress,
+  selected,
+  variant = 'card',
+}: Props) {
   const theme = useTheme() as AppTheme;
   const { t } = useAppLanguage();
 
@@ -53,7 +87,10 @@ export function ChildActionChips({ onPress, selected, variant = 'card' }: Props)
     <View
       style={[
         isHub ? styles.wrapHub : styles.wrap,
-        { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant },
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.outlineVariant,
+        },
       ]}
     >
       <ScrollView
@@ -64,53 +101,53 @@ export function ChildActionChips({ onPress, selected, variant = 'card' }: Props)
         {CHIPS.map((chip) => {
           const isSelected = chip.enabled && selected === chip.action;
           return (
-          <Pressable
-            key={chip.action}
-            onPress={() => handlePress(chip)}
-            style={({ pressed }) => [
-              styles.chip,
-              {
-                backgroundColor: isSelected
-                  ? theme.colors.primary
-                  : chip.enabled
-                    ? theme.colors.primaryContainer
-                    : theme.colors.surfaceVariant,
-                opacity: pressed ? 0.88 : chip.enabled ? 1 : 0.72,
-                borderWidth: isSelected ? 0 : isHub ? 1 : 0,
-                borderColor: theme.colors.outlineVariant,
-              },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={t(chip.labelKey)}
-          >
-            <MaterialCommunityIcons
-              name={chip.icon}
-              size={22}
-              color={
-                isSelected
-                  ? theme.colors.onPrimary
-                  : chip.enabled
+            <Pressable
+              key={chip.action}
+              onPress={() => handlePress(chip)}
+              style={({ pressed }) => [
+                styles.chip,
+                {
+                  backgroundColor: isSelected
                     ? theme.colors.primary
-                    : theme.colors.onSurfaceVariant
-              }
-            />
-            <Text
-              variant="labelMedium"
-              style={{
-                color: isSelected
-                  ? theme.colors.onPrimary
-                  : chip.enabled
-                    ? theme.colors.primary
-                    : theme.colors.onSurfaceVariant,
-                fontWeight: '700',
-                marginTop: 6,
-                textAlign: 'center',
-              }}
+                    : chip.enabled
+                      ? theme.colors.primaryContainer
+                      : theme.colors.surfaceVariant,
+                  opacity: pressed ? 0.88 : chip.enabled ? 1 : 0.72,
+                  borderWidth: isSelected ? 0 : isHub ? 1 : 0,
+                  borderColor: theme.colors.outlineVariant,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={t(chip.labelKey)}
             >
-              {t(chip.labelKey)}
-            </Text>
-          </Pressable>
-        );
+              <MaterialCommunityIcons
+                name={chip.icon}
+                size={22}
+                color={
+                  isSelected
+                    ? theme.colors.onPrimary
+                    : chip.enabled
+                      ? theme.colors.primary
+                      : theme.colors.onSurfaceVariant
+                }
+              />
+              <Text
+                variant="labelMedium"
+                style={{
+                  color: isSelected
+                    ? theme.colors.onPrimary
+                    : chip.enabled
+                      ? theme.colors.primary
+                      : theme.colors.onSurfaceVariant,
+                  fontWeight: '700',
+                  marginTop: 6,
+                  textAlign: 'center',
+                }}
+              >
+                {t(chip.labelKey)}
+              </Text>
+            </Pressable>
+          );
         })}
       </ScrollView>
     </View>

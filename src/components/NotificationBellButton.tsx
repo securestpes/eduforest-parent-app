@@ -2,9 +2,9 @@ import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useUnreadNotificationCount } from '../hooks/useUnreadNotificationCount';
-import type { AppTheme } from '../../theme';
-import { useAppLanguage } from '../../common';
+import { useUnreadNotificationCount } from '../common/hooks/useUnreadNotificationCount';
+import type { AppTheme } from '../theme';
+import { useAppLanguage } from '../common';
 
 type Props = {
   onPress: () => void;
@@ -33,8 +33,19 @@ export function NotificationBellButton({ onPress, iconColor }: Props) {
     >
       <MaterialCommunityIcons name="bell-outline" size={24} color={color} />
       {badgeLabel ? (
-        <View style={[styles.badge, { backgroundColor: theme.colors.error, borderColor: theme.colors.surface }]}>
-          <Text variant="labelSmall" style={[styles.badgeText, { color: theme.colors.onError }]}>
+        <View
+          style={[
+            styles.badge,
+            {
+              backgroundColor: theme.colors.error,
+              borderColor: theme.colors.surface,
+            },
+          ]}
+        >
+          <Text
+            variant="labelSmall"
+            style={[styles.badgeText, { color: theme.colors.onError }]}
+          >
             {badgeLabel}
           </Text>
         </View>
