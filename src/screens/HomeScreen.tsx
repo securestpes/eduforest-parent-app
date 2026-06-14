@@ -30,6 +30,8 @@ import {
 import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
+import { NotificationBellButton } from '../components/NotificationBellButton';
+import { resetLocalBadgeCount } from '../services/localNotificationBadge';
 import { initials, avatarHue } from '../utils/attendanceVisuals';
 import {
   aggregateFamilyStats,
@@ -356,6 +358,7 @@ export function HomeScreen() {
   };
 
   const openNotifications = () => {
+    void resetLocalBadgeCount();
     const id = selectedStudentId ?? students[0]?.id;
     if (id != null) setSelected(id);
     navigation.navigate('ChildHub', {
@@ -384,7 +387,6 @@ export function HomeScreen() {
 
   return (
     <ScreenDecor>
-      {/* <SafeAreaView style={styles.safe} edges={['top']}> */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}

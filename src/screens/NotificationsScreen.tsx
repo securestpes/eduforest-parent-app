@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   DeviceEventEmitter,
   Pressable,
   RefreshControl,
@@ -19,18 +18,9 @@ import {
   getMyStudents,
   getStudentAttendance,
   type ParentAttendanceRow,
-  type ParentStudent,
+  ParentStudent,
 } from '../services/parent';
-import {
-  loadReadNotificationIds,
-  saveReadNotificationIds,
-} from '../services/notificationReadStore';
 import { useSelectionStore } from '../store/selectionStore';
-import { markNotificationRead } from '../services/notificationReadStore';
-import {
-  computeUnreadNotificationCount,
-  getPendingPushNotifications,
-} from '../services/pendingPushNotifications';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import {
@@ -58,15 +48,11 @@ function accentColor(
 function NotifCard({
   item,
   theme,
-  unread,
   onViewDetails,
-  onContact,
 }: {
   item: CenterNotification;
   theme: AppTheme;
-  unread: boolean;
   onViewDetails: () => void;
-  onContact: () => void;
 }) {
   const { t } = useAppLanguage();
   const dot = accentColor(item.accent, theme);
@@ -85,16 +71,21 @@ function NotifCard({
         {
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.outlineVariant,
-          borderLeftWidth: unread ? 4 : 1,
-          borderLeftColor: unread ? dot : theme.colors.outlineVariant,
+          borderLeftWidth: 1,
+          borderLeftColor: theme.colors.outlineVariant,
         },
       ]}
     >
       <View style={styles.cardTop}>
-        <View style={[styles.statusPill, { backgroundColor: pillBg }]}>
-          <Text variant="labelSmall" style={{ color: dot, fontWeight: '800' }}>
-            {item.statusLabel}
-          </Text>
+        <View style={styles.cardTopLeft}>
+          <View style={[styles.statusPill, { backgroundColor: pillBg }]}>
+            <Text
+              variant="labelSmall"
+              style={{ color: dot, fontWeight: '800' }}
+            >
+              {item.statusLabel}
+            </Text>
+          </View>
         </View>
         <Text
           variant="labelSmall"
@@ -121,20 +112,13 @@ function NotifCard({
       </Text>
       <View style={styles.cardActions}>
         <Button
-          mode="outlined"
-          compact
-          onPress={onViewDetails}
-          style={styles.halfBtn}
-        >
-          {t('notifications.viewDetails')}
-        </Button>
-        <Button
           mode="contained-tonal"
           compact
-          onPress={onContact}
-          style={styles.halfBtn}
+          onPress={onViewDetails}
+          style={styles.actionBtn}
+          icon="calendar-check"
         >
-          {t('notifications.contactSchool')}
+          {t('notifications.viewDetails')}
         </Button>
       </View>
     </View>
@@ -247,15 +231,9 @@ export function NotificationsScreen({
   const [rowsMap, setRowsMap] = useState<Map<number, ParentAttendanceRow[]>>(
     new Map()
   );
-  const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
-
-  const loadReads = useCallback(async () => {
-    const s = await loadReadNotificationIds();
-    setReadIds(s);
-  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -288,30 +266,24 @@ export function NotificationsScreen({
   }, []);
 
   useEffect(() => {
-    void loadReads();
-  }, [loadReads]);
-
-  useEffect(() => {
     load();
   }, [load]);
 
   useFocusEffect(
     useCallback(() => {
-      void loadReads();
       void load();
-    }, [load, loadReads])
+    }, [load])
   );
 
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener(
       APP_NOTIFICATION_RECEIVED_EVENT,
       () => {
-        void loadReads();
         void load();
       }
     );
     return () => sub.remove();
-  }, [load, loadReads]);
+  }, [load]);
 
   const allItems = useMemo(
     () => collectCenterNotifications(students, rowsMap, t),
@@ -346,16 +318,6 @@ export function NotificationsScreen({
     [students, rowsMap]
   );
 
-  const unreadCount = useMemo(() => {
-    if (embedded && selectedStudent) {
-      const apiUnread = visibleItems.filter((n) => !readIds.has(n.id)).length;
-      const pushUnread = getPendingPushNotifications().filter(
-        (p) => !readIds.has(p.id) && p.studentId === selectedStudent.id
-      ).length;
-      return apiUnread + pushUnread;
-    }
-    return computeUnreadNotificationCount(allItems, readIds, students);
-  }, [allItems, embedded, readIds, selectedStudent, students, visibleItems]);
   const lastUpdatedLabel = useMemo(() => {
     if (!lastUpdatedAt) return null;
     const secondsAgo = Math.floor((Date.now() - lastUpdatedAt) / 1000);
@@ -364,18 +326,6 @@ export function NotificationsScreen({
       time: format(new Date(lastUpdatedAt), 'hh:mm a'),
     });
   }, [lastUpdatedAt, t]);
-
-  const markAllRead = async () => {
-    const next = new Set(readIds);
-    visibleItems.forEach((n) => next.add(n.id));
-    getPendingPushNotifications().forEach((p) => {
-      if (!embedded || !selectedStudent || p.studentId === selectedStudent.id) {
-        next.add(p.id);
-      }
-    });
-    setReadIds(next);
-    await saveReadNotificationIds(next);
-  };
 
   const goToAttendance = () => {
     if (embedded && onSwitchToAttendance) {
@@ -388,19 +338,11 @@ export function NotificationsScreen({
     });
   };
 
-  const openDetails = async (item: CenterNotification) => {
+  const openDetails = (item: CenterNotification) => {
     const student = students.find((s) => s.name === item.studentName);
     if (student) setSelectedStudentId(student.id);
-    const next = await markNotificationRead(item.id, readIds);
-    setReadIds(next);
     goToAttendance();
   };
-
-  const openContact = () =>
-    Alert.alert(
-      t('notifications.contactTitle'),
-      t('notifications.contactMessage')
-    );
 
   if (loading) {
     const loader = (
@@ -426,48 +368,14 @@ export function NotificationsScreen({
 
   const body = (
     <>
-      <View style={styles.headerRow}>
-        <View style={styles.headerTitleWrap}>
-          <MaterialCommunityIcons
-            name="bell-ring-outline"
-            size={22}
-            color={theme.colors.primary}
-            style={{ marginRight: 8 }}
-          />
-          <Text
-            variant="titleLarge"
-            style={{ color: theme.colors.onBackground, fontWeight: '800' }}
-          >
-            {t('notifications.title')}
-          </Text>
-        </View>
-        <Pressable
-          onPress={() => void markAllRead()}
-          disabled={visibleItems.length === 0 || unreadCount === 0}
-          style={{
-            opacity: visibleItems.length === 0 || unreadCount === 0 ? 0.45 : 1,
-          }}
-        >
-          <Text
-            variant="labelLarge"
-            style={{ color: theme.colors.primary, fontWeight: '700' }}
-          >
-            {t('notifications.markAllRead')}
-          </Text>
-        </Pressable>
-      </View>
-      {unreadCount > 0 ? (
-        <Text
-          variant="labelSmall"
-          style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}
-        >
-          {t('notifications.unread', { count: unreadCount })}
-        </Text>
-      ) : null}
       {lastUpdatedLabel ? (
         <Text
           variant="labelSmall"
-          style={{ color: theme.colors.primary, marginBottom: 8 }}
+          style={{
+            color: theme.colors.primary,
+            marginVertical: 8,
+            marginLeft: 16,
+          }}
         >
           {lastUpdatedLabel}
         </Text>
@@ -481,7 +389,6 @@ export function NotificationsScreen({
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
-              void loadReads();
               load();
             }}
             tintColor={theme.colors.primary}
@@ -514,9 +421,7 @@ export function NotificationsScreen({
                     key={item.id}
                     item={item}
                     theme={theme}
-                    unread={!readIds.has(item.id)}
-                    onViewDetails={() => void openDetails(item)}
-                    onContact={openContact}
+                    onViewDetails={() => openDetails(item)}
                   />
                 ))}
               </>
@@ -541,9 +446,7 @@ export function NotificationsScreen({
                     key={item.id}
                     item={item}
                     theme={theme}
-                    unread={!readIds.has(item.id)}
-                    onViewDetails={() => void openDetails(item)}
-                    onContact={openContact}
+                    onViewDetails={() => openDetails(item)}
                   />
                 ))}
               </>
@@ -561,9 +464,7 @@ export function NotificationsScreen({
                     key={item.id}
                     item={item}
                     theme={theme}
-                    unread={!readIds.has(item.id)}
-                    onViewDetails={() => void openDetails(item)}
-                    onContact={openContact}
+                    onViewDetails={() => openDetails(item)}
                   />
                 ))}
               </>
@@ -632,9 +533,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  cardTopLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  cardActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  halfBtn: { flex: 1 },
+  cardActions: { flexDirection: 'row', marginTop: 14 },
+  actionBtn: { flex: 1 },
   weeklyCard: {
     borderRadius: 16,
     borderWidth: 1,

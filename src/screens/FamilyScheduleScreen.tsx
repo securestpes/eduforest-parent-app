@@ -257,15 +257,15 @@ export function FamilyScheduleScreen() {
         <View style={styles.titleRow}>
           <MaterialCommunityIcons
             name="calendar-clock"
-            size={22}
+            size={24}
             color={theme.colors.primary}
           />
           <Text
+            variant="titleLarge"
             style={{
               color: theme.colors.onBackground,
               fontWeight: '800',
               marginLeft: 10,
-              fontSize: 20,
             }}
           >
             {t('schedule.familyTitle')}
@@ -329,7 +329,7 @@ export function FamilyScheduleScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingHorizontal: 20, paddingBottom: 36, paddingTop: 12 },
+  scroll: { paddingHorizontal: 20, paddingBottom: 36, marginTop: 12 },
   center: {
     flex: 1,
     justifyContent: 'center',
