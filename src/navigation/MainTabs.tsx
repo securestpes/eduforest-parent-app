@@ -3,11 +3,15 @@ import { BottomNavigation, useTheme } from 'react-native-paper';
 import { HomeScreen } from '../screens/HomeScreen';
 import { FamilyScheduleScreen } from '../screens/FamilyScheduleScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
-import { AppTheme } from '../../theme';
-import { useAppLanguage } from '../../common';
+import { AppTheme } from '../theme';
+import { useAppLanguage } from '../common';
 import { TabNavigationProvider } from './TabNavigationContext';
-import { registerTabNavigateHandler, unregisterTabNavigateHandler } from './navigationRef';
+import {
+  registerTabNavigateHandler,
+  unregisterTabNavigateHandler,
+} from './navigationRef';
 import { useSelectionStore } from '../store/selectionStore';
+import { AppBarHeader } from '../features/app-bar/AppBarHeader';
 
 export type MainTabParamList = {
   Home: undefined;
@@ -67,6 +71,7 @@ export function MainTabs() {
 
   return (
     <TabNavigationProvider index={index} setIndex={setIndex}>
+      <AppBarHeader />
       <BottomNavigation
         navigationState={{ index, routes }}
         onIndexChange={setIndex}

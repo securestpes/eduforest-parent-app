@@ -39,6 +39,6 @@ const styles = StyleSheet.create({
     height: 280,
     borderRadius: 140,
   },
-  orbTop: { top: -120, right: -80 },
+  orbTop: { top: -240, right: -75 },
   orbBottom: { bottom: -100, left: -100 },
 });

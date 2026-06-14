@@ -20,9 +20,12 @@ import {
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import { avatarHue, initials } from '../utils/attendanceVisuals';
-import { formatScheduleTimeRange, schedulesForDate } from '../utils/scheduleHelpers';
-import type { AppTheme } from '../../theme';
-import { useAppLanguage } from '../../common';
+import {
+  formatScheduleTimeRange,
+  schedulesForDate,
+} from '../utils/scheduleHelpers';
+import type { AppTheme } from '../theme';
+import { useAppLanguage } from '../common';
 
 type ChildSchedules = {
   student: ParentStudent;
@@ -42,33 +45,69 @@ function ChildScheduleCard({
   const today = schedulesForDate(item.schedules, new Date());
 
   return (
-    <View style={[styles.childBlock, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+    <View
+      style={[
+        styles.childBlock,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.outlineVariant,
+        },
+      ]}
+    >
       <View style={styles.childHeader}>
         <View style={[styles.avatar, { backgroundColor: avatarBg }]}>
           <Text style={styles.avatarText}>{initials(item.student.name)}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text variant="titleMedium" style={{ color: theme.colors.onSurface, fontWeight: '700' }}>
+          <Text
+            variant="titleMedium"
+            style={{ color: theme.colors.onSurface, fontWeight: '700' }}
+          >
             {item.student.name}
           </Text>
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }} numberOfLines={2}>
-            {item.student.batchNames?.length ? item.student.batchNames.join(' · ') : item.student.instituteName}
+          <Text
+            variant="bodySmall"
+            style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}
+            numberOfLines={2}
+          >
+            {item.student.batchNames?.length
+              ? item.student.batchNames.join(' · ')
+              : item.student.instituteName}
           </Text>
         </View>
       </View>
 
       {item.schedules.length === 0 ? (
-        <View style={[styles.emptyToday, { borderColor: theme.colors.outlineVariant }]}>
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+        <View
+          style={[
+            styles.emptyToday,
+            { borderColor: theme.colors.outlineVariant },
+          ]}
+        >
+          <Text
+            variant="bodyMedium"
+            style={{ color: theme.colors.onSurfaceVariant }}
+          >
             {t('schedule.noSchedulesForChild')}
           </Text>
         </View>
       ) : today.length === 0 ? (
-        <View style={[styles.emptyToday, { borderColor: theme.colors.outlineVariant }]}>
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+        <View
+          style={[
+            styles.emptyToday,
+            { borderColor: theme.colors.outlineVariant },
+          ]}
+        >
+          <Text
+            variant="bodyMedium"
+            style={{ color: theme.colors.onSurfaceVariant }}
+          >
             {t('schedule.noScheduleToday')}
           </Text>
-          <Text variant="labelMedium" style={{ color: theme.colors.primary, marginTop: 6 }}>
+          <Text
+            variant="labelMedium"
+            style={{ color: theme.colors.primary, marginTop: 6 }}
+          >
             {t('schedule.moreClasses', { count: item.schedules.length })}
           </Text>
         </View>
@@ -76,18 +115,38 @@ function ChildScheduleCard({
         today.map((s) => (
           <View
             key={`${item.student.id}-${s.scheduleId}`}
-            style={[styles.row, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.background }]}
+            style={[
+              styles.row,
+              {
+                borderColor: theme.colors.outlineVariant,
+                backgroundColor: theme.colors.background,
+              },
+            ]}
           >
-            <View style={[styles.timeBadge, { backgroundColor: theme.colors.primaryContainer }]}>
-              <Text variant="labelSmall" style={{ color: theme.colors.primary, fontWeight: '800' }}>
+            <View
+              style={[
+                styles.timeBadge,
+                { backgroundColor: theme.colors.primaryContainer },
+              ]}
+            >
+              <Text
+                variant="labelSmall"
+                style={{ color: theme.colors.primary, fontWeight: '800' }}
+              >
                 {formatScheduleTimeRange(s)}
               </Text>
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: '700' }}>
+              <Text
+                variant="titleSmall"
+                style={{ color: theme.colors.onSurface, fontWeight: '700' }}
+              >
                 {s.batchName}
               </Text>
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
+              <Text
+                variant="bodySmall"
+                style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}
+              >
                 {t('schedule.today')}
               </Text>
             </View>
@@ -122,7 +181,8 @@ export function FamilyScheduleScreen() {
         list.map(async (student) => {
           try {
             const schRes = await getStudentSchedules(student.id);
-            const schedules = schRes.status && Array.isArray(schRes.data) ? schRes.data : [];
+            const schedules =
+              schRes.status && Array.isArray(schRes.data) ? schRes.data : [];
             return { student, schedules };
           } catch {
             return { student, schedules: [] as ParentSchedule[] };
@@ -149,83 +209,133 @@ export function FamilyScheduleScreen() {
     }, [load])
   );
 
-  const todayLine = useMemo(() => t('home.todayPrefix', { date: format(new Date(), 'MMM d, yyyy') }), [t]);
+  const todayLine = useMemo(
+    () => t('home.todayPrefix', { date: format(new Date(), 'MMM d, yyyy') }),
+    [t]
+  );
   const todayCount = useMemo(
-    () => items.reduce((n, item) => n + schedulesForDate(item.schedules, new Date()).length, 0),
+    () =>
+      items.reduce(
+        (n, item) => n + schedulesForDate(item.schedules, new Date()).length,
+        0
+      ),
     [items]
   );
 
   if (loading) {
     return (
       <ScreenDecor>
-        <SafeAreaView style={styles.safe} edges={['top']}>
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text variant="bodyLarge" style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}>
-              {t('schedule.loading')}
-            </Text>
-          </View>
-        </SafeAreaView>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text
+            variant="bodyLarge"
+            style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}
+          >
+            {t('schedule.loading')}
+          </Text>
+        </View>
       </ScreenDecor>
     );
   }
 
   return (
     <ScreenDecor>
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scroll}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                void load();
-              }}
-              tintColor={theme.colors.primary}
-            />
-          }
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              void load();
+            }}
+            tintColor={theme.colors.primary}
+          />
+        }
+      >
+        <View style={styles.titleRow}>
+          <MaterialCommunityIcons
+            name="calendar-clock"
+            size={22}
+            color={theme.colors.primary}
+          />
+          <Text
+            style={{
+              color: theme.colors.onBackground,
+              fontWeight: '800',
+              marginLeft: 10,
+              fontSize: 20,
+            }}
+          >
+            {t('schedule.familyTitle')}
+          </Text>
+        </View>
+        <Text
+          variant="bodyMedium"
+          style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}
         >
-          <View style={styles.titleRow}>
-            <MaterialCommunityIcons name="calendar-clock" size={26} color={theme.colors.primary} />
-            <Text variant="headlineSmall" style={{ color: theme.colors.onBackground, fontWeight: '800', marginLeft: 10 }}>
-              {t('schedule.familyTitle')}
+          {todayLine}
+        </Text>
+        <Text
+          variant="labelMedium"
+          style={{ color: theme.colors.primary, marginTop: 6 }}
+        >
+          {t('schedule.todayClassesCount', { count: todayCount })}
+        </Text>
+
+        {error ? (
+          <View
+            style={[
+              styles.errBanner,
+              { backgroundColor: theme.colors.errorContainer },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="alert-circle-outline"
+              size={20}
+              color={theme.colors.error}
+            />
+            <Text
+              style={{
+                color: theme.colors.onErrorContainer,
+                marginLeft: 8,
+                flex: 1,
+              }}
+            >
+              {error}
             </Text>
           </View>
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-            {todayLine}
-          </Text>
-          <Text variant="labelMedium" style={{ color: theme.colors.primary, marginTop: 6 }}>
-            {t('schedule.todayClassesCount', { count: todayCount })}
-          </Text>
+        ) : null}
 
-          {error ? (
-            <View style={[styles.errBanner, { backgroundColor: theme.colors.errorContainer }]}>
-              <MaterialCommunityIcons name="alert-circle-outline" size={20} color={theme.colors.error} />
-              <Text style={{ color: theme.colors.onErrorContainer, marginLeft: 8, flex: 1 }}>{error}</Text>
-            </View>
-          ) : null}
-
-          {items.length === 0 && !error ? (
-            <EmptyState
-              icon="account-child-outline"
-              title={t('home.noStudentsTitle')}
-              message={t('home.noStudentsMessage')}
+        {items.length === 0 && !error ? (
+          <EmptyState
+            icon="account-child-outline"
+            title={t('home.noStudentsTitle')}
+            message={t('home.noStudentsMessage')}
+          />
+        ) : (
+          items.map((item) => (
+            <ChildScheduleCard
+              key={item.student.id}
+              item={item}
+              theme={theme}
             />
-          ) : (
-            items.map((item) => <ChildScheduleCard key={item.student.id} item={item} theme={theme} />)
-          )}
-        </ScrollView>
-      </SafeAreaView>
+          ))
+        )}
+      </ScrollView>
     </ScreenDecor>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  scroll: { paddingHorizontal: 20, paddingBottom: 36 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  scroll: { paddingHorizontal: 20, paddingBottom: 36, paddingTop: 12 },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
   titleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   errBanner: {
     flexDirection: 'row',

@@ -25,11 +25,11 @@ const config: ExpoConfig = {
   slug: 'eduforest-parent',
   version: appVersion,
   orientation: 'portrait',
-  icon: './assets/icon.png',
+  icon: './src/assets/icon.png',
   userInterfaceStyle: 'light',
   newArchEnabled: true,
   splash: {
-    image: './assets/splash-icon.png',
+    image: './src/assets/splash-icon.png',
     resizeMode: 'contain',
     backgroundColor: '#0d47a1',
   },
@@ -42,12 +42,12 @@ const config: ExpoConfig = {
     package: 'in.co.eduforest.parent',
     versionCode: Number(appBuildNumber),
     adaptiveIcon: {
-      foregroundImage: './assets/adaptive-icon.png',
+      foregroundImage: './src/assets/adaptive-icon.png',
       backgroundColor: '#0d47a1',
     },
   },
   web: {
-    favicon: './assets/favicon.png',
+    favicon: './src/assets/favicon.png',
   },
   extra: {
     apiUrl: process.env.API_URL,

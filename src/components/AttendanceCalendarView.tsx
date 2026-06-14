@@ -12,7 +12,7 @@ import {
 } from 'date-fns';
 import type { ParentAttendanceRow } from '../services/parent';
 import { kindFromStatus, parseRowDate } from '../utils/dashboardHome';
-import type { AppTheme } from '../../theme';
+import type { AppTheme } from '../theme';
 
 type Props = {
   monthAnchor: Date;
@@ -22,14 +22,21 @@ type Props = {
 
 const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-function dotColor(kind: ReturnType<typeof kindFromStatus>, theme: AppTheme): string {
+function dotColor(
+  kind: ReturnType<typeof kindFromStatus>,
+  theme: AppTheme
+): string {
   if (kind === 'present') return theme.colors.success;
   if (kind === 'absent') return theme.colors.error;
   if (kind === 'late') return theme.colors.warning;
   return theme.colors.outline;
 }
 
-export function AttendanceCalendarView({ monthAnchor, rows, onSelectDay }: Props) {
+export function AttendanceCalendarView({
+  monthAnchor,
+  rows,
+  onSelectDay,
+}: Props) {
   const theme = useTheme() as AppTheme;
 
   const statusByDay = useMemo(() => {
@@ -40,7 +47,11 @@ export function AttendanceCalendarView({ monthAnchor, rows, onSelectDay }: Props
       const key = format(dt, 'yyyy-MM-dd');
       const kind = kindFromStatus(row.status);
       const prev = map.get(key);
-      if (!prev || kind === 'absent' || (kind === 'late' && prev === 'present')) {
+      if (
+        !prev ||
+        kind === 'absent' ||
+        (kind === 'late' && prev === 'present')
+      ) {
         map.set(key, kind);
       }
     }
@@ -52,15 +63,30 @@ export function AttendanceCalendarView({ monthAnchor, rows, onSelectDay }: Props
     const end = endOfMonth(monthAnchor);
     const days = eachDayOfInterval({ start, end });
     const padStart = (getDay(start) + 6) % 7;
-    const padded: (Date | null)[] = Array.from({ length: padStart }, () => null);
+    const padded: (Date | null)[] = Array.from(
+      { length: padStart },
+      () => null
+    );
     return [...padded, ...days];
   }, [monthAnchor]);
 
   return (
-    <View style={[styles.wrap, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+    <View
+      style={[
+        styles.wrap,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.outlineVariant,
+        },
+      ]}
+    >
       <View style={styles.weekRow}>
         {WEEKDAY_LABELS.map((label, i) => (
-          <Text key={`${label}-${i}`} variant="labelSmall" style={[styles.weekLabel, { color: theme.colors.onSurfaceVariant }]}>
+          <Text
+            key={`${label}-${i}`}
+            variant="labelSmall"
+            style={[styles.weekLabel, { color: theme.colors.onSurfaceVariant }]}
+          >
             {label}
           </Text>
         ))}
@@ -85,20 +111,30 @@ export function AttendanceCalendarView({ monthAnchor, rows, onSelectDay }: Props
               <View
                 style={[
                   styles.dayCircle,
-                  isToday && { borderColor: theme.colors.primary, borderWidth: 2 },
+                  isToday && {
+                    borderColor: theme.colors.primary,
+                    borderWidth: 2,
+                  },
                 ]}
               >
                 <Text
                   variant="labelMedium"
                   style={{
-                    color: isToday ? theme.colors.primary : theme.colors.onSurface,
+                    color: isToday
+                      ? theme.colors.primary
+                      : theme.colors.onSurface,
                     fontWeight: isToday ? '800' : '500',
                   }}
                 >
                   {format(day, 'd')}
                 </Text>
                 {hasStatus ? (
-                  <View style={[styles.dot, { backgroundColor: dotColor(kind, theme) }]} />
+                  <View
+                    style={[
+                      styles.dot,
+                      { backgroundColor: dotColor(kind, theme) },
+                    ]}
+                  />
                 ) : (
                   <View style={styles.dotPlaceholder} />
                 )}

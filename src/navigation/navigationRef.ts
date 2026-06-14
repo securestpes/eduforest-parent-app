@@ -1,11 +1,14 @@
 import { createNavigationContainerRef } from '@react-navigation/native';
-import type { RootStackParamList } from '../../navigation/Navigation';
+import type { RootStackParamList } from './Navigation';
 import type { ChildChipAction } from '../components/ChildActionChips';
 import { useSelectionStore } from '../store/selectionStore';
 
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
-export type ChildHubSection = Extract<ChildChipAction, 'attendance' | 'notifications' | 'schedule'>;
+export type ChildHubSection = Extract<
+  ChildChipAction,
+  'attendance' | 'notifications' | 'schedule'
+>;
 
 export type ChildNavigationPayload = {
   section: ChildHubSection;
@@ -49,7 +52,9 @@ export function parseNotificationNavigation(
   const studentIdRaw = data.studentId ?? data.student_id;
   const studentId = studentIdRaw ? Number(studentIdRaw) : undefined;
   const section: ChildHubSection =
-    data.type === 'attendance_marked' || data.attendanceId ? 'attendance' : 'notifications';
+    data.type === 'attendance_marked' || data.attendanceId
+      ? 'attendance'
+      : 'notifications';
   return {
     section,
     studentId: Number.isFinite(studentId) ? studentId : undefined,
@@ -57,7 +62,9 @@ export function parseNotificationNavigation(
 }
 
 /** @deprecated use navigateToChildScreen */
-export function navigateFromNotification(payload: ChildNavigationPayload): void {
+export function navigateFromNotification(
+  payload: ChildNavigationPayload
+): void {
   navigateToChildScreen(payload);
 }
 
@@ -69,7 +76,9 @@ export type TabNavigationPayload = {
 
 let tabNavigateHandler: ((payload: TabNavigationPayload) => void) | null = null;
 
-export function registerTabNavigateHandler(handler: (payload: TabNavigationPayload) => void): void {
+export function registerTabNavigateHandler(
+  handler: (payload: TabNavigationPayload) => void
+): void {
   tabNavigateHandler = handler;
 }
 

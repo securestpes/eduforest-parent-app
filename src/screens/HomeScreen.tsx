@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState, type ComponentProps } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  ComponentProps,
+} from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -11,14 +17,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import type { NavigationProp } from '@react-navigation/native';
+import { NavigationProp } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { useSelector } from 'react-redux';
-import { getMe, getMyStudents, getStudentAttendance, type ParentAttendanceRow, type ParentStudent } from '../services/parent';
+import {
+  getMe,
+  getMyStudents,
+  getStudentAttendance,
+  ParentAttendanceRow,
+  ParentStudent,
+} from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
-import { NotificationBellButton } from '../components/NotificationBellButton';
 import { initials, avatarHue } from '../utils/attendanceVisuals';
 import {
   aggregateFamilyStats,
@@ -27,12 +38,15 @@ import {
   latestRow,
 } from '../utils/dashboardHome';
 import { useMainTabNavigation } from '../navigation/TabNavigationContext';
-import type { AppTheme } from '../../theme';
-import type { RootState } from '../../redux/store';
-import type { RootStackParamList } from '../../navigation/Navigation';
-import { useAppLanguage, type TranslationKey } from '../../common';
+import { AppTheme } from '../theme';
+import { RootState } from '../redux/store';
+import { RootStackParamList } from '../navigation/Navigation';
+import { useAppLanguage, TranslationKey } from '../common';
 
-type Translate = (key: TranslationKey, params?: Record<string, string | number | undefined>) => string;
+type Translate = (
+  key: TranslationKey,
+  params?: Record<string, string | number | undefined>
+) => string;
 
 function StatCard({
   icon,
@@ -56,26 +70,53 @@ function StatCard({
         ? theme.palette.successSoft
         : theme.palette.warningSoft;
   const fg =
-    tint === 'primary' ? theme.colors.primary : tint === 'success' ? theme.colors.success : theme.colors.warning;
+    tint === 'primary'
+      ? theme.colors.primary
+      : tint === 'success'
+        ? theme.colors.success
+        : theme.colors.warning;
   return (
     <View style={[styles.statCard, { backgroundColor: theme.colors.surface }]}>
       <View style={[styles.statIconWrap, { backgroundColor: bg }]}>
         <MaterialCommunityIcons name={icon} size={22} color={fg} />
       </View>
-      <Text variant="headlineSmall" style={[styles.statValue, { color: theme.colors.onSurface }]}>
+      <Text
+        variant="headlineSmall"
+        style={[styles.statValue, { color: theme.colors.onSurface }]}
+      >
         {value}
       </Text>
-      <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2, textAlign: 'center' }}>
+      <Text
+        variant="labelSmall"
+        style={{
+          color: theme.colors.onSurfaceVariant,
+          marginTop: 2,
+          textAlign: 'center',
+        }}
+      >
         {label}
       </Text>
-      <Text variant="labelSmall" style={{ color: theme.colors.outline, marginTop: 2, textAlign: 'center' }}>
+      <Text
+        variant="labelSmall"
+        style={{
+          color: theme.colors.outline,
+          marginTop: 2,
+          textAlign: 'center',
+        }}
+      >
         {sublabel}
       </Text>
     </View>
   );
 }
 
-function StatusBadge({ kind, theme }: { kind: ReturnType<typeof kindFromStatus>; theme: AppTheme }) {
+function StatusBadge({
+  kind,
+  theme,
+}: {
+  kind: ReturnType<typeof kindFromStatus>;
+  theme: AppTheme;
+}) {
   const { t } = useAppLanguage();
   const label =
     kind === 'present'
@@ -94,7 +135,13 @@ function StatusBadge({ kind, theme }: { kind: ReturnType<typeof kindFromStatus>;
           ? theme.palette.warningSoft
           : theme.colors.surfaceVariant;
   const fg =
-    kind === 'present' ? theme.colors.success : kind === 'absent' ? theme.colors.error : kind === 'late' ? theme.colors.warning : theme.colors.onSurfaceVariant;
+    kind === 'present'
+      ? theme.colors.success
+      : kind === 'absent'
+        ? theme.colors.error
+        : kind === 'late'
+          ? theme.colors.warning
+          : theme.colors.onSurfaceVariant;
   return (
     <View style={[styles.statusBadge, { backgroundColor: bg }]}>
       <View style={[styles.statusDot, { backgroundColor: fg }]} />
@@ -121,10 +168,15 @@ function ChildOverviewCard({
   const hue = avatarHue(item.name);
   const avatarBg = `hsl(${hue} 45% 46%)`;
   const kind = lastRow ? kindFromStatus(lastRow.status) : 'unknown';
-  const batchLine = item.batchNames?.length ? item.batchNames.join(' · ') : t('common.dash');
+  const batchLine = item.batchNames?.length
+    ? item.batchNames.join(' · ')
+    : t('common.dash');
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [{ opacity: pressed ? 0.94 : 1 }]}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [{ opacity: pressed ? 0.94 : 1 }]}
+    >
       <View
         style={[
           styles.childCard,
@@ -140,22 +192,47 @@ function ChildOverviewCard({
         </View>
         <View style={styles.childCardBody}>
           <View style={styles.childTopRow}>
-            <Text variant="titleMedium" style={[styles.childName, { color: theme.colors.onSurface }]} numberOfLines={1}>
+            <Text
+              variant="titleMedium"
+              style={[styles.childName, { color: theme.colors.onSurface }]}
+              numberOfLines={1}
+            >
               {item.name}
             </Text>
             <StatusBadge kind={lastRow ? kind : 'unknown'} theme={theme} />
           </View>
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }} numberOfLines={2}>
+          <Text
+            variant="bodySmall"
+            style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}
+            numberOfLines={2}
+          >
             {item.instituteName}
           </Text>
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }} numberOfLines={2}>
-            {batchLine} <Text style={{ color: theme.colors.outline }}>|</Text> {t('home.guardianLabel')}{' '}
-            {item.guardianName}
+          <Text
+            variant="bodySmall"
+            style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}
+            numberOfLines={2}
+          >
+            {batchLine} <Text style={{ color: theme.colors.outline }}>|</Text>{' '}
+            {t('home.guardianLabel')} {item.guardianName}
           </Text>
           <View style={styles.lastRow}>
-            <MaterialCommunityIcons name="star-four-points-outline" size={16} color={theme.colors.warning} />
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 6, flex: 1 }}>
-              {lastRow ? formatLastSessionLine(lastRow) : t('home.noAttendanceYet')}
+            <MaterialCommunityIcons
+              name="star-four-points-outline"
+              size={16}
+              color={theme.colors.warning}
+            />
+            <Text
+              variant="bodySmall"
+              style={{
+                color: theme.colors.onSurfaceVariant,
+                marginLeft: 6,
+                flex: 1,
+              }}
+            >
+              {lastRow
+                ? formatLastSessionLine(lastRow)
+                : t('home.noAttendanceYet')}
             </Text>
           </View>
         </View>
@@ -172,7 +249,9 @@ export function HomeScreen() {
   const user = useSelector((s: RootState) => s.auth.user);
 
   const [students, setStudents] = useState<ParentStudent[]>([]);
-  const [rowsByStudent, setRowsByStudent] = useState<Map<number, ParentAttendanceRow[]>>(new Map());
+  const [rowsByStudent, setRowsByStudent] = useState<
+    Map<number, ParentAttendanceRow[]>
+  >(new Map());
   const [parentLabel, setParentLabel] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -240,7 +319,10 @@ export function HomeScreen() {
     }, [load])
   );
 
-  const stats = useMemo(() => aggregateFamilyStats(rowsByStudent), [rowsByStudent]);
+  const stats = useMemo(
+    () => aggregateFamilyStats(rowsByStudent),
+    [rowsByStudent]
+  );
 
   const todayLine = useMemo(() => {
     const now = new Date();
@@ -250,13 +332,21 @@ export function HomeScreen() {
     if (!lastUpdatedAt) return null;
     const secondsAgo = Math.floor((Date.now() - lastUpdatedAt) / 1000);
     if (secondsAgo < 60) return t('common.updatedJustNow');
-    return t('common.updatedAt', { time: format(new Date(lastUpdatedAt), 'hh:mm a') });
+    return t('common.updatedAt', {
+      time: format(new Date(lastUpdatedAt), 'hh:mm a'),
+    });
   }, [lastUpdatedAt, t]);
 
   const greeting = useMemo(() => {
     const h = new Date().getHours();
-    const gm = h < 12 ? t('greeting.morning') : h < 17 ? t('greeting.afternoon') : t('greeting.evening');
-    const name = parentLabel || user?.name?.split(/\s+/)[0] || t('common.parent');
+    const gm =
+      h < 12
+        ? t('greeting.morning')
+        : h < 17
+          ? t('greeting.afternoon')
+          : t('greeting.evening');
+    const name =
+      parentLabel || user?.name?.split(/\s+/)[0] || t('common.parent');
     return t('home.waveGreeting', { greeting: gm, name });
   }, [parentLabel, user?.name, t]);
 
@@ -268,7 +358,10 @@ export function HomeScreen() {
   const openNotifications = () => {
     const id = selectedStudentId ?? students[0]?.id;
     if (id != null) setSelected(id);
-    navigation.navigate('ChildHub', { studentId: id, section: 'notifications' });
+    navigation.navigate('ChildHub', {
+      studentId: id,
+      section: 'notifications',
+    });
   };
 
   if (loading) {
@@ -277,7 +370,10 @@ export function HomeScreen() {
         <SafeAreaView style={styles.safe} edges={['top']}>
           <View style={styles.center}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text variant="bodyLarge" style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}>
+            <Text
+              variant="bodyLarge"
+              style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}
+            >
               {t('home.loadingDashboard')}
             </Text>
           </View>
@@ -288,118 +384,148 @@ export function HomeScreen() {
 
   return (
     <ScreenDecor>
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                load();
-              }}
-              tintColor={theme.colors.primary}
-            />
-          }
+      {/* <SafeAreaView style={styles.safe} edges={['top']}> */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              load();
+            }}
+            tintColor={theme.colors.primary}
+          />
+        }
+      >
+        <Text
+          variant="titleLarge"
+          style={[styles.greeting, { color: theme.colors.onBackground }]}
+          numberOfLines={2}
         >
-          <View style={styles.topBar}>
-            <Text variant="titleMedium" style={[styles.greeting, { color: theme.colors.onBackground }]} numberOfLines={2}>
-              👋 {greeting}
-            </Text>
-            <View style={styles.topIcons}>
-              <NotificationBellButton onPress={openNotifications} />
-              <Pressable hitSlop={12} onPress={() => navigateToTab('Profile')} style={styles.iconBtn} accessibilityLabel={t('nav.profile')}>
-                <MaterialCommunityIcons name="account-circle-outline" size={26} color={theme.colors.onBackground} />
-              </Pressable>
-            </View>
-          </View>
+          👋 {greeting}
+        </Text>
 
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-            {todayLine}
+        <Text
+          variant="bodyMedium"
+          style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}
+        >
+          {todayLine}
+        </Text>
+        {lastUpdatedLabel ? (
+          <Text
+            variant="labelSmall"
+            style={{ color: theme.colors.primary, marginTop: 4 }}
+          >
+            {lastUpdatedLabel}
           </Text>
-          {lastUpdatedLabel ? (
-            <Text variant="labelSmall" style={{ color: theme.colors.primary, marginTop: 4 }}>
-              {lastUpdatedLabel}
-            </Text>
-          ) : null}
+        ) : null}
 
-          {error ? (
-            <View style={[styles.errBanner, { backgroundColor: theme.colors.errorContainer }]}>
-              <MaterialCommunityIcons name="alert-circle-outline" size={20} color={theme.colors.error} />
-              <Text style={[styles.errText, { color: theme.colors.onErrorContainer }]}>{error}</Text>
-            </View>
-          ) : null}
-
-          <View style={styles.statsRow}>
-            <StatCard
-              icon="chart-donut"
-              value={`${stats.monthPct}%`}
-              label={t('home.statsAttendance')}
-              sublabel={t('home.statsThisMonth')}
-              theme={theme}
-              tint="primary"
+        {error ? (
+          <View
+            style={[
+              styles.errBanner,
+              { backgroundColor: theme.colors.errorContainer },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="alert-circle-outline"
+              size={20}
+              color={theme.colors.error}
             />
-            <StatCard
-              icon="check-decagram"
-              value={String(stats.weekPresent)}
-              label={t('home.statsPresent')}
-              sublabel={t('home.statsThisWeek')}
-              theme={theme}
-              tint="success"
-            />
-            <StatCard
-              icon="clock-alert-outline"
-              value={String(stats.monthLate)}
-              label={t('home.statsLateDays')}
-              sublabel={t('home.statsThisMonth')}
-              theme={theme}
-              tint="warning"
-            />
-          </View>
-
-          <View style={styles.sectionHeader}>
-            <Text variant="titleMedium" style={{ color: theme.colors.onBackground, fontWeight: '700' }}>
-              {t('home.myChildren')}
-            </Text>
-            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-              {t('home.tapToOpen')}
+            <Text
+              style={[styles.errText, { color: theme.colors.onErrorContainer }]}
+            >
+              {error}
             </Text>
           </View>
+        ) : null}
 
-          {students.length === 0 && !error ? (
-            <EmptyState
-              icon="account-child-outline"
-              title={t('home.noStudentsTitle')}
-              message={t('home.noStudentsMessage')}
+        <View style={styles.statsRow}>
+          <StatCard
+            icon="chart-donut"
+            value={`${stats.monthPct}%`}
+            label={t('home.statsAttendance')}
+            sublabel={t('home.statsThisMonth')}
+            theme={theme}
+            tint="primary"
+          />
+          <StatCard
+            icon="check-decagram"
+            value={String(stats.weekPresent)}
+            label={t('home.statsPresent')}
+            sublabel={t('home.statsThisWeek')}
+            theme={theme}
+            tint="success"
+          />
+          <StatCard
+            icon="clock-alert-outline"
+            value={String(stats.monthLate)}
+            label={t('home.statsLateDays')}
+            sublabel={t('home.statsThisMonth')}
+            theme={theme}
+            tint="warning"
+          />
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text
+            variant="titleMedium"
+            style={{ color: theme.colors.onBackground, fontWeight: '700' }}
+          >
+            {t('home.myChildren')}
+          </Text>
+          <Text
+            variant="labelMedium"
+            style={{ color: theme.colors.onSurfaceVariant }}
+          >
+            {t('home.tapToOpen')}
+          </Text>
+        </View>
+
+        {students.length === 0 && !error ? (
+          <EmptyState
+            icon="account-child-outline"
+            title={t('home.noStudentsTitle')}
+            message={t('home.noStudentsMessage')}
+          />
+        ) : (
+          students.map((s) => (
+            <ChildOverviewCard
+              key={s.id}
+              item={s}
+              onPress={() => openChild(s.id)}
+              theme={theme}
+              lastRow={latestRow(rowsByStudent.get(s.id) ?? [])}
+              t={t}
             />
-          ) : (
-            students.map((s) => (
-              <ChildOverviewCard
-                key={s.id}
-                item={s}
-                onPress={() => openChild(s.id)}
-                theme={theme}
-                lastRow={latestRow(rowsByStudent.get(s.id) ?? [])}
-                t={t}
-              />
-            ))
-          )}
-        </ScrollView>
-      </SafeAreaView>
+          ))
+        )}
+      </ScrollView>
     </ScreenDecor>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 36 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  topBar: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 4 },
-  greeting: { flex: 1, fontWeight: '700', paddingRight: 8 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 36, paddingTop: 12 },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+
+  greeting: { fontWeight: '700', paddingRight: 8, marginTop: 12 },
   topIcons: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   iconBtn: { padding: 6 },
-  statsRow: { flexDirection: 'row', gap: 10, marginTop: 20, justifyContent: 'space-between' },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 20,
+    justifyContent: 'space-between',
+  },
   statCard: {
     flex: 1,
     borderRadius: 16,
@@ -449,7 +575,12 @@ const styles = StyleSheet.create({
   },
   childAvatarText: { color: '#fff', fontSize: 18, fontWeight: '800' },
   childCardBody: { flex: 1, marginLeft: 12 },
-  childTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  childTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
   childName: { fontWeight: '700', flex: 1 },
   statusBadge: {
     flexDirection: 'row',

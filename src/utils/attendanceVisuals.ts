@@ -1,4 +1,4 @@
-import type { AppTheme } from '../../theme';
+import type { AppTheme } from '../theme';
 
 export function attendanceStripeColor(status: string, theme: AppTheme): string {
   const s = status.toLowerCase();

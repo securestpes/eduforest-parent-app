@@ -14,22 +14,22 @@ import type { NavigationProp } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMe } from '../services/parent';
-import { ParentProfileService } from '../../features/profile/services/ParentProfileService';
-import { logout } from '../../features/login/slices/authSlice';
-import { AuthService } from '../../features/login/services/AuthService';
-import { localStorageKeys } from '../../common/constants';
-import type { RootState } from '../../redux/store';
-import type { RootStackParamList } from '../../navigation/Navigation';
+import { ParentProfileService } from '../features/profile/services/ParentProfileService';
+import { logout } from '../features/login/slices/authSlice';
+import { AuthService } from '../features/login/services/AuthService';
+import { localStorageKeys } from '../common/constants';
+import type { RootState } from '../redux/store';
+import type { RootStackParamList } from '../navigation/Navigation';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { initials, avatarHue } from '../utils/attendanceVisuals';
-import type { AppTheme } from '../../theme';
+import type { AppTheme } from '../theme';
 import {
   ConfirmationPopup,
   useAppLanguage,
   useAppTheme,
   useNetworkError,
-} from '../../common';
+} from '../common';
 
 export function ProfileScreen() {
   const theme = useTheme() as AppTheme;

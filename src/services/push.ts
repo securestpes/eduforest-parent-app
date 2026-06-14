@@ -3,7 +3,7 @@ import { getMessaging, getToken } from '@react-native-firebase/messaging';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { InteractionManager, Platform } from 'react-native';
-import { localStorageKeys } from '../../common/constants';
+import { localStorageKeys } from '../common/constants';
 import { registerDeviceToken } from './parent';
 
 const fcm = getMessaging(getApp());
@@ -40,7 +40,9 @@ function isRetryableNetworkFailure(e: unknown): boolean {
  * Pass `accessToken` from auth store so the first request after login does not race AsyncStorage.
  * Retries on transient Axios "Network Error" (common right after cold start before the radio is ready).
  */
-export async function registerParentPushToken(accessToken?: string | null): Promise<void> {
+export async function registerParentPushToken(
+  accessToken?: string | null
+): Promise<void> {
   if (Platform.OS === 'web') {
     return;
   }
@@ -76,11 +78,17 @@ export async function registerParentPushToken(accessToken?: string | null): Prom
     }
     console.log('[push] FCM token:', fcmToken);
     const platform =
-      Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : Platform.OS;
+      Platform.OS === 'ios'
+        ? 'ios'
+        : Platform.OS === 'android'
+          ? 'android'
+          : Platform.OS;
 
     let bearer = accessToken?.trim() || null;
     if (!bearer) {
-      bearer = (await AsyncStorage.getItem(localStorageKeys.ACCESS_TOKEN))?.trim() || null;
+      bearer =
+        (await AsyncStorage.getItem(localStorageKeys.ACCESS_TOKEN))?.trim() ||
+        null;
     }
 
     const maxAttempts = 4;
