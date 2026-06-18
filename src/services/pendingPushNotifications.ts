@@ -2,6 +2,10 @@ import { DeviceEventEmitter } from 'react-native';
 import { APP_NOTIFICATION_RECEIVED_EVENT } from '../constants/notifications';
 import { notificationKeyFromFcm } from '../utils/notificationKeys';
 import { incrementLocalBadgeFromPush } from './localNotificationBadge';
+import {
+  getNotificationPreferences,
+  shouldShowAttendanceNotification,
+} from './notificationPreferences';
 
 export function normalizeFcmData(
   data: Record<string, string | object> | undefined
@@ -32,6 +36,10 @@ export async function handleIncomingPushNotification(
 ): Promise<void> {
   const normalized = normalizeFcmData(data);
   if (normalized) {
+    const prefs = await getNotificationPreferences();
+    if (!shouldShowAttendanceNotification(normalized, prefs)) {
+      return;
+    }
     const id = pushNotificationIdFromFcm(normalized);
     await incrementLocalBadgeFromPush(id);
   }

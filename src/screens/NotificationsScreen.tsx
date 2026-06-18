@@ -17,6 +17,7 @@ import { formatLocalDateTime } from '../utils/localDateTime';
 import {
   getMyStudents,
   getStudentAttendance,
+  PARENT_ATTENDANCE_PAGE_SIZE,
   type ParentAttendanceRow,
   ParentStudent,
 } from '../services/parent';
@@ -214,12 +215,29 @@ function SectionTitle({
   );
 }
 
+type StudentPageState = {
+  page: number;
+  hasMore: boolean;
+};
+
+function hasMoreAttendancePages(
+  data: { number?: number; totalPages?: number } | undefined
+): boolean {
+  if (!data) {
+    return false;
+  }
+  return (data.number ?? 0) + 1 < (data.totalPages ?? 1);
+}
+
 export function NotificationsScreen({
   embedded,
   onSwitchToAttendance,
 }: {
   embedded?: boolean;
-  onSwitchToAttendance?: () => void;
+  onSwitchToAttendance?: (highlight?: {
+    highlightAttendanceId?: number;
+    highlightSessionDate?: string;
+  }) => void;
 } = {}) {
   const theme = useTheme() as AppTheme;
   const { t } = useAppLanguage();
@@ -231,9 +249,28 @@ export function NotificationsScreen({
   const [rowsMap, setRowsMap] = useState<Map<number, ParentAttendanceRow[]>>(
     new Map()
   );
+  const [pageStateMap, setPageStateMap] = useState<
+    Map<number, StudentPageState>
+  >(new Map());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+
+  const fetchStudentAttendancePage = useCallback(
+    async (studentId: number, page: number) => {
+      try {
+        return await getStudentAttendance(
+          studentId,
+          page,
+          PARENT_ATTENDANCE_PAGE_SIZE
+        );
+      } catch {
+        return null;
+      }
+    },
+    []
+  );
 
   const load = useCallback(async () => {
     try {
@@ -241,29 +278,95 @@ export function NotificationsScreen({
       if (!stRes.status || !Array.isArray(stRes.data)) {
         setStudents([]);
         setRowsMap(new Map());
+        setPageStateMap(new Map());
         return;
       }
       const list = stRes.data;
       setStudents(list);
       const map = new Map<number, ParentAttendanceRow[]>();
+      const pages = new Map<number, StudentPageState>();
       await Promise.all(
         list.map(async (s) => {
-          try {
-            const ar = await getStudentAttendance(s.id, 0, 100);
-            if (ar.status && ar.data?.content) map.set(s.id, ar.data.content);
-            else map.set(s.id, []);
-          } catch {
+          const ar = await fetchStudentAttendancePage(s.id, 0);
+          if (ar?.status && ar.data?.content) {
+            map.set(s.id, ar.data.content);
+            pages.set(s.id, {
+              page: 0,
+              hasMore: hasMoreAttendancePages(ar.data),
+            });
+          } else {
             map.set(s.id, []);
+            pages.set(s.id, { page: 0, hasMore: false });
           }
         })
       );
       setRowsMap(map);
+      setPageStateMap(pages);
       setLastUpdatedAt(Date.now());
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
-  }, []);
+  }, [fetchStudentAttendancePage]);
+
+  const hasMore = useMemo(() => {
+    for (const state of pageStateMap.values()) {
+      if (state.hasMore) {
+        return true;
+      }
+    }
+    return false;
+  }, [pageStateMap]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || students.length === 0) {
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      const targets = students.filter((s) => pageStateMap.get(s.id)?.hasMore);
+      if (targets.length === 0) {
+        return;
+      }
+
+      const nextRowsMap = new Map(rowsMap);
+      const nextPageStateMap = new Map(pageStateMap);
+
+      await Promise.all(
+        targets.map(async (s) => {
+          const current = pageStateMap.get(s.id);
+          if (!current?.hasMore) {
+            return;
+          }
+          const nextPage = current.page + 1;
+          const ar = await fetchStudentAttendancePage(s.id, nextPage);
+          if (ar?.status && ar.data?.content) {
+            const existing = nextRowsMap.get(s.id) ?? [];
+            nextRowsMap.set(s.id, [...existing, ...ar.data.content]);
+            nextPageStateMap.set(s.id, {
+              page: nextPage,
+              hasMore: hasMoreAttendancePages(ar.data),
+            });
+          } else {
+            nextPageStateMap.set(s.id, { page: current.page, hasMore: false });
+          }
+        })
+      );
+
+      setRowsMap(nextRowsMap);
+      setPageStateMap(nextPageStateMap);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [
+    fetchStudentAttendancePage,
+    hasMore,
+    loadingMore,
+    pageStateMap,
+    rowsMap,
+    students,
+  ]);
 
   useEffect(() => {
     load();
@@ -341,7 +444,19 @@ export function NotificationsScreen({
   const openDetails = (item: CenterNotification) => {
     const student = students.find((s) => s.name === item.studentName);
     if (student) setSelectedStudentId(student.id);
-    goToAttendance();
+    const highlight = {
+      highlightAttendanceId: item.row.attendanceId,
+      highlightSessionDate: item.row.sessionDate.slice(0, 10),
+    };
+    if (embedded && onSwitchToAttendance) {
+      onSwitchToAttendance(highlight);
+      return;
+    }
+    navigation.navigate('ChildHub', {
+      section: 'attendance',
+      studentId: student?.id,
+      ...highlight,
+    });
   };
 
   if (loading) {
@@ -469,6 +584,18 @@ export function NotificationsScreen({
                 ))}
               </>
             ) : null}
+
+            {hasMore ? (
+              <Button
+                mode="outlined"
+                onPress={() => void loadMore()}
+                loading={loadingMore}
+                disabled={loadingMore}
+                style={styles.loadMoreBtn}
+              >
+                {t('attendance.loadMore')}
+              </Button>
+            ) : null}
           </>
         )}
       </ScrollView>
@@ -544,4 +671,5 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   weeklyTop: { flexDirection: 'row', alignItems: 'center' },
+  loadMoreBtn: { marginTop: 8, marginBottom: 16 },
 });

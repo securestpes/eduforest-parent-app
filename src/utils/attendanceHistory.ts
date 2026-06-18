@@ -3,7 +3,7 @@ import type { ParentAttendanceRow } from '../services/parent';
 import { kindFromStatus, parseRowDate } from './dashboardHome';
 import { formatLocalDate } from './localDateTime';
 
-export type AttendanceFilter = 'all' | 'present' | 'absent' | 'late';
+export type AttendanceFilter = 'all' | 'present' | 'absent' | 'late' | 'leave';
 
 export function filterRowsByKind(rows: ParentAttendanceRow[], filter: AttendanceFilter): ParentAttendanceRow[] {
   if (filter === 'all') return rows;

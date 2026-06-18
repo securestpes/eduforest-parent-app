@@ -39,6 +39,12 @@ export interface PageAttendance {
   size: number;
 }
 
+/** Default page size for parent attendance APIs (notifications, attendance list). */
+export const PARENT_ATTENDANCE_PAGE_SIZE = 25;
+
+/** Server caps requests above this size. */
+export const PARENT_ATTENDANCE_PAGE_SIZE_MAX = 100;
+
 export async function getMe(): Promise<ApiEnvelope> {
   const { data } = await api.get<ApiEnvelope>(`${prefix}/me`);
   return data;
@@ -60,7 +66,7 @@ export async function getMyStudents(): Promise<
 export async function getStudentAttendance(
   studentId: number,
   page = 0,
-  size = 25
+  size = PARENT_ATTENDANCE_PAGE_SIZE
 ): Promise<ApiEnvelope & { data?: PageAttendance }> {
   const { data } = await api.get(`${prefix}/students/${studentId}/attendance`, {
     params: { page, size, sort: 'session.date,desc' },

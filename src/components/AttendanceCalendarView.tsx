@@ -29,6 +29,7 @@ function dotColor(
   if (kind === 'present') return theme.colors.success;
   if (kind === 'absent') return theme.colors.error;
   if (kind === 'late') return theme.colors.warning;
+  if (kind === 'leave') return theme.palette.card4_base;
   return theme.colors.outline;
 }
 

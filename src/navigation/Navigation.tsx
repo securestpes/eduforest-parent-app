@@ -27,7 +27,12 @@ export type RootStackParamList = {
   };
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   Profile: undefined;
-  ChildHub: { studentId?: number; section?: ChildChipAction } | undefined;
+  ChildHub: {
+    studentId?: number;
+    section?: ChildChipAction;
+    highlightAttendanceId?: number;
+    highlightSessionDate?: string;
+  } | undefined;
   PrivacyPolicy: undefined;
   TermsAndConditions: undefined;
   HelpAndSupport: undefined;

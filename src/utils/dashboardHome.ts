@@ -15,13 +15,14 @@ import {
   parseRowLocalDateTime,
 } from './localDateTime';
 
-export type StatusKind = 'present' | 'absent' | 'late' | 'unknown';
+export type StatusKind = 'present' | 'absent' | 'late' | 'leave' | 'unknown';
 
 export function kindFromStatus(status: string): StatusKind {
   const s = status.toLowerCase();
   if (s.includes('present')) return 'present';
   if (s.includes('absent')) return 'absent';
   if (s.includes('late')) return 'late';
+  if (s.includes('leave')) return 'leave';
   return 'unknown';
 }
 
@@ -68,6 +69,55 @@ export function aggregateFamilyStats(
   const monthPct =
     monthTotal > 0 ? Math.round((100 * monthPresent) / monthTotal) : 0;
   return { monthPct, weekPresent, monthLate };
+}
+
+export type WeekStats = {
+  present: number;
+  late: number;
+  absent: number;
+  leave: number;
+};
+
+export function aggregateFamilyWeekStats(
+  perStudentRows: Map<number, ParentAttendanceRow[]>,
+  now = new Date()
+): WeekStats {
+  let present = 0;
+  let late = 0;
+  let absent = 0;
+  let leave = 0;
+  for (const rows of perStudentRows.values()) {
+    const s = aggregateWeekStats(rows, now);
+    present += s.present;
+    late += s.late;
+    absent += s.absent;
+    leave += s.leave;
+  }
+  return { present, late, absent, leave };
+}
+
+export function aggregateWeekStats(
+  rows: ParentAttendanceRow[],
+  now = new Date()
+): WeekStats {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+  let present = 0;
+  let late = 0;
+  let absent = 0;
+  let leave = 0;
+
+  for (const row of rows) {
+    const dt = parseRowDate(row);
+    if (!dt || dt < weekStart || dt > weekEnd) continue;
+    const k = kindFromStatus(row.status);
+    if (k === 'present') present += 1;
+    else if (k === 'late') late += 1;
+    else if (k === 'absent') absent += 1;
+    else if (k === 'leave') leave += 1;
+  }
+
+  return { present, late, absent, leave };
 }
 
 export function latestRow(

@@ -1,5 +1,5 @@
-import { format } from 'date-fns';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { format, parseISO } from 'date-fns';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +17,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
   getMyStudents,
   getStudentAttendance,
+  PARENT_ATTENDANCE_PAGE_SIZE,
   type ParentAttendanceRow,
   type ParentStudent,
 } from '../services/parent';
@@ -48,15 +49,18 @@ function statusLabel(
   if (kind === 'present') return t('attendance.status.present');
   if (kind === 'absent') return t('attendance.status.absent');
   if (kind === 'late') return t('attendance.status.late');
+  if (kind === 'leave') return t('attendance.status.leave');
   return raw.toUpperCase();
 }
 
 function SessionCard({
   row,
   theme,
+  highlighted,
 }: {
   row: ParentAttendanceRow;
   theme: AppTheme;
+  highlighted?: boolean;
 }) {
   const { t } = useAppLanguage();
   const kind = kindFromStatus(row.status);
@@ -71,7 +75,9 @@ function SessionCard({
         ? theme.palette.dangerSoft
         : kind === 'late'
           ? theme.palette.warningSoft
-          : theme.colors.surfaceVariant;
+          : kind === 'leave'
+            ? theme.palette.card4_alpha
+            : theme.colors.surfaceVariant;
   const headerFg =
     kind === 'present'
       ? theme.colors.success
@@ -79,14 +85,19 @@ function SessionCard({
         ? theme.colors.error
         : kind === 'late'
           ? theme.colors.warning
-          : theme.colors.onSurfaceVariant;
+          : kind === 'leave'
+            ? theme.palette.card4_base
+            : theme.colors.onSurfaceVariant;
 
   return (
     <View
       style={[
         styles.sessionOuter,
         {
-          borderColor: theme.colors.outlineVariant,
+          borderColor: highlighted
+            ? theme.colors.primary
+            : theme.colors.outlineVariant,
+          borderWidth: highlighted ? 2 : 1,
           backgroundColor: theme.colors.surface,
         },
       ]}
@@ -291,7 +302,40 @@ function MonthSummaryBanner({
   );
 }
 
-export function AttendanceScreen({ embedded }: { embedded?: boolean } = {}) {
+function findAttendanceIdBySessionDate(
+  rows: ParentAttendanceRow[],
+  sessionDate: string
+): number | null {
+  const target = sessionDate.trim().slice(0, 10);
+  if (!target) return null;
+  for (const row of rows) {
+    if (row.sessionDate.slice(0, 10) === target) return row.attendanceId;
+  }
+  return null;
+}
+
+function findRowInSections(
+  sections: DaySection[],
+  attendanceId: number
+): { sectionIndex: number; itemIndex: number } | null {
+  for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+    const itemIndex = sections[sectionIndex].data.findIndex(
+      (row) => row.attendanceId === attendanceId
+    );
+    if (itemIndex >= 0) return { sectionIndex, itemIndex };
+  }
+  return null;
+}
+
+export function AttendanceScreen({
+  embedded,
+  highlightAttendanceId,
+  highlightSessionDate,
+}: {
+  embedded?: boolean;
+  highlightAttendanceId?: number;
+  highlightSessionDate?: string;
+} = {}) {
   const theme = useTheme() as AppTheme;
   const { t } = useAppLanguage();
   const FILTER_OPTIONS = useMemo(
@@ -301,6 +345,7 @@ export function AttendanceScreen({ embedded }: { embedded?: boolean } = {}) {
         { key: 'present' as const, label: t('attendance.filterPresentOnly') },
         { key: 'absent' as const, label: t('attendance.filterAbsentOnly') },
         { key: 'late' as const, label: t('attendance.filterLateOnly') },
+        { key: 'leave' as const, label: t('attendance.filterLeaveOnly') },
       ] satisfies { key: AttendanceFilter; label: string }[],
     [t]
   );
@@ -322,8 +367,31 @@ export function AttendanceScreen({ embedded }: { embedded?: boolean } = {}) {
   const [filter, setFilter] = useState<AttendanceFilter>('all');
   const [filterModal, setFilterModal] = useState(false);
   const [monthModal, setMonthModal] = useState(false);
+  const [pulseAttendanceId, setPulseAttendanceId] = useState<number | null>(null);
+  const listRef = useRef<SectionList<ParentAttendanceRow, DaySection>>(null);
+  const highlightDoneRef = useRef(false);
 
-  const PAGE_SIZE = 25;
+  const PAGE_SIZE = PARENT_ATTENDANCE_PAGE_SIZE;
+
+  useEffect(() => {
+    if (!highlightSessionDate) return;
+    try {
+      const iso =
+        highlightSessionDate.length === 10
+          ? `${highlightSessionDate}T12:00:00`
+          : highlightSessionDate;
+      const d = parseISO(iso);
+      setFocusMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+      setFilter('all');
+      setViewMode('list');
+    } catch {
+      /* ignore invalid date */
+    }
+  }, [highlightSessionDate]);
+
+  useEffect(() => {
+    highlightDoneRef.current = false;
+  }, [highlightAttendanceId, highlightSessionDate, studentId]);
 
   const load = useCallback(async () => {
     if (!studentId) {
@@ -399,6 +467,42 @@ export function AttendanceScreen({ embedded }: { embedded?: boolean } = {}) {
     () => groupRowsByDay(filteredMonthRows),
     [filteredMonthRows]
   );
+
+  const resolvedHighlightId = useMemo(() => {
+    if (highlightAttendanceId) return highlightAttendanceId;
+    if (highlightSessionDate) {
+      return findAttendanceIdBySessionDate(allRows, highlightSessionDate);
+    }
+    return null;
+  }, [highlightAttendanceId, highlightSessionDate, allRows]);
+
+  useEffect(() => {
+    if (!resolvedHighlightId || highlightDoneRef.current || loading) return;
+    const loc = findRowInSections(sections, resolvedHighlightId);
+    if (!loc) {
+      if (hasMore && !loadingMore) void loadMore();
+      return;
+    }
+    highlightDoneRef.current = true;
+    const timer = setTimeout(() => {
+      listRef.current?.scrollToLocation({
+        sectionIndex: loc.sectionIndex,
+        itemIndex: loc.itemIndex,
+        animated: true,
+        viewPosition: 0.25,
+      });
+      setPulseAttendanceId(resolvedHighlightId);
+      setTimeout(() => setPulseAttendanceId(null), 2000);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [
+    resolvedHighlightId,
+    sections,
+    loading,
+    hasMore,
+    loadingMore,
+    loadMore,
+  ]);
 
   const batchSubtitle = useMemo(() => {
     if (!student) return '';
@@ -544,6 +648,7 @@ export function AttendanceScreen({ embedded }: { embedded?: boolean } = {}) {
         </View>
       ) : (
         <SectionList
+          ref={listRef}
           sections={sections}
           keyExtractor={(item) => String(item.attendanceId)}
           stickySectionHeadersEnabled
@@ -624,7 +729,13 @@ export function AttendanceScreen({ embedded }: { embedded?: boolean } = {}) {
               </Text>
             </View>
           )}
-          renderItem={({ item }) => <SessionCard row={item} theme={theme} />}
+          renderItem={({ item }) => (
+            <SessionCard
+              row={item}
+              theme={theme}
+              highlighted={pulseAttendanceId === item.attendanceId}
+            />
+          )}
           ListFooterComponent={
             <View style={styles.footer}>
               {hasMore ? (

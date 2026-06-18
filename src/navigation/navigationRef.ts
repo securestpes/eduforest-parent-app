@@ -14,6 +14,8 @@ export type ChildHubSection = Extract<
 export type ChildNavigationPayload = {
   section: ChildHubSection;
   studentId?: number;
+  highlightAttendanceId?: number;
+  highlightSessionDate?: string;
 };
 
 let pendingNavigation: ChildNavigationPayload | null = null;
@@ -39,6 +41,8 @@ export function navigateToChildScreen(payload: ChildNavigationPayload): void {
   navigationRef.navigate('ChildHub', {
     studentId: payload.studentId,
     section: payload.section,
+    highlightAttendanceId: payload.highlightAttendanceId,
+    highlightSessionDate: payload.highlightSessionDate,
   });
 }
 
@@ -54,15 +58,22 @@ export function parseNotificationNavigation(
   data: Record<string, string> | undefined
 ): ChildNavigationPayload | null {
   if (!data) return null;
-  const studentIdRaw = data.studentId ?? data.student_id;
+  const studentIdRaw = data.studentId ?? data.student_id ?? data.child_id;
   const studentId = studentIdRaw ? Number(studentIdRaw) : undefined;
+  const attendanceIdRaw = data.attendanceId ?? data.attendance_id;
+  const attendanceId = attendanceIdRaw ? Number(attendanceIdRaw) : undefined;
+  const sessionDate = data.sessionDate ?? data.session_date;
   const section: ChildHubSection =
-    data.type === 'attendance_marked' || data.attendanceId
+    data.type === 'attendance_marked' || data.attendanceId || data.sessionDate
       ? 'attendance'
       : 'notifications';
   return {
     section,
     studentId: Number.isFinite(studentId) ? studentId : undefined,
+    highlightAttendanceId: Number.isFinite(attendanceId)
+      ? attendanceId
+      : undefined,
+    highlightSessionDate: sessionDate?.trim() || undefined,
   };
 }
 

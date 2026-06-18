@@ -1,6 +1,7 @@
-import { format, parseISO } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { bn, enUS, hi, ta } from 'date-fns/locale';
 import type { AppLanguage } from '../contexts/parentTranslations';
+import { parsePushTimestamp } from '../../utils/localDateTime';
 import {
   extractStudentNameFromLegacyPushText,
   inferAttendanceStatusFromLegacyPushText,
@@ -46,8 +47,8 @@ export function formatAttendanceTimePart(
     return '';
   }
   try {
-    const date = parseISO(timestamp);
-    if (Number.isNaN(date.getTime())) {
+    const date = parsePushTimestamp(timestamp);
+    if (!date) {
       return '';
     }
     const time = format(date, 'hh:mm a', { locale: dateFnsLocales[language] });

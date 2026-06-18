@@ -28,6 +28,8 @@ import {
 import { resetLocalBadgeCount } from './services/localNotificationBadge';
 import { ForceUpdateModal } from './features/versionCheck/ForceUpdateModal';
 import { VersionService } from './features/versionCheck/versionService';
+import { getNotificationPreferences } from './services/notificationPreferences';
+import { syncNativeNotificationPrefs } from './common/helpers/syncNativeNotificationPrefs';
 
 async function createNotificationChannel() {
   if (Platform.OS !== 'android') return;
@@ -70,6 +72,8 @@ function AppContent() {
     async function initializeNotifications() {
       await requestNotificationPermission();
       await createNotificationChannel();
+      const prefs = await getNotificationPreferences();
+      syncNativeNotificationPrefs(prefs);
       const token = await messaging().getToken();
       console.log('FCM TOKEN:', token);
     }

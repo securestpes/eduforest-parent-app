@@ -30,6 +30,7 @@ import {
   useAppTheme,
   useNetworkError,
 } from '../common';
+import { NotificationPreferencesSection } from '../components/NotificationPreferencesSection';
 
 export function ProfileScreen() {
   const theme = useTheme() as AppTheme;
@@ -242,6 +243,8 @@ export function ProfileScreen() {
             </Text>
           </View>
         </View>
+
+        <NotificationPreferencesSection />
 
         <View
           style={[

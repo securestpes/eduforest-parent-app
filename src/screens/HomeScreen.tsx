@@ -24,7 +24,10 @@ import {
   getMe,
   getMyStudents,
   getStudentAttendance,
+  getStudentSchedules,
+  PARENT_ATTENDANCE_PAGE_SIZE,
   ParentAttendanceRow,
+  ParentSchedule,
   ParentStudent,
 } from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
@@ -32,12 +35,17 @@ import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import { initials, avatarHue } from '../utils/attendanceVisuals';
 import {
-  aggregateFamilyStats,
+  aggregateFamilyWeekStats,
   formatLastSessionLine,
-  kindFromStatus,
   latestRow,
 } from '../utils/dashboardHome';
-import { formatLocalDateTime } from '../utils/localDateTime';
+import { formatLocalDateTime, formatApiTime } from '../utils/localDateTime';
+import {
+  formatScheduleTimeRange,
+  resolveNextClassToday,
+  resolveTodayStatus,
+  type TodayStatusKind,
+} from '../utils/scheduleHelpers';
 import { useMainTabNavigation } from '../navigation/TabNavigationContext';
 import { AppTheme } from '../theme';
 import { RootState } from '../redux/store';
@@ -53,29 +61,31 @@ function StatCard({
   icon,
   value,
   label,
-  sublabel,
   theme,
   tint,
 }: {
   icon: ComponentProps<typeof MaterialCommunityIcons>['name'];
   value: string;
   label: string;
-  sublabel: string;
   theme: AppTheme;
-  tint: 'primary' | 'success' | 'warning';
+  tint: 'success' | 'warning' | 'danger' | 'leave';
 }) {
   const bg =
-    tint === 'primary'
-      ? theme.colors.primaryContainer
-      : tint === 'success'
-        ? theme.palette.successSoft
-        : theme.palette.warningSoft;
+    tint === 'success'
+      ? theme.palette.successSoft
+      : tint === 'danger'
+        ? theme.palette.dangerSoft
+        : tint === 'leave'
+          ? theme.palette.card4_alpha
+          : theme.palette.warningSoft;
   const fg =
-    tint === 'primary'
-      ? theme.colors.primary
-      : tint === 'success'
-        ? theme.colors.success
-        : theme.colors.warning;
+    tint === 'success'
+      ? theme.colors.success
+      : tint === 'danger'
+        ? theme.colors.error
+        : tint === 'leave'
+          ? theme.palette.card4_base
+          : theme.colors.warning;
   return (
     <View style={[styles.statCard, { backgroundColor: theme.colors.surface }]}>
       <View style={[styles.statIconWrap, { backgroundColor: bg }]}>
@@ -89,33 +99,22 @@ function StatCard({
       </Text>
       <Text
         variant="labelSmall"
-        style={{
-          color: theme.colors.onSurfaceVariant,
-          marginTop: 2,
-          textAlign: 'center',
-        }}
+        style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
+        numberOfLines={2}
+        adjustsFontSizeToFit
+        minimumFontScale={0.72}
       >
         {label}
-      </Text>
-      <Text
-        variant="labelSmall"
-        style={{
-          color: theme.colors.outline,
-          marginTop: 2,
-          textAlign: 'center',
-        }}
-      >
-        {sublabel}
       </Text>
     </View>
   );
 }
 
-function StatusBadge({
+function TodayStatusBadge({
   kind,
   theme,
 }: {
-  kind: ReturnType<typeof kindFromStatus>;
+  kind: TodayStatusKind;
   theme: AppTheme;
 }) {
   const { t } = useAppLanguage();
@@ -126,7 +125,13 @@ function StatusBadge({
         ? t('attendance.status.absent')
         : kind === 'late'
           ? t('attendance.status.late')
-          : t('common.dash');
+          : kind === 'leave'
+            ? t('attendance.status.leave')
+            : kind === 'not_marked'
+            ? t('home.todayNotMarked')
+            : kind === 'no_class'
+              ? t('home.todayNoClass')
+              : t('common.dash');
   const bg =
     kind === 'present'
       ? theme.palette.successSoft
@@ -134,7 +139,11 @@ function StatusBadge({
         ? theme.palette.dangerSoft
         : kind === 'late'
           ? theme.palette.warningSoft
-          : theme.colors.surfaceVariant;
+          : kind === 'leave'
+            ? theme.palette.card4_alpha
+            : kind === 'not_marked'
+            ? theme.palette.primarySoft
+            : theme.colors.surfaceVariant;
   const fg =
     kind === 'present'
       ? theme.colors.success
@@ -142,7 +151,11 @@ function StatusBadge({
         ? theme.colors.error
         : kind === 'late'
           ? theme.colors.warning
-          : theme.colors.onSurfaceVariant;
+          : kind === 'leave'
+            ? theme.palette.card4_base
+            : kind === 'not_marked'
+            ? theme.colors.primary
+            : theme.colors.onSurfaceVariant;
   return (
     <View style={[styles.statusBadge, { backgroundColor: bg }]}>
       <View style={[styles.statusDot, { backgroundColor: fg }]} />
@@ -153,25 +166,64 @@ function StatusBadge({
   );
 }
 
+function childTodayDetailLine(
+  kind: TodayStatusKind,
+  todayRow: ParentAttendanceRow | null,
+  schedules: ParentSchedule[],
+  allRows: ParentAttendanceRow[],
+  t: Translate
+): string {
+  if (kind === 'present' || kind === 'absent' || kind === 'late' || kind === 'leave') {
+    if (todayRow) {
+      const time = todayRow.startTime ? formatApiTime(todayRow.startTime) : '';
+      return time
+        ? `${todayRow.batchName} · ${time}`
+        : todayRow.batchName;
+    }
+  }
+  if (kind === 'not_marked') {
+    const next = resolveNextClassToday(schedules);
+    if (next.schedule && next.phase !== 'ended') {
+      const range = formatScheduleTimeRange(next.schedule);
+      if (next.phase === 'in_progress') {
+        return t('home.inClassNow', {
+          time: range,
+          batch: next.schedule.batchName,
+        });
+      }
+      return t('home.nextClass', {
+        time: range,
+        batch: next.schedule.batchName,
+      });
+    }
+    return t('home.todayNotMarked');
+  }
+  const last = latestRow(allRows);
+  return last ? formatLastSessionLine(last) : t('home.noAttendanceYet');
+}
+
 function ChildOverviewCard({
   item,
   onPress,
   theme,
-  lastRow,
+  rows,
+  schedules,
   t,
 }: {
   item: ParentStudent;
   onPress: () => void;
   theme: AppTheme;
-  lastRow: ParentAttendanceRow | null;
+  rows: ParentAttendanceRow[];
+  schedules: ParentSchedule[];
   t: Translate;
 }) {
   const hue = avatarHue(item.name);
   const avatarBg = `hsl(${hue} 45% 46%)`;
-  const kind = lastRow ? kindFromStatus(lastRow.status) : 'unknown';
+  const { kind, row: todayRow } = resolveTodayStatus(schedules, rows);
   const batchLine = item.batchNames?.length
     ? item.batchNames.join(' · ')
     : t('common.dash');
+  const detailLine = childTodayDetailLine(kind, todayRow, schedules, rows, t);
 
   return (
     <Pressable
@@ -200,7 +252,7 @@ function ChildOverviewCard({
             >
               {item.name}
             </Text>
-            <StatusBadge kind={lastRow ? kind : 'unknown'} theme={theme} />
+            <TodayStatusBadge kind={kind} theme={theme} />
           </View>
           <Text
             variant="bodySmall"
@@ -219,9 +271,25 @@ function ChildOverviewCard({
           </Text>
           <View style={styles.lastRow}>
             <MaterialCommunityIcons
-              name="star-four-points-outline"
+              name={
+                kind === 'not_marked'
+                  ? 'clock-outline'
+                  : kind === 'leave'
+                    ? 'beach'
+                    : kind === 'no_class'
+                      ? 'star-four-points-outline'
+                      : 'calendar-check-outline'
+              }
               size={16}
-              color={theme.colors.warning}
+              color={
+                kind === 'not_marked'
+                  ? theme.colors.primary
+                  : kind === 'leave'
+                    ? theme.palette.card4_base
+                    : kind === 'no_class'
+                      ? theme.colors.warning
+                      : theme.colors.success
+              }
             />
             <Text
               variant="bodySmall"
@@ -230,10 +298,9 @@ function ChildOverviewCard({
                 marginLeft: 6,
                 flex: 1,
               }}
+              numberOfLines={2}
             >
-              {lastRow
-                ? formatLastSessionLine(lastRow)
-                : t('home.noAttendanceYet')}
+              {detailLine}
             </Text>
           </View>
         </View>
@@ -252,6 +319,9 @@ export function HomeScreen() {
   const [students, setStudents] = useState<ParentStudent[]>([]);
   const [rowsByStudent, setRowsByStudent] = useState<
     Map<number, ParentAttendanceRow[]>
+  >(new Map());
+  const [schedulesByStudent, setSchedulesByStudent] = useState<
+    Map<number, ParentSchedule[]>
   >(new Map());
   const [parentLabel, setParentLabel] = useState('');
   const [loading, setLoading] = useState(true);
@@ -289,18 +359,29 @@ export function HomeScreen() {
       setStudents(list);
 
       const map = new Map<number, ParentAttendanceRow[]>();
+      const schedMap = new Map<number, ParentSchedule[]>();
       await Promise.all(
         list.map(async (s) => {
           try {
-            const ar = await getStudentAttendance(s.id, 0, 5);
+            const [ar, sch] = await Promise.all([
+              getStudentAttendance(s.id, 0, PARENT_ATTENDANCE_PAGE_SIZE),
+              getStudentSchedules(s.id),
+            ]);
             if (ar.status && ar.data?.content) map.set(s.id, ar.data.content);
             else map.set(s.id, []);
+            if (sch.status && Array.isArray(sch.data)) {
+              schedMap.set(s.id, sch.data);
+            } else {
+              schedMap.set(s.id, []);
+            }
           } catch {
             map.set(s.id, []);
+            schedMap.set(s.id, []);
           }
         })
       );
       setRowsByStudent(map);
+      setSchedulesByStudent(schedMap);
       setLastUpdatedAt(Date.now());
     } catch {
       setError(t('home.networkError'));
@@ -320,8 +401,8 @@ export function HomeScreen() {
     }, [load])
   );
 
-  const stats = useMemo(
-    () => aggregateFamilyStats(rowsByStudent),
+  const weekStats = useMemo(
+    () => aggregateFamilyWeekStats(rowsByStudent),
     [rowsByStudent]
   );
 
@@ -354,6 +435,12 @@ export function HomeScreen() {
   const openChild = (id: number) => {
     setSelected(id);
     navigation.navigate('ChildHub', { studentId: id, section: 'attendance' });
+  };
+
+  const onRefreshPress = () => {
+    if (refreshing || loading) return;
+    setRefreshing(true);
+    void load();
   };
 
   if (loading) {
@@ -390,13 +477,35 @@ export function HomeScreen() {
           />
         }
       >
-        <Text
-          variant="titleLarge"
-          style={[styles.greeting, { color: theme.colors.onBackground }]}
-          numberOfLines={2}
-        >
-          👋 {greeting}
-        </Text>
+        <View style={styles.greetingRow}>
+          <Text
+            variant="titleLarge"
+            style={[styles.greeting, { color: theme.colors.onBackground }]}
+            numberOfLines={2}
+          >
+            👋 {greeting}
+          </Text>
+          <Pressable
+            onPress={onRefreshPress}
+            disabled={refreshing}
+            accessibilityRole="button"
+            accessibilityLabel={t('home.refresh')}
+            style={({ pressed }) => [
+              styles.refreshBtn,
+              { opacity: pressed || refreshing ? 0.6 : 1 },
+            ]}
+          >
+            {refreshing ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : (
+              <MaterialCommunityIcons
+                name="refresh"
+                size={24}
+                color={theme.colors.primary}
+              />
+            )}
+          </Pressable>
+        </View>
 
         <Text
           variant="bodyMedium"
@@ -435,28 +544,32 @@ export function HomeScreen() {
 
         <View style={styles.statsRow}>
           <StatCard
-            icon="chart-donut"
-            value={`${stats.monthPct}%`}
-            label={t('home.statsAttendance')}
-            sublabel={t('home.statsThisMonth')}
-            theme={theme}
-            tint="primary"
-          />
-          <StatCard
             icon="check-decagram"
-            value={String(stats.weekPresent)}
-            label={t('home.statsPresent')}
-            sublabel={t('home.statsThisWeek')}
+            value={String(weekStats.present)}
+            label={t('home.statsPresentWeek')}
             theme={theme}
             tint="success"
           />
           <StatCard
+            icon="close-circle-outline"
+            value={String(weekStats.absent)}
+            label={t('home.statsAbsentWeek')}
+            theme={theme}
+            tint="danger"
+          />
+          <StatCard
             icon="clock-alert-outline"
-            value={String(stats.monthLate)}
-            label={t('home.statsLateDays')}
-            sublabel={t('home.statsThisMonth')}
+            value={String(weekStats.late)}
+            label={t('home.statsLateWeek')}
             theme={theme}
             tint="warning"
+          />
+          <StatCard
+            icon="beach"
+            value={String(weekStats.leave)}
+            label={t('home.statsLeaveWeek')}
+            theme={theme}
+            tint="leave"
           />
         </View>
 
@@ -488,7 +601,8 @@ export function HomeScreen() {
               item={s}
               onPress={() => openChild(s.id)}
               theme={theme}
-              lastRow={latestRow(rowsByStudent.get(s.id) ?? [])}
+              rows={rowsByStudent.get(s.id) ?? []}
+              schedules={schedulesByStudent.get(s.id) ?? []}
               t={t}
             />
           ))
@@ -508,17 +622,34 @@ const styles = StyleSheet.create({
     padding: 24,
   },
 
-  greeting: { fontWeight: '700', paddingRight: 8, marginTop: 12 },
+  greeting: { fontWeight: '700', flex: 1 },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 12,
+    paddingRight: 4,
+  },
+  refreshBtn: {
+    padding: 8,
+    marginTop: 2,
+    minWidth: 40,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   topIcons: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   iconBtn: { padding: 6 },
   statsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
     marginTop: 20,
     justifyContent: 'space-between',
   },
   statCard: {
-    flex: 1,
+    width: '48%',
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 8,
@@ -539,6 +670,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   statValue: { fontWeight: '800' },
+  statLabel: {
+    marginTop: 4,
+    textAlign: 'center',
+    paddingHorizontal: 2,
+    width: '100%',
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',

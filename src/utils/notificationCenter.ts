@@ -34,6 +34,7 @@ function statusUpperFromKind(
   if (kind === 'present') return 'PRESENT';
   if (kind === 'absent') return 'ABSENT';
   if (kind === 'late') return 'LATE';
+  if (kind === 'leave') return 'LEAVE';
   return raw.toUpperCase();
 }
 
@@ -67,6 +68,8 @@ export function collectCenterNotifications(
         headline = `${s.name} was marked LATE in ${row.batchName}`;
       } else if (k === 'present') {
         headline = `${s.name} marked present · ${row.batchName}`;
+      } else if (k === 'leave') {
+        headline = `${s.name} is on leave · ${row.batchName}`;
       } else {
         headline = `${s.name} · ${row.status} · ${row.batchName}`;
       }

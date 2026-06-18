@@ -50,6 +50,13 @@ export function ChildHubScreen() {
   const [section, setSection] = useState<ChildChipAction>(
     route.params?.section ?? 'attendance'
   );
+  const [attendanceHighlight, setAttendanceHighlight] = useState<{
+    highlightAttendanceId?: number;
+    highlightSessionDate?: string;
+  }>({
+    highlightAttendanceId: route.params?.highlightAttendanceId,
+    highlightSessionDate: route.params?.highlightSessionDate,
+  });
 
   const loadStudents = useCallback(async () => {
     const res = await getMyStudents();
@@ -67,7 +74,22 @@ export function ChildHubScreen() {
     if (route.params?.section) {
       setSection(route.params.section);
     }
-  }, [route.params?.studentId, route.params?.section, setSelectedStudentId]);
+    if (
+      route.params?.highlightAttendanceId != null ||
+      route.params?.highlightSessionDate
+    ) {
+      setAttendanceHighlight({
+        highlightAttendanceId: route.params.highlightAttendanceId,
+        highlightSessionDate: route.params.highlightSessionDate,
+      });
+    }
+  }, [
+    route.params?.studentId,
+    route.params?.section,
+    route.params?.highlightAttendanceId,
+    route.params?.highlightSessionDate,
+    setSelectedStudentId,
+  ]);
 
   useEffect(() => {
     void loadStudents();
@@ -100,11 +122,16 @@ export function ChildHubScreen() {
         </View>
 
         <View style={styles.content}>
-          {section === 'attendance' ? <AttendanceScreen embedded /> : null}
+          {section === 'attendance' ? (
+            <AttendanceScreen embedded {...attendanceHighlight} />
+          ) : null}
           {section === 'notifications' ? (
             <NotificationsScreen
               embedded
-              onSwitchToAttendance={() => setSection('attendance')}
+              onSwitchToAttendance={(highlight) => {
+                if (highlight) setAttendanceHighlight(highlight);
+                setSection('attendance');
+              }}
             />
           ) : null}
           {section === 'schedule' ? <ScheduleScreen embedded /> : null}

@@ -6,6 +6,11 @@ import { FCM_ATTENDANCE_CHANNEL_ID } from '@/constants/fcmAndroid';
 import type { AppLanguage } from '../contexts/parentTranslations';
 import { buildLocalizedNotificationContent } from './attendanceNotificationBuilder';
 import { buildLocalizedVoiceMessage } from './voiceAnnouncementBuilder';
+import {
+  getNotificationPreferences,
+  shouldPlayVoiceForNotification,
+  shouldShowAttendanceNotification,
+} from '../../services/notificationPreferences';
 
 export const isVoiceAnnouncementsEnabled = async () => {
   const raw = await AsyncStorage.getItem(
@@ -61,6 +66,10 @@ export const displayNotification = async (
   language: AppLanguage = 'en'
 ) => {
   const data = fcmDataAsStrings(remoteMessage.data);
+  const prefs = await getNotificationPreferences();
+  if (data && !shouldShowAttendanceNotification(data, prefs)) {
+    return;
+  }
   const localizedPush = buildLocalizedNotificationContent(data, language);
   await notifee.displayNotification({
     title: localizedPush?.title ?? data?.title ?? 'New Notification',
@@ -83,7 +92,9 @@ export const displayNotification = async (
   });
 
   const shouldPlayVoice =
-    data?.play_voice?.toLowerCase() === 'true' || Boolean(data?.voice_message);
+    (data?.play_voice?.toLowerCase() === 'true' || Boolean(data?.voice_message)) &&
+    data &&
+    shouldPlayVoiceForNotification(data, prefs);
 
   if (!shouldPlayVoice) {
     return;

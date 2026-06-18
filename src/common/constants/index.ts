@@ -19,4 +19,6 @@ export const localStorageKeys = {
   LEGAL_CONSENT_ACCEPTED: 'legal_consent_accepted',
   DARK_MODE_ENABLED: 'dark_mode_enabled',
   PARENT_ONBOARDING_COMPLETED: 'parent_onboarding_completed',
+  /** JSON blob — see notificationPreferences.ts */
+  NOTIFICATION_PREFERENCES: 'notification_preferences',
 } as const;

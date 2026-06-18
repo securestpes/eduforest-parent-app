@@ -1,6 +1,6 @@
-import { parseISO } from 'date-fns';
 import type { AppLanguage } from '../contexts/parentTranslations';
 import type { TranslationKey } from '../contexts/parentTranslations';
+import { parsePushTimestamp } from '../../utils/localDateTime';
 import { resolveAttendancePushParams } from './attendancePushContext';
 import { translateKey } from './translateKey';
 
@@ -31,13 +31,9 @@ export function buildLocalizedVoiceMessage(
   const timestamp = data?.timestamp?.trim();
   let hour = new Date().getHours();
   if (timestamp) {
-    try {
-      const d = parseISO(timestamp);
-      if (!Number.isNaN(d.getTime())) {
-        hour = d.getHours();
-      }
-    } catch {
-      /* use now */
+    const d = parsePushTimestamp(timestamp);
+    if (d) {
+      hour = d.getHours();
     }
   }
 
