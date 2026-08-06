@@ -11,7 +11,9 @@ try {
 }
 
 const projectRoot = path.resolve(__dirname, '..');
-const assetsDir = path.join(projectRoot, 'assets');
+const srcAssetsDir = path.join(projectRoot, 'src', 'assets');
+const legacyAssetsDir = path.join(projectRoot, 'assets');
+const assetsDir = fs.existsSync(srcAssetsDir) ? srcAssetsDir : legacyAssetsDir;
 const androidRes = path.join(
   projectRoot,
   'android',
