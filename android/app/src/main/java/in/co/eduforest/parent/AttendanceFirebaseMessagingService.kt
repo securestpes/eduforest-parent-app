@@ -31,10 +31,15 @@ class AttendanceFirebaseMessagingService : FirebaseMessagingService() {
       englishFallback = englishBody
     ).ifBlank { englishBody }
 
+    val studentId = data["studentId"] ?: data["child_id"]
+    val status = data["status"]
+    if (!NotificationPrefsStorage.shouldShow(this, status, studentId)) return
+
     showNotification(title, body)
 
     val playVoice = data["play_voice"]?.equals("true", ignoreCase = true) ?: false
     if (!playVoice) return
+    if (!NotificationPrefsStorage.shouldPlayVoice(this, status, studentId)) return
 
     val legacyText = listOfNotNull(
       data["voice_message"],

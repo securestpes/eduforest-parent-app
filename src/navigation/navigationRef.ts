@@ -8,7 +8,7 @@ export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 export type ChildHubSection = Extract<
   ChildChipAction,
-  'attendance' | 'notifications' | 'schedule'
+  'attendance' | 'notifications' | 'schedule' | 'homework'
 >;
 
 export type ChildNavigationPayload = {

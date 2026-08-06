@@ -23,6 +23,7 @@ import {
 import { AttendanceScreen } from './AttendanceScreen';
 import { NotificationsScreen } from './NotificationsScreen';
 import { ScheduleScreen } from './ScheduleScreen';
+import { HomeworkScreen } from './HomeworkScreen';
 import type { RootStackParamList } from '../navigation/Navigation';
 import { useAppLanguage } from '../common';
 
@@ -30,6 +31,7 @@ const ENABLED_SECTIONS: ChildChipAction[] = [
   'attendance',
   'schedule',
   'notifications',
+  'homework',
 ];
 
 function isEnabledSection(
@@ -135,6 +137,7 @@ export function ChildHubScreen() {
             />
           ) : null}
           {section === 'schedule' ? <ScheduleScreen embedded /> : null}
+          {section === 'homework' ? <HomeworkScreen embedded /> : null}
         </View>
       </SafeAreaView>
     </ScreenDecor>

@@ -1,7 +1,10 @@
 package `in`.co.eduforest.parent
 
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.regex.Pattern
@@ -177,29 +180,40 @@ object VoiceMessageBuilder {
     return null
   }
 
-  private fun resolveReferenceTime(timestampIso: String?): LocalTime {
-    if (!timestampIso.isNullOrBlank()) {
+  private fun parseTimestampToLocalTime(timestampIso: String?): LocalTime? {
+    if (timestampIso.isNullOrBlank()) return null
+    val trimmed = timestampIso.trim()
+    return try {
+      Instant.parse(trimmed)
+        .atZone(ZoneId.systemDefault())
+        .toLocalTime()
+    } catch (_: Exception) {
       try {
-        return LocalDateTime.parse(timestampIso).toLocalTime()
+        java.time.OffsetDateTime.parse(trimmed)
+          .atZoneSameInstant(ZoneId.systemDefault())
+          .toLocalTime()
       } catch (_: Exception) {
         try {
-          return java.time.OffsetDateTime.parse(timestampIso).toLocalTime()
+          LocalDateTime.parse(trimmed)
+            .atZone(ZoneOffset.UTC)
+            .withZoneSameInstant(ZoneId.systemDefault())
+            .toLocalTime()
         } catch (_: Exception) {
-          /* fall through */
+          null
         }
       }
     }
-    return LocalTime.now()
+  }
+
+  private fun resolveReferenceTime(timestampIso: String?): LocalTime {
+    return parseTimestampToLocalTime(timestampIso) ?: LocalTime.now()
   }
 
   private fun formatTimePart(language: String, timestampIso: String?): String {
     if (timestampIso.isNullOrBlank()) return ""
     return try {
-      val time = try {
-        LocalDateTime.parse(timestampIso).format(voiceTimeFormatter)
-      } catch (_: Exception) {
-        java.time.OffsetDateTime.parse(timestampIso).format(voiceTimeFormatter)
-      }
+      val localTime = parseTimestampToLocalTime(timestampIso) ?: return ""
+      val time = localTime.format(voiceTimeFormatter)
       when (language) {
         "hi" -> " $time बजे"
         "bn" -> " $time-এ"

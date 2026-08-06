@@ -81,6 +81,51 @@ export async function getStudentSchedules(
   return data as ApiEnvelope & { data?: ParentSchedule[] };
 }
 
+export interface ParentHomeworkItem {
+  id: number;
+  title: string;
+  subjectName: string | null;
+  assignedBy: string | null;
+  assignedDate: string | null;
+  dueDate: string | null;
+  hasAttachments: boolean;
+  status: string | null;
+}
+
+export interface ParentHomeworkDetail extends ParentHomeworkItem {
+  description: string | null;
+  attachmentUrls: string[];
+  className: string | null;
+  sectionName: string | null;
+  sessionName: string | null;
+}
+
+export interface ParentHomeworkList {
+  studentId: number;
+  sessionId: number | null;
+  sessionName: string | null;
+  className: string | null;
+  sectionName: string | null;
+  homeworks: ParentHomeworkItem[];
+}
+
+export async function getStudentHomework(
+  studentId: number
+): Promise<ApiEnvelope & { data?: ParentHomeworkList }> {
+  const { data } = await api.get(`${prefix}/students/${studentId}/homework`);
+  return data as ApiEnvelope & { data?: ParentHomeworkList };
+}
+
+export async function getStudentHomeworkDetail(
+  studentId: number,
+  homeworkId: number
+): Promise<ApiEnvelope & { data?: ParentHomeworkDetail }> {
+  const { data } = await api.get(
+    `${prefix}/students/${studentId}/homework/${homeworkId}`
+  );
+  return data as ApiEnvelope & { data?: ParentHomeworkDetail };
+}
+
 export async function registerDeviceToken(
   fcmToken: string,
   platform: string,

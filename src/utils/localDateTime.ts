@@ -5,7 +5,7 @@ export const LOCAL_DATE_TIME = 'MMM d, yyyy, h:mm a';
 export const LOCAL_DATE = 'MMM d, yyyy';
 export const LOCAL_TIME = 'h:mm a';
 
-/** Parses API/FCM ISO timestamps (UTC or offset) for display in device local time. Naive strings are treated as UTC. */
+/** Parses API/FCM ISO timestamps (UTC or offset) for display in device local time. Naive strings are treated as UTC (backend stores audit times in UTC). */
 export function parsePushTimestamp(iso?: string | null): Date | null {
   if (!iso?.trim()) {
     return null;

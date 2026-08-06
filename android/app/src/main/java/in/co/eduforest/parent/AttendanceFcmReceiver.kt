@@ -29,9 +29,12 @@ class AttendanceFcmReceiver : BroadcastReceiver() {
       englishFallback = englishBody
     ).ifBlank { englishBody }
     val playVoice = extras.getString("play_voice")?.equals("true", ignoreCase = true) ?: false
+    val studentId = extras.getString("studentId") ?: extras.getString("child_id")
+    val status = extras.getString("status")
     val voiceMessage = extras.getString("voice_message")?.trim().orEmpty()
 
     if (type != "attendance_marked" && voiceMessage.isBlank()) return
+    if (!NotificationPrefsStorage.shouldShow(context, status, studentId)) return
 
     ensureAttendanceChannel(context)
     val notification = NotificationCompat.Builder(context, "eduforest_attendance")
@@ -46,6 +49,7 @@ class AttendanceFcmReceiver : BroadcastReceiver() {
     nm.notify(Random.nextInt(100000, 999999), notification)
 
     if (playVoice) {
+      if (!NotificationPrefsStorage.shouldPlayVoice(context, status, studentId)) return
       val legacyText = listOfNotNull(
         voiceMessage,
         extras.getString("short_message"),

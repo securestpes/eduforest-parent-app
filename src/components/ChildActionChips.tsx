@@ -49,7 +49,7 @@ const CHIPS: ChipDef[] = [
     action: 'homework',
     icon: 'book-open-outline',
     labelKey: 'childChips.homework',
-    enabled: false,
+    enabled: true,
   },
   {
     action: 'assessment',
