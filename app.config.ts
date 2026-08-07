@@ -37,6 +37,10 @@ const config: ExpoConfig = {
     supportsTablet: true,
     bundleIdentifier: 'in.co.eduforest.parent',
     buildNumber: appBuildNumber,
+    infoPlist: {
+      NSLocationWhenInUseUsageDescription:
+        'EduForest uses your location to show you near your child’s school bus on the map.',
+    },
   },
   android: {
     package: 'in.co.eduforest.parent',
@@ -45,6 +49,10 @@ const config: ExpoConfig = {
       foregroundImage: './src/assets/adaptive-icon.png',
       backgroundColor: '#FFFFFF',
     },
+    permissions: [
+      'ACCESS_COARSE_LOCATION',
+      'ACCESS_FINE_LOCATION',
+    ],
   },
   web: {
     favicon: './src/assets/favicon.png',
@@ -52,6 +60,9 @@ const config: ExpoConfig = {
   extra: {
     apiUrl: process.env.API_URL,
     appEnv: process.env.APP_ENV || APP_ENV,
+    disableFirebase:
+      process.env.EXPO_PUBLIC_DISABLE_FIREBASE === 'true' ||
+      process.env.EXPO_PUBLIC_DISABLE_FIREBASE === '1',
   },
 };
 

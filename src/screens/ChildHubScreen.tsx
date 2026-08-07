@@ -113,6 +113,12 @@ export function ChildHubScreen() {
             variant="hub"
             selected={section}
             onPress={(action) => {
+              if (action === 'bus') {
+                navigation.navigate('BusTrackingMap', {
+                  studentId: studentId ?? undefined,
+                });
+                return;
+              }
               if (isEnabledSection(action)) {
                 if (action === 'notifications') {
                   void resetLocalBadgeCount();

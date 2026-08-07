@@ -1,5 +1,14 @@
 import { registerRootComponent } from 'expo';
-import './src/common/helpers/firebaseBackgroundNotificationHandler';
+import { isFirebaseDisabled } from './config/featureFlags';
+
+if (!isFirebaseDisabled) {
+  require('./src/common/helpers/firebaseBackgroundNotificationHandler');
+} else {
+  console.log(
+    '[index] Firebase disabled — skipping background message handler'
+  );
+}
+
 import App from './src/App';
 
 registerRootComponent(App);

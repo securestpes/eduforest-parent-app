@@ -1,10 +1,10 @@
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
-import React, { useEffect, useState } from 'react';
 import { PermissionsAndroid, Platform, StatusBar } from 'react-native';
 import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
 import messaging from '@react-native-firebase/messaging';
+import React, { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { Provider as ReduxProvider } from 'react-redux';
@@ -30,9 +30,10 @@ import { ForceUpdateModal } from './features/versionCheck/ForceUpdateModal';
 import { VersionService } from './features/versionCheck/versionService';
 import { getNotificationPreferences } from './services/notificationPreferences';
 import { syncNativeNotificationPrefs } from './common/helpers/syncNativeNotificationPrefs';
+import { isFirebaseDisabled } from '../config/featureFlags';
 
 async function createNotificationChannel() {
-  if (Platform.OS !== 'android') return;
+  if (Platform.OS !== 'android' || isFirebaseDisabled) return;
 
   await notifee.createChannel({
     id: FCM_ATTENDANCE_CHANNEL_ID,
@@ -46,6 +47,8 @@ async function createNotificationChannel() {
 }
 
 async function requestNotificationPermission() {
+  if (isFirebaseDisabled) return;
+
   if (Platform.OS === 'android' && Platform.Version >= 33) {
     await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
@@ -70,6 +73,10 @@ function AppContent() {
 
   useEffect(() => {
     async function initializeNotifications() {
+      if (isFirebaseDisabled) {
+        console.log('[App] Firebase disabled — skipping FCM / Notifee init');
+        return;
+      }
       await requestNotificationPermission();
       await createNotificationChannel();
       const prefs = await getNotificationPreferences();
@@ -88,6 +95,7 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
+    if (isFirebaseDisabled) return;
     const unsubscribe = messaging().onMessage(async (remoteMessage) => {
       console.log('FOREGROUND MESSAGE:', remoteMessage);
       await displayNotification(remoteMessage, language);
@@ -98,6 +106,8 @@ function AppContent() {
   }, [language]);
 
   useEffect(() => {
+    if (isFirebaseDisabled) return;
+
     const unsubscribeFg = notifee.onForegroundEvent(({ type, detail }) => {
       if (type === EventType.PRESS) {
         handleNotificationOpen(
