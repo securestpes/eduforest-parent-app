@@ -15,6 +15,7 @@ import { useAppLanguage } from '../common';
 import { localStorageKeys } from '../common/constants';
 import { MainTabs } from './MainTabs';
 import { ProfileScreen } from '@/screens/ProfileScreen';
+import { BusTrackingScreen } from '../screens/BusTrackingScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -92,6 +93,11 @@ export const AppNavigation: React.FC = () => {
             headerTintColor: headerTint,
             headerTitleStyle: { fontWeight: '700' },
           }}
+        />
+        <Stack.Screen
+          name="BusTrackingMap"
+          component={BusTrackingScreen}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
       <ParentOnboardingModal

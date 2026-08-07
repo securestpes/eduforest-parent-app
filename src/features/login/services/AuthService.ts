@@ -1,8 +1,12 @@
 import type { IApiResponse } from '../../../common/interfaces';
 import { authApiService } from '../../../common/services/authClient';
+import { isFirebaseDisabled } from '../../../../config/featureFlags';
 import auth from '@react-native-firebase/auth';
 
 const apiService = authApiService;
+
+/** Marker verificationId when using backend Redis/SMS OTP (Firebase disabled). */
+export const BACKEND_OTP_VERIFICATION_ID = 'backend-sms';
 
 export type FirebasePhoneLoginResult = {
   verificationId: string;
@@ -53,6 +57,11 @@ export class AuthService {
     mobile: string,
     forceResend = false
   ): Promise<FirebasePhoneLoginResult> {
+    if (isFirebaseDisabled) {
+      await AuthService.requestOtp(mobile);
+      return { verificationId: BACKEND_OTP_VERIFICATION_ID };
+    }
+
     const phone = `+91${mobile}`;
     const listener = auth().verifyPhoneNumber(phone, 60, forceResend);
 
@@ -132,6 +141,9 @@ export class AuthService {
   }
 
   public static async firebaseVerifyOtp(verificationId: string, code: string) {
+    if (isFirebaseDisabled) {
+      return { status: true, message: 'Using backend SMS OTP' };
+    }
     const trimmedId = verificationId?.trim?.() ?? '';
     const trimmedCode = code?.trim?.() ?? '';
     if (!trimmedId || !trimmedCode) {
@@ -147,6 +159,7 @@ export class AuthService {
   }
 
   public static async firebaseSignOut(): Promise<void> {
+    if (isFirebaseDisabled) return;
     try {
       await auth().signOut();
     } catch {
@@ -154,7 +167,7 @@ export class AuthService {
     }
   }
 
-  /** Backend SMS OTP (optional; parent app primary flow is Firebase + `verifyOtp` with id token). */
+  /** Backend SMS OTP (used when Firebase is disabled / Expo Go). */
   public static async requestOtp(mobile: string): Promise<IApiResponse> {
     const data = { mobile };
     try {

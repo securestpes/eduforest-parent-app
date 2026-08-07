@@ -41,6 +41,10 @@ import {
 } from '../../profile/services/ParentProfileService';
 import { registerParentPushToken } from '../../../services/push';
 import { SHOW_FIREBASE_OTP_VERIFY_DEBUG } from '../../../../config/firebaseLogin';
+import { isFirebaseDisabled } from '../../../../config/featureFlags';
+import {
+  BACKEND_OTP_VERIFICATION_ID,
+} from '../services/AuthService';
 
 const LocalOTPInputs = React.forwardRef(
   (
@@ -216,6 +220,48 @@ export const VerifyLogin: React.FC<Props> = ({ navigation, route }) => {
     return unsub;
   }, [route.params.mobileNumber]);
 
+  const applyParentLoginResponse = useCallback(
+    async (response: {
+      status?: boolean;
+      message?: string;
+      data?: unknown;
+    }) => {
+      if (
+        response.status &&
+        response.data &&
+        typeof response.data === 'object'
+      ) {
+        const data = response.data as { accessToken?: string };
+        if (data.accessToken) {
+          await AsyncStorage.setItem(
+            localStorageKeys.ACCESS_TOKEN,
+            data.accessToken
+          );
+          await AsyncStorage.removeItem(localStorageKeys.LEGACY_ACCESS_TOKEN);
+          const userResponse = await ParentProfileService.getUser();
+          if (userResponse?.status && userResponse.data) {
+            dispatch(
+              loginSuccess(
+                mapParentMeToUser(userResponse.data as Record<string, unknown>)
+              )
+            );
+            await registerParentPushToken(data.accessToken);
+            return;
+          }
+          loginCompletedRef.current = false;
+          setErrorMessage(userResponse?.message || t('verifyOtp.unexpected'));
+          return;
+        }
+        loginCompletedRef.current = false;
+        setErrorMessage(t('verifyOtp.failed'));
+        return;
+      }
+      loginCompletedRef.current = false;
+      setErrorMessage(response.message || t('verifyOtp.failed'));
+    },
+    [dispatch, t]
+  );
+
   const finalizeBackendFromFirebaseUser = useCallback(async () => {
     if (loginCompletedRef.current) {
       return;
@@ -225,6 +271,12 @@ export const VerifyLogin: React.FC<Props> = ({ navigation, route }) => {
     const mobile = route.params.mobileNumber ?? '';
 
     try {
+      if (isFirebaseDisabled) {
+        loginCompletedRef.current = false;
+        setErrorMessage(t('verifyOtp.unexpected'));
+        return;
+      }
+
       const user = auth().currentUser;
       if (!user) {
         loginCompletedRef.current = false;
@@ -250,38 +302,7 @@ export const VerifyLogin: React.FC<Props> = ({ navigation, route }) => {
         firebaseIdToken: idToken,
       });
 
-      if (
-        response.status &&
-        response.data &&
-        typeof response.data === 'object'
-      ) {
-        const data = response.data as { accessToken?: string };
-        if (data.accessToken) {
-          await AsyncStorage.setItem(
-            localStorageKeys.ACCESS_TOKEN,
-            data.accessToken
-          );
-          await AsyncStorage.removeItem(localStorageKeys.LEGACY_ACCESS_TOKEN);
-          const userResponse = await ParentProfileService.getUser();
-          if (userResponse?.status && userResponse.data) {
-            dispatch(
-              loginSuccess(
-                mapParentMeToUser(userResponse.data as Record<string, unknown>)
-              )
-            );
-            await registerParentPushToken(data.accessToken);
-          } else {
-            loginCompletedRef.current = false;
-            setErrorMessage(userResponse?.message || t('verifyOtp.unexpected'));
-          }
-        } else {
-          loginCompletedRef.current = false;
-          setErrorMessage(t('verifyOtp.failed'));
-        }
-      } else {
-        loginCompletedRef.current = false;
-        setErrorMessage(response.message || t('verifyOtp.failed'));
-      }
+      await applyParentLoginResponse(response);
     } catch (error: unknown) {
       loginCompletedRef.current = false;
       if (SHOW_FIREBASE_OTP_VERIFY_DEBUG) {
@@ -296,7 +317,7 @@ export const VerifyLogin: React.FC<Props> = ({ navigation, route }) => {
         setNetworkError(error instanceof Error ? error.message : String(error));
       }
     }
-  }, [dispatch, route.params.mobileNumber, t]);
+  }, [applyParentLoginResponse, route.params.mobileNumber, t]);
 
   const completePhoneAuthWithLoading = useCallback(async () => {
     setIsLoading(true);
@@ -309,6 +330,7 @@ export const VerifyLogin: React.FC<Props> = ({ navigation, route }) => {
   }, [finalizeBackendFromFirebaseUser]);
 
   useEffect(() => {
+    if (isFirebaseDisabled) return;
     if (route.params.phoneAuthMethodHint !== 'instant' || afterResend) {
       return;
     }
@@ -344,6 +366,7 @@ export const VerifyLogin: React.FC<Props> = ({ navigation, route }) => {
   ]);
 
   useEffect(() => {
+    if (isFirebaseDisabled) return;
     if (route.params.phoneAuthMethodHint === 'instant' && !afterResend) {
       return () => {};
     }
@@ -394,10 +417,25 @@ export const VerifyLogin: React.FC<Props> = ({ navigation, route }) => {
         mobile: route.params.mobileNumber,
         verificationId,
         smsCodeLength: otp.length,
+        firebaseDisabled: isFirebaseDisabled,
       });
     }
 
     try {
+      if (
+        isFirebaseDisabled ||
+        verificationId === BACKEND_OTP_VERIFICATION_ID
+      ) {
+        if (loginCompletedRef.current) return;
+        loginCompletedRef.current = true;
+        const response = await AuthService.verifyOtp({
+          mobile: route.params.mobileNumber,
+          otp,
+        });
+        await applyParentLoginResponse(response);
+        return;
+      }
+
       const fbResponse = await AuthService.firebaseVerifyOtp(
         verificationId,
         otp
@@ -413,6 +451,7 @@ export const VerifyLogin: React.FC<Props> = ({ navigation, route }) => {
       await finalizeBackendFromFirebaseUser();
     } catch (error: unknown) {
       manualVerifyStartedRef.current = false;
+      loginCompletedRef.current = false;
       const key = getFirebaseErrorKey(error) as Parameters<typeof t>[0];
       setErrorMessage(t(key));
       if (key === 'verifyOtp.unexpected') {

@@ -5,8 +5,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { InteractionManager, Platform } from 'react-native';
 import { localStorageKeys } from '../common/constants';
 import { registerDeviceToken } from './parent';
+import { isFirebaseDisabled } from '../../config/featureFlags';
 
-const fcm = getMessaging(getApp());
+const fcm = isFirebaseDisabled ? null : getMessaging(getApp());
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -43,7 +44,7 @@ function isRetryableNetworkFailure(e: unknown): boolean {
 export async function registerParentPushToken(
   accessToken?: string | null
 ): Promise<void> {
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || isFirebaseDisabled || !fcm) {
     return;
   }
 

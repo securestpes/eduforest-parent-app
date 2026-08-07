@@ -36,6 +36,10 @@ export type RootStackParamList = {
   PrivacyPolicy: undefined;
   TermsAndConditions: undefined;
   HelpAndSupport: undefined;
+  BusTrackingMap: {
+    studentId?: number;
+    busId?: number;
+  } | undefined;
 };
 
 async function migrateLegacyToken(): Promise<void> {

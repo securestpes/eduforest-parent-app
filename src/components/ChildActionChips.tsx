@@ -11,7 +11,8 @@ export type ChildChipAction =
   | 'notifications'
   | 'report'
   | 'homework'
-  | 'assessment';
+  | 'assessment'
+  | 'bus';
 
 type ChipDef = {
   action: ChildChipAction;
@@ -31,6 +32,12 @@ const CHIPS: ChipDef[] = [
     action: 'schedule',
     icon: 'calendar-clock',
     labelKey: 'childChips.schedule',
+    enabled: true,
+  },
+  {
+    action: 'bus',
+    icon: 'bus-side',
+    labelKey: 'childChips.bus',
     enabled: true,
   },
   {
