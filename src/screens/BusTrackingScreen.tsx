@@ -53,6 +53,21 @@ const SCHOOL_PIN = '#4F46E5';
 const MY_STOP_GREEN = '#16A34A';
 const PICKUP_AMBER = '#D97706';
 
+/** Same pins as admin fleet map */
+const BUS_PIN_GREEN = require('../assets/images/bus-pin-green.png');
+const BUS_PIN_YELLOW = require('../assets/images/bus-pin-yellow.png');
+const BUS_PIN_RED = require('../assets/images/bus-pin-red.png');
+const MOVE_SPEED_KMH = 3;
+const HOLD_MAX_MS = 2 * 60 * 1000;
+
+type MotionPin = 'green' | 'yellow' | 'red';
+
+function pinImageForMotion(motion: MotionPin) {
+  if (motion === 'green') return BUS_PIN_GREEN;
+  if (motion === 'yellow') return BUS_PIN_YELLOW;
+  return BUS_PIN_RED;
+}
+
 const DEFAULT_REGION = {
   latitude: 26.87,
   longitude: 80.91,
@@ -84,6 +99,7 @@ export function BusTrackingScreen() {
   const params = route.params ?? {};
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
+  const stoppedSinceRef = useRef<number | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [children, setChildren] = useState<ParentChildBus[]>([]);
@@ -95,10 +111,61 @@ export function BusTrackingScreen() {
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [trackingOn, setTrackingOn] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [pinPulse, setPinPulse] = useState(1);
+
+  useEffect(() => {
+    let frame = 0;
+    const id = setInterval(() => {
+      frame += 1;
+      const t = (frame % 24) / 24;
+      const wave = 0.5 + 0.5 * Math.sin(t * Math.PI * 2);
+      setPinPulse(0.62 + 0.38 * wave);
+    }, 50);
+    return () => clearInterval(id);
+  }, []);
 
   const activeChild = children[activeIdx];
   const busId = activeChild?.busId ?? params.busId;
   const studentId = activeChild?.studentId ?? params.studentId;
+
+  useEffect(() => {
+    stoppedSinceRef.current = null;
+  }, [busId]);
+
+  const busMotion: MotionPin = useMemo(() => {
+    if (!live) return 'red';
+    const speed = live.speedKmph;
+    const moving = speed != null && speed >= MOVE_SPEED_KMH;
+    const onTrip =
+      live.activeTripId != null &&
+      live.activeTripStatus !== 'COMPLETED' &&
+      live.activeTripStatus !== 'CANCELLED';
+
+    if (moving) {
+      stoppedSinceRef.current = null;
+      return 'green';
+    }
+
+    if (!onTrip) {
+      stoppedSinceRef.current = null;
+      return 'red';
+    }
+
+    // On trip, unknown speed + recent GPS → assume moving
+    const fresh =
+      live.capturedAtMs != null &&
+      Date.now() - live.capturedAtMs < 3 * 60 * 1000;
+    if (speed == null && fresh) {
+      stoppedSinceRef.current = null;
+      return 'green';
+    }
+
+    // ~0 km/h hold window
+    const now = Date.now();
+    if (stoppedSinceRef.current == null) stoppedSinceRef.current = now;
+    if (now - stoppedSinceRef.current <= HOLD_MAX_MS) return 'yellow';
+    return 'red';
+  }, [live]);
 
   const loadChildren = useCallback(async () => {
     setLoading(true);
@@ -642,18 +709,28 @@ export function BusTrackingScreen() {
 
             {live?.latitude != null && live?.longitude != null ? (
               <Marker
+                key={`live-bus-${busMotion}`}
                 coordinate={{
                   latitude: live.latitude,
                   longitude: live.longitude,
                 }}
                 title={`Bus ${activeChild.busNumber}`}
-                rotation={live.headingDeg ?? 0}
-                anchor={{ x: 0.5, y: 0.5 }}
-              >
-                <View style={[styles.busMarker, { backgroundColor: ROUTE_BLUE }]}>
-                  <Text style={{ fontSize: 18 }}>🚌</Text>
-                </View>
-              </Marker>
+                description={
+                  busMotion === 'green'
+                    ? 'Moving'
+                    : busMotion === 'yellow'
+                      ? 'On hold'
+                      : 'Stopped'
+                }
+                image={pinImageForMotion(busMotion)}
+                anchor={{ x: 0.5, y: 1 }}
+                centerOffset={
+                  Platform.OS === 'android' ? { x: 0, y: -2 } : { x: 0, y: 0 }
+                }
+                opacity={0.55 + 0.45 * ((pinPulse - 0.62) / 0.38)}
+                tracksViewChanges={false}
+                zIndex={10}
+              />
             ) : null}
           </MapView>
         )}
@@ -1193,15 +1270,6 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  busMarker: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#fff',
   },
   stopPin: {
     width: 28,
