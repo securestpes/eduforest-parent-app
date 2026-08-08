@@ -13,6 +13,9 @@ export function notificationKeyFromFcm(data: Record<string, string> | undefined)
   if (!data) return null;
   const explicit = data.notificationKey?.trim();
   if (explicit && STABLE_KEY.test(explicit)) return explicit;
+  if ((data.type ?? '').toLowerCase() === 'bus_alert' && explicit) {
+    return explicit;
+  }
   const attendanceRaw = data.attendanceId ?? data.attendance_id;
   if (attendanceRaw) {
     const id = Number(attendanceRaw);

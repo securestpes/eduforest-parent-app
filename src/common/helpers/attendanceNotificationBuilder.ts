@@ -27,6 +27,21 @@ export function buildLocalizedNotificationContent(
   data: Record<string, string | undefined> | null | undefined,
   language: AppLanguage
 ): { title: string; body: string } | null {
+  if (!data) return null;
+
+  // Bus alerts: use server title/body (already parent-facing English).
+  if ((data.type ?? '').toLowerCase() === 'bus_alert') {
+    const title = data.title?.trim();
+    const body = (data.body ?? data.short_message)?.trim();
+    if (title || body) {
+      return {
+        title: title || 'Bus update',
+        body: body || 'Open the app to track the bus.',
+      };
+    }
+    return null;
+  }
+
   const params = resolveAttendancePushParams(data, language);
   if (!params) {
     return null;
