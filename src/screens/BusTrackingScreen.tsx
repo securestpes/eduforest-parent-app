@@ -47,6 +47,11 @@ import {
 } from '../services/transport';
 
 const POLL_MS = 7000;
+const ROUTE_BLUE = '#2563EB';
+const ROUTE_BLUE_SOFT = '#93C5FD';
+const SCHOOL_PIN = '#4F46E5';
+const MY_STOP_GREEN = '#16A34A';
+const PICKUP_AMBER = '#D97706';
 
 const DEFAULT_REGION = {
   latitude: 26.87,
@@ -138,16 +143,26 @@ export function BusTrackingScreen() {
         res.data.longitude != null &&
         res.data.remainingDistanceKm == null
       ) {
-        const dropLat = activeChild?.dropStopLat;
-        const dropLng = activeChild?.dropStopLng;
-        if (dropLat != null && dropLng != null) {
+        const tripType =
+          res.data.activeTripType ?? activeChild?.activeTripType;
+        const morning = tripType !== 'AFTERNOON';
+        const targetLat = morning
+          ? (activeChild?.pickupStopLat ?? activeChild?.dropStopLat)
+          : (activeChild?.dropStopLat ?? activeChild?.pickupStopLat);
+        const targetLng = morning
+          ? (activeChild?.pickupStopLng ?? activeChild?.dropStopLng)
+          : (activeChild?.dropStopLng ?? activeChild?.pickupStopLng);
+        if (targetLat != null && targetLng != null) {
           const km = haversineKm(
             res.data.latitude,
             res.data.longitude,
-            dropLat,
-            dropLng
+            targetLat,
+            targetLng
           );
-          setEtaLocal({ km: Math.round(km * 10) / 10, min: Math.max(1, Math.ceil(km * 2)) });
+          setEtaLocal({
+            km: Math.round(km * 100) / 100,
+            min: Math.max(1, Math.ceil(km * 2)),
+          });
         } else {
           setEtaLocal(null);
         }
@@ -158,8 +173,11 @@ export function BusTrackingScreen() {
       // keep last known location while polling
     }
   }, [
+    activeChild?.activeTripType,
     activeChild?.dropStopLat,
     activeChild?.dropStopLng,
+    activeChild?.pickupStopLat,
+    activeChild?.pickupStopLng,
     busId,
     studentId,
   ]);
@@ -194,19 +212,117 @@ export function BusTrackingScreen() {
   ]);
 
   const routeCoords = useMemo<LatLng[]>(() => {
-    const arr: LatLng[] = [];
-    for (const s of activeChild?.routeStops ?? []) {
-      if (s.latitude != null && s.longitude != null) {
-        arr.push({ latitude: s.latitude, longitude: s.longitude });
+    const stops = [...(activeChild?.routeStops ?? [])].sort(
+      (a, b) => (a.stopOrderIndex ?? 0) - (b.stopOrderIndex ?? 0)
+    );
+    return stops
+      .filter((s) => s.latitude != null && s.longitude != null)
+      .map((s) => ({ latitude: s.latitude, longitude: s.longitude }));
+  }, [activeChild?.routeStops]);
+
+  /** Live bus → child's target stop (pickup morning / drop afternoon). */
+  const remainingPath = useMemo<LatLng[]>(() => {
+    if (live?.latitude == null || live?.longitude == null) return [];
+    const targetLat =
+      live.destinationLat ??
+      (live.activeTripType === 'AFTERNOON' ||
+      activeChild?.activeTripType === 'AFTERNOON'
+        ? (activeChild?.dropStopLat ?? activeChild?.pickupStopLat)
+        : (activeChild?.pickupStopLat ?? activeChild?.dropStopLat));
+    const targetLng =
+      live.destinationLng ??
+      (live.activeTripType === 'AFTERNOON' ||
+      activeChild?.activeTripType === 'AFTERNOON'
+        ? (activeChild?.dropStopLng ?? activeChild?.pickupStopLng)
+        : (activeChild?.pickupStopLng ?? activeChild?.dropStopLng));
+    if (targetLat == null || targetLng == null) return [];
+    return [
+      { latitude: live.latitude, longitude: live.longitude },
+      { latitude: targetLat, longitude: targetLng },
+    ];
+  }, [
+    activeChild?.activeTripType,
+    activeChild?.dropStopLat,
+    activeChild?.dropStopLng,
+    activeChild?.pickupStopLat,
+    activeChild?.pickupStopLng,
+    live?.activeTripType,
+    live?.destinationLat,
+    live?.destinationLng,
+    live?.latitude,
+    live?.longitude,
+  ]);
+
+  const etaDestinationLabel = useMemo(() => {
+    if (live?.destinationStopName) return live.destinationStopName;
+    const kind = live?.destinationKind;
+    const tripType = live?.activeTripType ?? activeChild?.activeTripType;
+    const isDrop =
+      kind === 'DROP' ||
+      (kind == null && tripType === 'AFTERNOON');
+    if (isDrop) {
+      return (
+        activeChild?.dropStopName ??
+        activeChild?.pickupStopName ??
+        t('busTracking.stop')
+      );
+    }
+    return (
+      activeChild?.pickupStopName ??
+      activeChild?.dropStopName ??
+      t('busTracking.stop')
+    );
+  }, [
+    activeChild?.activeTripType,
+    activeChild?.dropStopName,
+    activeChild?.pickupStopName,
+    live?.activeTripType,
+    live?.destinationKind,
+    live?.destinationStopName,
+    t,
+  ]);
+
+  const etaTripHint = useMemo(() => {
+    const tripType = live?.activeTripType ?? activeChild?.activeTripType;
+    const kind = live?.destinationKind;
+    if (kind === 'PICKUP' || (kind == null && tripType !== 'AFTERNOON')) {
+      return t('busTracking.arrivingSchool');
+    }
+    return t('busTracking.headingHome');
+  }, [
+    activeChild?.activeTripType,
+    live?.activeTripType,
+    live?.destinationKind,
+    t,
+  ]);
+
+  // Fit map to full route when stops load / child switches
+  useEffect(() => {
+    if (routeCoords.length < 1) return;
+    const timer = setTimeout(() => {
+      try {
+        mapRef.current?.fitToCoordinates(
+          [
+            ...routeCoords,
+            ...(live?.latitude != null && live?.longitude != null
+              ? [{ latitude: live.latitude, longitude: live.longitude }]
+              : []),
+          ],
+          {
+            edgePadding: { top: 80, right: 48, bottom: 180, left: 48 },
+            animated: true,
+          }
+        );
+      } catch {
+        // ignore
       }
-    }
-    if (live?.latitude != null && live?.longitude != null) {
-      arr.unshift({ latitude: live.latitude, longitude: live.longitude });
-    }
-    return arr;
-  }, [activeChild?.routeStops, live?.latitude, live?.longitude]);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [activeChild?.assignmentId, routeCoords.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const etaKm = live?.remainingDistanceKm ?? etaLocal?.km;
+  const etaKmDisplay =
+    etaKm != null ? (Math.round(etaKm * 100) / 100).toFixed(2) : null;
   const etaMin = live?.estimatedArrivalMinutes ?? etaLocal?.min;
 
   const tripStatus = useMemo(() => {
@@ -473,26 +589,54 @@ export function BusTrackingScreen() {
             showsMyLocationButton
             showsCompass
           >
-            {(activeChild.routeStops ?? []).map((s) => (
-              <Marker
-                key={`stop-${s.id}`}
-                coordinate={{ latitude: s.latitude, longitude: s.longitude }}
-                title={s.stopName}
-              >
-                <StopPin
-                  isDrop={activeChild.dropStopId === s.id}
-                  isPickup={activeChild.pickupStopId === s.id}
-                  theme={theme}
-                />
-              </Marker>
-            ))}
+            {(activeChild.routeStops ?? []).map((s) => {
+              const isMyDrop = activeChild.dropStopId === s.id;
+              const isMyPickup = activeChild.pickupStopId === s.id;
+              const isSchool = Boolean(s.schoolStop);
+              return (
+                <Marker
+                  key={`stop-${s.id}`}
+                  coordinate={{ latitude: s.latitude, longitude: s.longitude }}
+                  title={s.stopName}
+                  description={
+                    isSchool
+                      ? 'School'
+                      : isMyPickup
+                        ? 'Your pickup'
+                        : isMyDrop
+                          ? 'Your drop'
+                          : undefined
+                  }
+                >
+                  <StopPin
+                    isSchool={isSchool}
+                    isDrop={isMyDrop}
+                    isPickup={isMyPickup}
+                    theme={theme}
+                  />
+                </Marker>
+              );
+            })}
 
+            {/* Full planned route in blue */}
             {routeCoords.length >= 2 ? (
               <Polyline
                 coordinates={routeCoords}
-                strokeColor={theme.colors.primary}
-                strokeWidth={4}
-                lineDashPattern={[6, 6]}
+                strokeColor={ROUTE_BLUE}
+                strokeWidth={5}
+                lineCap="round"
+                lineJoin="round"
+              />
+            ) : null}
+
+            {/* Soft line: live bus → your stop */}
+            {remainingPath.length >= 2 ? (
+              <Polyline
+                coordinates={remainingPath}
+                strokeColor={ROUTE_BLUE_SOFT}
+                strokeWidth={3}
+                lineDashPattern={[8, 6]}
+                lineCap="round"
               />
             ) : null}
 
@@ -504,13 +648,9 @@ export function BusTrackingScreen() {
                 }}
                 title={`Bus ${activeChild.busNumber}`}
                 rotation={live.headingDeg ?? 0}
+                anchor={{ x: 0.5, y: 0.5 }}
               >
-                <View
-                  style={[
-                    styles.busMarker,
-                    { backgroundColor: theme.colors.primary },
-                  ]}
-                >
+                <View style={[styles.busMarker, { backgroundColor: ROUTE_BLUE }]}>
                   <Text style={{ fontSize: 18 }}>🚌</Text>
                 </View>
               </Marker>
@@ -544,17 +684,12 @@ export function BusTrackingScreen() {
                   variant="bodySmall"
                   style={{ color: theme.colors.onSurfaceVariant }}
                 >
-                  {etaKm != null
+                  {etaKmDisplay != null
                     ? t('busTracking.etaKm', {
-                        km: etaKm,
-                        stop:
-                          live?.destinationStopName ??
-                          activeChild.dropStopName ??
-                          t('busTracking.stop'),
+                        km: etaKmDisplay,
+                        stop: etaDestinationLabel,
                       })
-                    : activeChild.activeTripType === 'MORNING'
-                      ? t('busTracking.arrivingSchool')
-                      : t('busTracking.headingHome')}
+                    : etaTripHint}
                 </Text>
               </View>
             </View>
@@ -761,6 +896,7 @@ export function BusTrackingScreen() {
                       idx={i + 1}
                       isDrop={activeChild.dropStopId === s.id}
                       isPickup={activeChild.pickupStopId === s.id}
+                      isSchool={Boolean(s.schoolStop)}
                       theme={theme}
                     />
                   ))
@@ -777,20 +913,27 @@ export function BusTrackingScreen() {
 function StopPin({
   isDrop,
   isPickup,
+  isSchool,
   theme,
 }: {
   isDrop?: boolean;
   isPickup?: boolean;
+  isSchool?: boolean;
   theme: AppTheme;
 }) {
-  const color = isDrop
-    ? theme.colors.success
-    : isPickup
-      ? theme.colors.warning
-      : theme.colors.onSurfaceVariant;
+  const color = isSchool
+    ? SCHOOL_PIN
+    : isDrop
+      ? MY_STOP_GREEN
+      : isPickup
+        ? PICKUP_AMBER
+        : theme.colors.onSurfaceVariant;
+  const icon = isSchool
+    ? ('school' as const)
+    : ('map-marker' as const);
   return (
     <View style={[styles.stopPin, { backgroundColor: color }]}>
-      <MaterialCommunityIcons name="map-marker" size={14} color="#fff" />
+      <MaterialCommunityIcons name={icon} size={14} color="#fff" />
     </View>
   );
 }
@@ -851,12 +994,14 @@ function StopRow({
   idx,
   isDrop,
   isPickup,
+  isSchool,
   theme,
 }: {
   stop: ParentBusStop;
   idx: number;
   isDrop?: boolean;
   isPickup?: boolean;
+  isSchool?: boolean;
   theme: AppTheme;
 }) {
   return (
@@ -870,20 +1015,31 @@ function StopRow({
         style={[
           styles.stopDot,
           {
-            backgroundColor: isDrop
-              ? theme.colors.success
-              : isPickup
-                ? theme.colors.warning
-                : theme.colors.onSurfaceVariant,
+            backgroundColor: isSchool
+              ? SCHOOL_PIN
+              : isDrop
+                ? MY_STOP_GREEN
+                : isPickup
+                  ? PICKUP_AMBER
+                  : theme.colors.onSurfaceVariant,
           },
         ]}
       >
-        <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>
-          {idx}
-        </Text>
+        {isSchool ? (
+          <MaterialCommunityIcons name="school" size={12} color="#fff" />
+        ) : (
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>
+            {idx}
+          </Text>
+        )}
       </View>
       <View style={{ flex: 1, marginLeft: 10 }}>
-        <Text style={{ fontWeight: '600' }}>{stop.stopName}</Text>
+        <Text style={{ fontWeight: '600' }}>
+          {stop.stopName}
+          {isSchool ? ' · School' : ''}
+          {isPickup ? ' · Pickup' : ''}
+          {isDrop && !isPickup ? ' · Drop' : ''}
+        </Text>
         {stop.stopAddress ? (
           <Text
             variant="bodySmall"
@@ -905,7 +1061,7 @@ function StopRow({
           <MaterialCommunityIcons
             name="navigation-variant"
             size={18}
-            color={theme.colors.primary}
+            color={ROUTE_BLUE}
           />
         </Pressable>
       ) : null}
