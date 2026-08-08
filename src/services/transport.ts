@@ -10,11 +10,13 @@ export type BusTripStatusType =
 
 export interface ParentBusStop {
   id: number;
+  busId?: number;
   stopName: string;
   stopAddress?: string;
   latitude: number;
   longitude: number;
   stopOrderIndex: number;
+  schoolStop?: boolean;
 }
 
 export interface ParentChildBus {
@@ -63,6 +65,9 @@ export interface LiveBusLocation {
   remainingDistanceKm?: number;
   estimatedArrivalMinutes?: number;
   destinationStopName?: string;
+  destinationStopId?: number;
+  /** PICKUP or DROP — which stop the ETA targets for this trip */
+  destinationKind?: 'PICKUP' | 'DROP';
   destinationLat?: number;
   destinationLng?: number;
 }
