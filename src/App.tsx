@@ -21,6 +21,7 @@ import {
 import { AppThemeProvider, useAppTheme } from './common/contexts/ThemeContext';
 import { handleIncomingPushNotification } from './services/pendingPushNotifications';
 import {
+  navigateToBusTracking,
   navigateToChildScreen,
   navigationRef,
   parseNotificationNavigation,
@@ -44,6 +45,15 @@ async function createNotificationChannel() {
     lights: true,
     badge: true,
   });
+  await notifee.createChannel({
+    id: 'bus_alerts',
+    name: 'Bus alerts',
+    importance: AndroidImportance.HIGH,
+    sound: 'default',
+    vibration: true,
+    lights: true,
+    badge: true,
+  });
 }
 
 async function requestNotificationPermission() {
@@ -61,9 +71,12 @@ async function requestNotificationPermission() {
 function handleNotificationOpen(data: Record<string, string> | undefined) {
   void resetLocalBadgeCount();
   const payload = parseNotificationNavigation(data);
-  if (payload) {
-    navigateToChildScreen(payload);
+  if (!payload) return;
+  if ('kind' in payload && payload.kind === 'bus_tracking') {
+    navigateToBusTracking(payload);
+    return;
   }
+  navigateToChildScreen(payload);
 }
 
 function AppContent() {

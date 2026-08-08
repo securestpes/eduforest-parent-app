@@ -18,7 +18,17 @@ export type ChildNavigationPayload = {
   highlightSessionDate?: string;
 };
 
-let pendingNavigation: ChildNavigationPayload | null = null;
+export type BusTrackingNavigationPayload = {
+  kind: 'bus_tracking';
+  studentId?: number;
+  busId?: number;
+};
+
+export type NotificationNavPayload =
+  | ChildNavigationPayload
+  | BusTrackingNavigationPayload;
+
+let pendingNavigation: NotificationNavPayload | null = null;
 
 function applyStudentId(studentId?: number) {
   if (studentId != null && Number.isFinite(studentId)) {
@@ -46,20 +56,51 @@ export function navigateToChildScreen(payload: ChildNavigationPayload): void {
   });
 }
 
+export function navigateToBusTracking(payload: {
+  studentId?: number;
+  busId?: number;
+}): void {
+  applyStudentId(payload.studentId);
+  if (!navigationRef.isReady()) {
+    pendingNavigation = { kind: 'bus_tracking', ...payload };
+    return;
+  }
+  navigationRef.navigate('BusTrackingMap', {
+    studentId: payload.studentId,
+    busId: payload.busId,
+  });
+}
+
 export function flushPendingChildNavigation(): void {
   if (pendingNavigation && navigationRef.isReady()) {
     const payload = pendingNavigation;
     pendingNavigation = null;
-    navigateToChildScreen(payload);
+    if ('kind' in payload && payload.kind === 'bus_tracking') {
+      navigateToBusTracking(payload);
+    } else {
+      navigateToChildScreen(payload as ChildNavigationPayload);
+    }
   }
 }
 
 export function parseNotificationNavigation(
   data: Record<string, string> | undefined
-): ChildNavigationPayload | null {
+): NotificationNavPayload | null {
   if (!data) return null;
+
   const studentIdRaw = data.studentId ?? data.student_id ?? data.child_id;
   const studentId = studentIdRaw ? Number(studentIdRaw) : undefined;
+  const busIdRaw = data.busId ?? data.bus_id;
+  const busId = busIdRaw ? Number(busIdRaw) : undefined;
+
+  if ((data.type ?? '').toLowerCase() === 'bus_alert') {
+    return {
+      kind: 'bus_tracking',
+      studentId: Number.isFinite(studentId) ? studentId : undefined,
+      busId: Number.isFinite(busId) ? busId : undefined,
+    };
+  }
+
   const attendanceIdRaw = data.attendanceId ?? data.attendance_id;
   const attendanceId = attendanceIdRaw ? Number(attendanceIdRaw) : undefined;
   const sessionDate = data.sessionDate ?? data.session_date;

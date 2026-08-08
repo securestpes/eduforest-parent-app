@@ -88,6 +88,16 @@ export function shouldShowAttendanceNotification(
   data: Record<string, string>,
   prefs: NotificationPreferences
 ): boolean {
+  // Bus alerts are not attendance-status filtered — only child allow-list applies.
+  if ((data.type ?? '').toLowerCase() === 'bus_alert') {
+    const studentIdRaw = data.studentId ?? data.student_id ?? data.child_id;
+    const studentId = studentIdRaw ? Number(studentIdRaw) : NaN;
+    if (prefs.childIds.length > 0 && Number.isFinite(studentId)) {
+      return prefs.childIds.includes(studentId);
+    }
+    return true;
+  }
+
   const studentIdRaw = data.studentId ?? data.student_id ?? data.child_id;
   const studentId = studentIdRaw ? Number(studentIdRaw) : NaN;
   if (prefs.childIds.length > 0 && Number.isFinite(studentId)) {
@@ -105,6 +115,7 @@ export function shouldPlayVoiceForNotification(
   data: Record<string, string>,
   prefs: NotificationPreferences
 ): boolean {
+  if ((data.type ?? '').toLowerCase() === 'bus_alert') return false;
   if (!shouldShowAttendanceNotification(data, prefs)) return false;
   if (isQuietHoursActive(prefs)) return false;
   return true;

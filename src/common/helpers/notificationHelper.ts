@@ -71,6 +71,10 @@ export const displayNotification = async (
     return;
   }
   const localizedPush = buildLocalizedNotificationContent(data, language);
+  const channelId =
+    (data?.type ?? '').toLowerCase() === 'bus_alert'
+      ? 'bus_alerts'
+      : FCM_ATTENDANCE_CHANNEL_ID;
   await notifee.displayNotification({
     title: localizedPush?.title ?? data?.title ?? 'New Notification',
     body:
@@ -80,7 +84,7 @@ export const displayNotification = async (
       'You have a new message',
     data,
     android: {
-      channelId: FCM_ATTENDANCE_CHANNEL_ID,
+      channelId,
       importance: AndroidImportance.HIGH,
       smallIcon: 'ic_launcher',
       pressAction: {
