@@ -8,7 +8,7 @@ export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 export type ChildHubSection = Extract<
   ChildChipAction,
-  'attendance' | 'notifications' | 'schedule' | 'homework'
+  'attendance' | 'notifications' | 'homework' | 'calendar' | 'fees'
 >;
 
 export type ChildNavigationPayload = {
@@ -101,6 +101,14 @@ export function parseNotificationNavigation(
     };
   }
 
+  const type = (data.type ?? '').toLowerCase();
+  if (type === 'fee_payment' || type === 'fee_reminder') {
+    return {
+      section: 'fees',
+      studentId: Number.isFinite(studentId) ? studentId : undefined,
+    };
+  }
+
   const attendanceIdRaw = data.attendanceId ?? data.attendance_id;
   const attendanceId = attendanceIdRaw ? Number(attendanceIdRaw) : undefined;
   const sessionDate = data.sessionDate ?? data.session_date;
@@ -127,7 +135,7 @@ export function navigateFromNotification(
 
 /** Tab handler kept for Home / Profile only */
 export type TabNavigationPayload = {
-  tab: 'Home' | 'Schedule' | 'Profile';
+  tab: 'Home' | 'Profile';
   studentId?: number;
 };
 

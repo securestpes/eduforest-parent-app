@@ -7,11 +7,10 @@ import { useAppLanguage, type TranslationKey } from '../common';
 
 export type ChildChipAction =
   | 'attendance'
-  | 'schedule'
   | 'notifications'
-  | 'report'
   | 'homework'
-  | 'assessment'
+  | 'calendar'
+  | 'fees'
   | 'bus';
 
 type ChipDef = {
@@ -29,12 +28,6 @@ const CHIPS: ChipDef[] = [
     enabled: true,
   },
   {
-    action: 'schedule',
-    icon: 'calendar-clock',
-    labelKey: 'childChips.schedule',
-    enabled: true,
-  },
-  {
     action: 'bus',
     icon: 'bus-side',
     labelKey: 'childChips.bus',
@@ -47,22 +40,22 @@ const CHIPS: ChipDef[] = [
     enabled: true,
   },
   {
-    action: 'report',
-    icon: 'file-chart-outline',
-    labelKey: 'childChips.report',
-    enabled: false,
-  },
-  {
     action: 'homework',
     icon: 'book-open-outline',
     labelKey: 'childChips.homework',
     enabled: true,
   },
   {
-    action: 'assessment',
-    icon: 'clipboard-check-outline',
-    labelKey: 'childChips.assessment',
-    enabled: false,
+    action: 'calendar',
+    icon: 'calendar-month-outline',
+    labelKey: 'childChips.calendar',
+    enabled: true,
+  },
+  {
+    action: 'fees',
+    icon: 'currency-inr',
+    labelKey: 'childChips.fees',
+    enabled: true,
   },
 ];
 

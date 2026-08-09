@@ -60,6 +60,9 @@ const config: ExpoConfig = {
   extra: {
     apiUrl: process.env.API_URL,
     appEnv: process.env.APP_ENV || APP_ENV,
+    /** Same as gentrack: phone login via Firebase when true (Android). */
+    FIREBASE_LOGIN: process.env.FIREBASE_LOGIN === 'true',
+    /** Expo Go / no-native-Firebase: stub RNFB + skip FCM init. */
     disableFirebase:
       process.env.EXPO_PUBLIC_DISABLE_FIREBASE === 'true' ||
       process.env.EXPO_PUBLIC_DISABLE_FIREBASE === '1',

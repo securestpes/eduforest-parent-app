@@ -18,16 +18,14 @@ import { Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '@react-navigation/native';
-import { format } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { useSelector } from 'react-redux';
 import {
   getMe,
   getMyStudents,
   getStudentAttendance,
-  getStudentSchedules,
   PARENT_ATTENDANCE_PAGE_SIZE,
   ParentAttendanceRow,
-  ParentSchedule,
   ParentStudent,
 } from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
@@ -37,16 +35,11 @@ import { initials, avatarHue } from '../utils/attendanceVisuals';
 import {
   aggregateFamilyWeekStats,
   formatLastSessionLine,
+  kindFromStatus,
   latestRow,
+  parseRowDate,
 } from '../utils/dashboardHome';
 import { formatLocalDateTime, formatApiTime } from '../utils/localDateTime';
-import {
-  formatScheduleTimeRange,
-  resolveNextClassToday,
-  resolveTodayStatus,
-  type TodayStatusKind,
-} from '../utils/scheduleHelpers';
-import { useMainTabNavigation } from '../navigation/TabNavigationContext';
 import { AppTheme } from '../theme';
 import { RootState } from '../redux/store';
 import { RootStackParamList } from '../navigation/Navigation';
@@ -56,6 +49,38 @@ type Translate = (
   key: TranslationKey,
   params?: Record<string, string | number | undefined>
 ) => string;
+
+type TodayStatusKind =
+  | 'present'
+  | 'absent'
+  | 'late'
+  | 'leave'
+  | 'not_marked';
+
+function todayAttendanceForStudent(
+  rows: ParentAttendanceRow[],
+  date = new Date()
+): ParentAttendanceRow | null {
+  for (const row of rows) {
+    const dt = parseRowDate(row);
+    if (dt && isSameDay(dt, date)) return row;
+  }
+  return null;
+}
+
+function resolveTodayStatus(
+  rows: ParentAttendanceRow[],
+  date = new Date()
+): { kind: TodayStatusKind; row: ParentAttendanceRow | null } {
+  const row = todayAttendanceForStudent(rows, date);
+  if (row) {
+    const k = kindFromStatus(row.status);
+    if (k === 'present' || k === 'absent' || k === 'late' || k === 'leave') {
+      return { kind: k, row };
+    }
+  }
+  return { kind: 'not_marked', row: null };
+}
 
 function StatCard({
   icon,
@@ -127,11 +152,7 @@ function TodayStatusBadge({
           ? t('attendance.status.late')
           : kind === 'leave'
             ? t('attendance.status.leave')
-            : kind === 'not_marked'
-            ? t('home.todayNotMarked')
-            : kind === 'no_class'
-              ? t('home.todayNoClass')
-              : t('common.dash');
+            : t('home.todayNotMarked');
   const bg =
     kind === 'present'
       ? theme.palette.successSoft
@@ -141,9 +162,7 @@ function TodayStatusBadge({
           ? theme.palette.warningSoft
           : kind === 'leave'
             ? theme.palette.card4_alpha
-            : kind === 'not_marked'
-            ? theme.palette.primarySoft
-            : theme.colors.surfaceVariant;
+            : theme.palette.primarySoft;
   const fg =
     kind === 'present'
       ? theme.colors.success
@@ -153,9 +172,7 @@ function TodayStatusBadge({
           ? theme.colors.warning
           : kind === 'leave'
             ? theme.palette.card4_base
-            : kind === 'not_marked'
-            ? theme.colors.primary
-            : theme.colors.onSurfaceVariant;
+            : theme.colors.primary;
   return (
     <View style={[styles.statusBadge, { backgroundColor: bg }]}>
       <View style={[styles.statusDot, { backgroundColor: fg }]} />
@@ -169,7 +186,6 @@ function TodayStatusBadge({
 function childTodayDetailLine(
   kind: TodayStatusKind,
   todayRow: ParentAttendanceRow | null,
-  schedules: ParentSchedule[],
   allRows: ParentAttendanceRow[],
   t: Translate
 ): string {
@@ -182,20 +198,6 @@ function childTodayDetailLine(
     }
   }
   if (kind === 'not_marked') {
-    const next = resolveNextClassToday(schedules);
-    if (next.schedule && next.phase !== 'ended') {
-      const range = formatScheduleTimeRange(next.schedule);
-      if (next.phase === 'in_progress') {
-        return t('home.inClassNow', {
-          time: range,
-          batch: next.schedule.batchName,
-        });
-      }
-      return t('home.nextClass', {
-        time: range,
-        batch: next.schedule.batchName,
-      });
-    }
     return t('home.todayNotMarked');
   }
   const last = latestRow(allRows);
@@ -207,23 +209,21 @@ function ChildOverviewCard({
   onPress,
   theme,
   rows,
-  schedules,
   t,
 }: {
   item: ParentStudent;
   onPress: () => void;
   theme: AppTheme;
   rows: ParentAttendanceRow[];
-  schedules: ParentSchedule[];
   t: Translate;
 }) {
   const hue = avatarHue(item.name);
   const avatarBg = `hsl(${hue} 45% 46%)`;
-  const { kind, row: todayRow } = resolveTodayStatus(schedules, rows);
+  const { kind, row: todayRow } = resolveTodayStatus(rows);
   const batchLine = item.batchNames?.length
     ? item.batchNames.join(' · ')
     : t('common.dash');
-  const detailLine = childTodayDetailLine(kind, todayRow, schedules, rows, t);
+  const detailLine = childTodayDetailLine(kind, todayRow, rows, t);
 
   return (
     <Pressable
@@ -276,9 +276,7 @@ function ChildOverviewCard({
                   ? 'clock-outline'
                   : kind === 'leave'
                     ? 'beach'
-                    : kind === 'no_class'
-                      ? 'star-four-points-outline'
-                      : 'calendar-check-outline'
+                    : 'calendar-check-outline'
               }
               size={16}
               color={
@@ -286,9 +284,7 @@ function ChildOverviewCard({
                   ? theme.colors.primary
                   : kind === 'leave'
                     ? theme.palette.card4_base
-                    : kind === 'no_class'
-                      ? theme.colors.warning
-                      : theme.colors.success
+                    : theme.colors.success
               }
             />
             <Text
@@ -312,16 +308,12 @@ function ChildOverviewCard({
 export function HomeScreen() {
   const theme = useTheme() as AppTheme;
   const { t } = useAppLanguage();
-  const { navigateToTab } = useMainTabNavigation();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const user = useSelector((s: RootState) => s.auth.user);
 
   const [students, setStudents] = useState<ParentStudent[]>([]);
   const [rowsByStudent, setRowsByStudent] = useState<
     Map<number, ParentAttendanceRow[]>
-  >(new Map());
-  const [schedulesByStudent, setSchedulesByStudent] = useState<
-    Map<number, ParentSchedule[]>
   >(new Map());
   const [parentLabel, setParentLabel] = useState('');
   const [loading, setLoading] = useState(true);
@@ -359,29 +351,22 @@ export function HomeScreen() {
       setStudents(list);
 
       const map = new Map<number, ParentAttendanceRow[]>();
-      const schedMap = new Map<number, ParentSchedule[]>();
       await Promise.all(
         list.map(async (s) => {
           try {
-            const [ar, sch] = await Promise.all([
-              getStudentAttendance(s.id, 0, PARENT_ATTENDANCE_PAGE_SIZE),
-              getStudentSchedules(s.id),
-            ]);
+            const ar = await getStudentAttendance(
+              s.id,
+              0,
+              PARENT_ATTENDANCE_PAGE_SIZE
+            );
             if (ar.status && ar.data?.content) map.set(s.id, ar.data.content);
             else map.set(s.id, []);
-            if (sch.status && Array.isArray(sch.data)) {
-              schedMap.set(s.id, sch.data);
-            } else {
-              schedMap.set(s.id, []);
-            }
           } catch {
             map.set(s.id, []);
-            schedMap.set(s.id, []);
           }
         })
       );
       setRowsByStudent(map);
-      setSchedulesByStudent(schedMap);
       setLastUpdatedAt(Date.now());
     } catch {
       setError(t('home.networkError'));
@@ -602,7 +587,6 @@ export function HomeScreen() {
               onPress={() => openChild(s.id)}
               theme={theme}
               rows={rowsByStudent.get(s.id) ?? []}
-              schedules={schedulesByStudent.get(s.id) ?? []}
               t={t}
             />
           ))

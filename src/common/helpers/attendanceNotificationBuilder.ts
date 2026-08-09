@@ -29,14 +29,25 @@ export function buildLocalizedNotificationContent(
 ): { title: string; body: string } | null {
   if (!data) return null;
 
-  // Bus alerts: use server title/body (already parent-facing English).
-  if ((data.type ?? '').toLowerCase() === 'bus_alert') {
+  // Bus / fee alerts: use server title/body (already parent-facing).
+  const type = (data.type ?? '').toLowerCase();
+  if (type === 'bus_alert' || type === 'fee_payment' || type === 'fee_reminder') {
     const title = data.title?.trim();
     const body = (data.body ?? data.short_message)?.trim();
     if (title || body) {
       return {
-        title: title || 'Bus update',
-        body: body || 'Open the app to track the bus.',
+        title:
+          title ||
+          (type === 'fee_reminder'
+            ? 'Fee reminder'
+            : type === 'fee_payment'
+              ? 'Fee received'
+              : 'Bus update'),
+        body:
+          body ||
+          (type === 'fee_reminder' || type === 'fee_payment'
+            ? 'Open Fees to view details.'
+            : 'Open the app to track the bus.'),
       };
     }
     return null;

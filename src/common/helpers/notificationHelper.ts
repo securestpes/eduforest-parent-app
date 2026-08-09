@@ -71,10 +71,13 @@ export const displayNotification = async (
     return;
   }
   const localizedPush = buildLocalizedNotificationContent(data, language);
+  const type = (data?.type ?? '').toLowerCase();
   const channelId =
-    (data?.type ?? '').toLowerCase() === 'bus_alert'
+    type === 'bus_alert'
       ? 'bus_alerts'
-      : FCM_ATTENDANCE_CHANNEL_ID;
+      : type === 'fee_payment' || type === 'fee_reminder'
+        ? 'fee_alerts'
+        : FCM_ATTENDANCE_CHANNEL_ID;
   await notifee.displayNotification({
     title: localizedPush?.title ?? data?.title ?? 'New Notification',
     body:

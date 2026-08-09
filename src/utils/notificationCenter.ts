@@ -5,25 +5,42 @@ import {
   isWithinInterval,
   startOfWeek,
 } from 'date-fns';
-import type { ParentAttendanceRow, ParentStudent } from '../services/parent';
+import type {
+  ParentAttendanceRow,
+  ParentFeeNotification,
+  ParentStudent,
+} from '../services/parent';
 import {
   kindFromStatus,
   parseRowDate,
   sessionTimeRange,
 } from './dashboardHome';
-import { formatLocalDate, formatRowLocalDateTime, parseRowLocalDateTime } from './localDateTime';
+import {
+  formatLocalDate,
+  formatLocalDateTime,
+  formatRowLocalDateTime,
+  parseRowLocalDateTime,
+} from './localDateTime';
 
 export type NotifAccent = 'danger' | 'warning' | 'success' | 'neutral';
 
+export type CenterNotificationKind =
+  | 'attendance'
+  | 'fee_payment'
+  | 'fee_reminder';
+
 export type CenterNotification = {
   id: string;
+  kind: CenterNotificationKind;
   accent: NotifAccent;
   statusLabel: string;
   headline: string;
   detail: string;
   timeLabel: string;
   at: Date;
-  row: ParentAttendanceRow;
+  /** Present for attendance items only. */
+  row?: ParentAttendanceRow;
+  studentId?: number;
   studentName: string;
 };
 
@@ -38,9 +55,16 @@ function statusUpperFromKind(
   return raw.toUpperCase();
 }
 
+function parseFeeCreatedAt(raw?: string | null): Date | null {
+  if (!raw) return null;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export function collectCenterNotifications(
   students: ParentStudent[],
   perStudentRows: Map<number, ParentAttendanceRow[]>,
+  feeAlerts: ParentFeeNotification[] = [],
   t?: (
     key: import('../common/contexts/parentTranslations').TranslationKey,
     params?: Record<string, string | number>
@@ -77,6 +101,7 @@ export function collectCenterNotifications(
       const detail = range ? `Class: ${range}` : row.batchName;
       items.push({
         id: `cn-${row.attendanceId}`,
+        kind: 'attendance',
         accent,
         statusLabel: statusUpperFromKind(k, row.status),
         headline,
@@ -84,10 +109,39 @@ export function collectCenterNotifications(
         timeLabel: formatRowLocalDateTime(row),
         at,
         row,
+        studentId: s.id,
         studentName: s.name,
       });
     }
   }
+
+  for (const fee of feeAlerts) {
+    const at = parseFeeCreatedAt(fee.createdAt);
+    if (!at) continue;
+    const isReminder = fee.type === 'fee_reminder';
+    const kind: CenterNotificationKind = isReminder
+      ? 'fee_reminder'
+      : 'fee_payment';
+    items.push({
+      id: fee.id || `fee-${fee.studentId}-${at.getTime()}`,
+      kind,
+      accent: isReminder ? 'warning' : 'success',
+      statusLabel: isReminder
+        ? t
+          ? t('notifications.feeReminderLabel')
+          : 'FEE REMINDER'
+        : t
+          ? t('notifications.feePaymentLabel')
+          : 'FEE RECEIVED',
+      headline: fee.title || (isReminder ? 'Fee reminder' : 'Fee received'),
+      detail: fee.body || fee.studentName,
+      timeLabel: formatLocalDateTime(at),
+      at,
+      studentId: fee.studentId,
+      studentName: fee.studentName,
+    });
+  }
+
   items.sort((a, b) => b.at.getTime() - a.at.getTime());
   return items;
 }

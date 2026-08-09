@@ -1,6 +1,6 @@
 import type { IApiResponse } from '../../../common/interfaces';
 import { authApiService } from '../../../common/services/authClient';
-import { isFirebaseDisabled } from '../../../../config/featureFlags';
+import { isFirebaseLoginEnabled } from '../../../../config/firebaseLogin';
 import auth from '@react-native-firebase/auth';
 
 const apiService = authApiService;
@@ -57,7 +57,7 @@ export class AuthService {
     mobile: string,
     forceResend = false
   ): Promise<FirebasePhoneLoginResult> {
-    if (isFirebaseDisabled) {
+    if (!isFirebaseLoginEnabled()) {
       await AuthService.requestOtp(mobile);
       return { verificationId: BACKEND_OTP_VERIFICATION_ID };
     }
@@ -141,7 +141,7 @@ export class AuthService {
   }
 
   public static async firebaseVerifyOtp(verificationId: string, code: string) {
-    if (isFirebaseDisabled) {
+    if (!isFirebaseLoginEnabled()) {
       return { status: true, message: 'Using backend SMS OTP' };
     }
     const trimmedId = verificationId?.trim?.() ?? '';
@@ -159,7 +159,7 @@ export class AuthService {
   }
 
   public static async firebaseSignOut(): Promise<void> {
-    if (isFirebaseDisabled) return;
+    if (!isFirebaseLoginEnabled()) return;
     try {
       await auth().signOut();
     } catch {

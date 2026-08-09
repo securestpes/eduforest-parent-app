@@ -1,6 +1,7 @@
 /**
- * Temporary Expo Go / no-native-Firebase mode.
- * Set EXPO_PUBLIC_DISABLE_FIREBASE=true in env/.env.development then restart Metro.
+ * Expo Go / no-native-Firebase mode (stubs RNFB + skips FCM).
+ * Set EXPO_PUBLIC_DISABLE_FIREBASE=true then restart Metro.
+ * For phone login on/off, use FIREBASE_LOGIN=true|false instead (see config/firebaseLogin.ts).
  */
 import Constants from 'expo-constants';
 

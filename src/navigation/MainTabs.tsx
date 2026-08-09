@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BottomNavigation, useTheme } from 'react-native-paper';
 import { HomeScreen } from '../screens/HomeScreen';
-import { FamilyScheduleScreen } from '../screens/FamilyScheduleScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { AppTheme } from '../theme';
 import { useAppLanguage } from '../common';
@@ -15,7 +14,6 @@ import { AppBarHeader } from '../features/app-bar/AppBarHeader';
 
 export type MainTabParamList = {
   Home: undefined;
-  Schedule: undefined;
   Profile: undefined;
 };
 
@@ -33,7 +31,7 @@ export function MainTabs() {
 
   useEffect(() => {
     registerTabNavigateHandler(({ tab, studentId }) => {
-      const tabIndex = tab === 'Profile' ? 2 : tab === 'Schedule' ? 1 : 0;
+      const tabIndex = tab === 'Profile' ? 1 : 0;
       setIndex(tabIndex);
       if (studentId != null) {
         setSelectedStudentId(studentId);
@@ -50,12 +48,6 @@ export function MainTabs() {
       unfocusedIcon: 'home-variant-outline',
     },
     {
-      key: 'schedule',
-      title: t('nav.schedule'),
-      focusedIcon: 'calendar-clock',
-      unfocusedIcon: 'calendar-clock-outline',
-    },
-    {
       key: 'profile',
       title: t('nav.profile'),
       focusedIcon: 'account-circle',
@@ -65,7 +57,6 @@ export function MainTabs() {
 
   const renderScene = BottomNavigation.SceneMap({
     home: HomeScreen,
-    schedule: FamilyScheduleScreen,
     profile: ProfileScreen,
   });
 

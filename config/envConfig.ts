@@ -6,6 +6,9 @@ type AppEnv = 'development' | 'production';
 interface AppEnvConfig {
   apiUrl: string;
   appEnv: AppEnv;
+  /** Phone OTP via Firebase (Android only). Mirror of gentrack FIREBASE_LOGIN. */
+  firebaseLoginEnabled: boolean;
+  /** Full Firebase off (Expo Go stubs / skip FCM). */
   disableFirebase: boolean;
 }
 
@@ -72,7 +75,11 @@ const normalizedApi = (() => {
 })();
 
 const extra = Constants.expoConfig?.extra as
-  | { appEnv?: AppEnv; disableFirebase?: boolean | string }
+  | {
+      appEnv?: AppEnv;
+      FIREBASE_LOGIN?: boolean | string;
+      disableFirebase?: boolean | string;
+    }
   | undefined;
 
 export const Env: AppEnvConfig = {
@@ -81,6 +88,11 @@ export const Env: AppEnvConfig = {
     (extra?.appEnv as AppEnv) ||
     (process.env.APP_ENV as AppEnv) ||
     'development',
+  firebaseLoginEnabled:
+    Platform.OS === 'android' &&
+    (extra?.FIREBASE_LOGIN === true ||
+      extra?.FIREBASE_LOGIN === 'true' ||
+      process.env.FIREBASE_LOGIN === 'true'),
   disableFirebase:
     extra?.disableFirebase === true ||
     extra?.disableFirebase === 'true' ||

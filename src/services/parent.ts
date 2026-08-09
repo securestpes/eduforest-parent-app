@@ -19,18 +19,6 @@ export interface ParentAttendanceRow {
   batchName: string;
 }
 
-export interface ParentSchedule {
-  scheduleId: number;
-  batchId: number;
-  batchName: string;
-  scheduleType: string;
-  startTime: string;
-  endTime: string;
-  endDate: string;
-  daysOfWeek: string[];
-  specificDates: string[];
-}
-
 export interface PageAttendance {
   content: ParentAttendanceRow[];
   totalElements: number;
@@ -63,6 +51,34 @@ export async function getMyStudents(): Promise<
   return data as ApiEnvelope & { data?: ParentStudent[] };
 }
 
+export type ParentFeeNotificationType = 'fee_payment' | 'fee_reminder';
+
+export interface ParentFeeNotification {
+  id: string;
+  type: ParentFeeNotificationType | string;
+  studentId: number;
+  studentName: string;
+  title: string;
+  body: string;
+  amount?: string | null;
+  createdAt?: string | null;
+}
+
+export async function getFeeNotifications(): Promise<
+  ApiEnvelope & { data?: ParentFeeNotification[] }
+> {
+  try {
+    const { data } = await api.get(`${prefix}/me/fee-notifications`);
+    return data as ApiEnvelope & { data?: ParentFeeNotification[] };
+  } catch {
+    return {
+      status: false,
+      message: 'Could not load fee notifications',
+      data: [],
+    };
+  }
+}
+
 export async function getStudentAttendance(
   studentId: number,
   page = 0,
@@ -72,13 +88,6 @@ export async function getStudentAttendance(
     params: { page, size, sort: 'session.date,desc' },
   });
   return data as ApiEnvelope & { data?: PageAttendance };
-}
-
-export async function getStudentSchedules(
-  studentId: number
-): Promise<ApiEnvelope & { data?: ParentSchedule[] }> {
-  const { data } = await api.get(`${prefix}/students/${studentId}/schedules`);
-  return data as ApiEnvelope & { data?: ParentSchedule[] };
 }
 
 export interface ParentHomeworkItem {
@@ -124,6 +133,113 @@ export async function getStudentHomeworkDetail(
     `${prefix}/students/${studentId}/homework/${homeworkId}`
   );
   return data as ApiEnvelope & { data?: ParentHomeworkDetail };
+}
+
+export type ParentCalendarEventType = 'HOLIDAY' | 'EXAM' | 'EVENT' | string;
+
+export interface ParentCalendarEvent {
+  id: number;
+  title: string;
+  eventType: ParentCalendarEventType | null;
+  startDate: string | null;
+  endDate: string | null;
+  description: string | null;
+  defaultEvent: boolean;
+}
+
+export interface ParentSchoolCalendar {
+  studentId: number;
+  sessionId: number | null;
+  sessionName: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  events: ParentCalendarEvent[];
+}
+
+export async function getStudentSchoolCalendar(
+  studentId: number
+): Promise<ApiEnvelope & { data?: ParentSchoolCalendar }> {
+  const { data } = await api.get(`${prefix}/students/${studentId}/calendar`);
+  return data as ApiEnvelope & { data?: ParentSchoolCalendar };
+}
+
+export interface ParentFeeInstallment {
+  key: string;
+  label: string;
+  yearValue: number;
+  monthValue: number;
+  dueDate: string;
+  amount: number;
+  paidAmount: number;
+  balance: number;
+  status: string;
+  statusLabel?: string;
+  overdue?: boolean;
+  collectible?: boolean;
+  collectedAt?: string | null;
+  collectedDate?: string | null;
+  lastPaymentMode?: string | null;
+  lastReceiptNo?: string | null;
+  heads: Array<{
+    demandId: number;
+    feeHeadId: number;
+    feeHeadName: string;
+    amount: number;
+    paidAmount: number;
+    balance: number;
+    status: string;
+  }>;
+}
+
+export interface ParentFeePayment {
+  paymentId: number;
+  amount: number;
+  paymentMode?: string | null;
+  referenceNo?: string | null;
+  remark?: string | null;
+  paidAt?: string | null;
+  receiptId?: number;
+  receiptNo?: string;
+}
+
+export interface ParentFeeLedger {
+  studentId: number;
+  studentName?: string;
+  sessionId: number | null;
+  sessionName?: string | null;
+  totalAmount: number;
+  totalPaid: number;
+  totalDue: number;
+  nextDueDate?: string | null;
+  hasAssignment?: boolean;
+  installments: ParentFeeInstallment[];
+  payments: ParentFeePayment[];
+}
+
+export async function getStudentFees(
+  studentId: number
+): Promise<ApiEnvelope & { data?: ParentFeeLedger }> {
+  try {
+    const { data } = await api.get(`${prefix}/students/${studentId}/fees`);
+    return data as ApiEnvelope & { data?: ParentFeeLedger };
+  } catch (e: any) {
+    const serverMessage =
+      e?.response?.data?.message ||
+      e?.response?.data?.error ||
+      e?.message ||
+      'Could not load fees';
+    throw new Error(serverMessage);
+  }
+}
+
+export async function getStudentFeeReceipt(
+  studentId: number,
+  receiptId: number
+): Promise<ApiEnvelope & { data?: Record<string, unknown> }> {
+  const { data } = await api.get(
+    `${prefix}/students/${studentId}/fees/receipts/${receiptId}`
+  );
+  return data as ApiEnvelope & { data?: Record<string, unknown> };
 }
 
 export async function registerDeviceToken(

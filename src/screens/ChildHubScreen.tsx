@@ -22,16 +22,18 @@ import {
 } from '../components/ChildActionChips';
 import { AttendanceScreen } from './AttendanceScreen';
 import { NotificationsScreen } from './NotificationsScreen';
-import { ScheduleScreen } from './ScheduleScreen';
 import { HomeworkScreen } from './HomeworkScreen';
+import { SchoolCalendarScreen } from './SchoolCalendarScreen';
+import { FeesScreen } from './FeesScreen';
 import type { RootStackParamList } from '../navigation/Navigation';
 import { useAppLanguage } from '../common';
 
 const ENABLED_SECTIONS: ChildChipAction[] = [
   'attendance',
-  'schedule',
   'notifications',
   'homework',
+  'calendar',
+  'fees',
 ];
 
 function isEnabledSection(
@@ -140,10 +142,12 @@ export function ChildHubScreen() {
                 if (highlight) setAttendanceHighlight(highlight);
                 setSection('attendance');
               }}
+              onSwitchToFees={() => setSection('fees')}
             />
           ) : null}
-          {section === 'schedule' ? <ScheduleScreen embedded /> : null}
           {section === 'homework' ? <HomeworkScreen embedded /> : null}
+          {section === 'calendar' ? <SchoolCalendarScreen embedded /> : null}
+          {section === 'fees' ? <FeesScreen embedded /> : null}
         </View>
       </SafeAreaView>
     </ScreenDecor>

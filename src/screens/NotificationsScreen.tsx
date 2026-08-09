@@ -15,10 +15,12 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { formatLocalDateTime } from '../utils/localDateTime';
 import {
+  getFeeNotifications,
   getMyStudents,
   getStudentAttendance,
   PARENT_ATTENDANCE_PAGE_SIZE,
   type ParentAttendanceRow,
+  type ParentFeeNotification,
   ParentStudent,
 } from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
@@ -57,6 +59,8 @@ function NotifCard({
 }) {
   const { t } = useAppLanguage();
   const dot = accentColor(item.accent, theme);
+  const isFee =
+    item.kind === 'fee_payment' || item.kind === 'fee_reminder';
   const pillBg =
     item.accent === 'danger'
       ? theme.colors.errorContainer
@@ -117,9 +121,9 @@ function NotifCard({
           compact
           onPress={onViewDetails}
           style={styles.actionBtn}
-          icon="calendar-check"
+          icon={isFee ? 'currency-inr' : 'calendar-check'}
         >
-          {t('notifications.viewDetails')}
+          {isFee ? t('notifications.viewFees') : t('notifications.viewDetails')}
         </Button>
       </View>
     </View>
@@ -232,12 +236,14 @@ function hasMoreAttendancePages(
 export function NotificationsScreen({
   embedded,
   onSwitchToAttendance,
+  onSwitchToFees,
 }: {
   embedded?: boolean;
   onSwitchToAttendance?: (highlight?: {
     highlightAttendanceId?: number;
     highlightSessionDate?: string;
   }) => void;
+  onSwitchToFees?: () => void;
 } = {}) {
   const theme = useTheme() as AppTheme;
   const { t } = useAppLanguage();
@@ -249,6 +255,7 @@ export function NotificationsScreen({
   const [rowsMap, setRowsMap] = useState<Map<number, ParentAttendanceRow[]>>(
     new Map()
   );
+  const [feeAlerts, setFeeAlerts] = useState<ParentFeeNotification[]>([]);
   const [pageStateMap, setPageStateMap] = useState<
     Map<number, StudentPageState>
   >(new Map());
@@ -274,15 +281,22 @@ export function NotificationsScreen({
 
   const load = useCallback(async () => {
     try {
-      const stRes = await getMyStudents();
+      const [stRes, feeRes] = await Promise.all([
+        getMyStudents(),
+        getFeeNotifications(),
+      ]);
       if (!stRes.status || !Array.isArray(stRes.data)) {
         setStudents([]);
         setRowsMap(new Map());
         setPageStateMap(new Map());
+        setFeeAlerts([]);
         return;
       }
       const list = stRes.data;
       setStudents(list);
+      setFeeAlerts(
+        feeRes.status && Array.isArray(feeRes.data) ? feeRes.data : []
+      );
       const map = new Map<number, ParentAttendanceRow[]>();
       const pages = new Map<number, StudentPageState>();
       await Promise.all(
@@ -389,8 +403,8 @@ export function NotificationsScreen({
   }, [load]);
 
   const allItems = useMemo(
-    () => collectCenterNotifications(students, rowsMap, t),
-    [students, rowsMap, t]
+    () => collectCenterNotifications(students, rowsMap, feeAlerts, t),
+    [students, rowsMap, feeAlerts, t]
   );
   const selectedStudent = useMemo(
     () => students.find((s) => s.id === selectedStudentId) ?? null,
@@ -398,7 +412,11 @@ export function NotificationsScreen({
   );
   const visibleItems = useMemo(() => {
     if (!embedded || !selectedStudent) return allItems;
-    return allItems.filter((n) => n.studentName === selectedStudent.name);
+    return allItems.filter(
+      (n) =>
+        n.studentId === selectedStudent.id ||
+        n.studentName === selectedStudent.name
+    );
   }, [allItems, embedded, selectedStudent]);
   const { today, thisWeekNotToday, earlier } = useMemo(
     () => splitNotificationsByRecency(visibleItems),
@@ -442,8 +460,24 @@ export function NotificationsScreen({
   };
 
   const openDetails = (item: CenterNotification) => {
-    const student = students.find((s) => s.name === item.studentName);
+    const student =
+      students.find((s) => s.id === item.studentId) ||
+      students.find((s) => s.name === item.studentName);
     if (student) setSelectedStudentId(student.id);
+
+    if (item.kind === 'fee_payment' || item.kind === 'fee_reminder') {
+      if (embedded && onSwitchToFees) {
+        onSwitchToFees();
+        return;
+      }
+      navigation.navigate('ChildHub', {
+        section: 'fees',
+        studentId: student?.id,
+      });
+      return;
+    }
+
+    if (!item.row) return;
     const highlight = {
       highlightAttendanceId: item.row.attendanceId,
       highlightSessionDate: item.row.sessionDate.slice(0, 10),

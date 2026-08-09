@@ -40,8 +40,10 @@ import {
   ParentProfileService,
 } from '../../profile/services/ParentProfileService';
 import { registerParentPushToken } from '../../../services/push';
-import { SHOW_FIREBASE_OTP_VERIFY_DEBUG } from '../../../../config/firebaseLogin';
-import { isFirebaseDisabled } from '../../../../config/featureFlags';
+import {
+  SHOW_FIREBASE_OTP_VERIFY_DEBUG,
+  isFirebaseLoginEnabled,
+} from '../../../../config/firebaseLogin';
 import {
   BACKEND_OTP_VERIFICATION_ID,
 } from '../services/AuthService';
@@ -271,7 +273,7 @@ export const VerifyLogin: React.FC<Props> = ({ navigation, route }) => {
     const mobile = route.params.mobileNumber ?? '';
 
     try {
-      if (isFirebaseDisabled) {
+      if (!isFirebaseLoginEnabled()) {
         loginCompletedRef.current = false;
         setErrorMessage(t('verifyOtp.unexpected'));
         return;
@@ -330,7 +332,7 @@ export const VerifyLogin: React.FC<Props> = ({ navigation, route }) => {
   }, [finalizeBackendFromFirebaseUser]);
 
   useEffect(() => {
-    if (isFirebaseDisabled) return;
+    if (!isFirebaseLoginEnabled()) return;
     if (route.params.phoneAuthMethodHint !== 'instant' || afterResend) {
       return;
     }
@@ -366,7 +368,7 @@ export const VerifyLogin: React.FC<Props> = ({ navigation, route }) => {
   ]);
 
   useEffect(() => {
-    if (isFirebaseDisabled) return;
+    if (!isFirebaseLoginEnabled()) return;
     if (route.params.phoneAuthMethodHint === 'instant' && !afterResend) {
       return () => {};
     }
@@ -417,13 +419,13 @@ export const VerifyLogin: React.FC<Props> = ({ navigation, route }) => {
         mobile: route.params.mobileNumber,
         verificationId,
         smsCodeLength: otp.length,
-        firebaseDisabled: isFirebaseDisabled,
+        firebaseLoginEnabled: isFirebaseLoginEnabled(),
       });
     }
 
     try {
       if (
-        isFirebaseDisabled ||
+        !isFirebaseLoginEnabled() ||
         verificationId === BACKEND_OTP_VERIFICATION_ID
       ) {
         if (loginCompletedRef.current) return;

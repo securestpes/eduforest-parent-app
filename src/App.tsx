@@ -54,6 +54,15 @@ async function createNotificationChannel() {
     lights: true,
     badge: true,
   });
+  await notifee.createChannel({
+    id: 'fee_alerts',
+    name: 'Fee alerts',
+    importance: AndroidImportance.HIGH,
+    sound: 'default',
+    vibration: true,
+    lights: true,
+    badge: true,
+  });
 }
 
 async function requestNotificationPermission() {

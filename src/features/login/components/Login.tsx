@@ -29,7 +29,7 @@ import { AuthService, firebasePhoneMatchesIndiaLocal } from '../services';
 import type { ILoginFormState } from '../interfaces';
 import type { RootStackParamList } from '../../../navigation/Navigation';
 import { legalWebUrls } from '../../../common/constants';
-import { isFirebaseDisabled } from '../../../../config/featureFlags';
+import { isFirebaseLoginEnabled } from '../../../../config/firebaseLogin';
 import {
   BACKEND_OTP_VERIFICATION_ID,
 } from '../services/AuthService';
@@ -124,7 +124,7 @@ export const Login: React.FC<Props> = ({ navigation }) => {
           const confirmation =
             await AuthService.firebaseLoginWithMobile(tenDigit);
 
-          if (isFirebaseDisabled) {
+          if (!isFirebaseLoginEnabled()) {
             navigation.navigate('VerifyLogin', {
               mobileNumber: tenDigit,
               verificationId:
