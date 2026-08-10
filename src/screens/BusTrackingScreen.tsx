@@ -38,6 +38,7 @@ import {
 import type { AppTheme } from '../theme';
 import { useAppLanguage } from '../common';
 import type { RootStackParamList } from '../navigation/Navigation';
+import { useSelectionStore } from '../store/selectionStore';
 import {
   getLiveBusLocation,
   getParentChildrenBuses,
@@ -97,13 +98,15 @@ export function BusTrackingScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'BusTrackingMap'>>();
   const params = route.params ?? {};
+  const selectedStudentId = useSelectionStore((s) => s.selectedStudentId);
+  const focusStudentId = params.studentId ?? selectedStudentId ?? undefined;
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const stoppedSinceRef = useRef<number | null>(null);
 
   const [loading, setLoading] = useState(true);
-  const [children, setChildren] = useState<ParentChildBus[]>([]);
-  const [activeIdx, setActiveIdx] = useState(0);
+  /** One child at a time — never show sibling switcher on this map. */
+  const [activeChild, setActiveChild] = useState<ParentChildBus | null>(null);
   const [live, setLive] = useState<LiveBusLocation | null>(null);
   const [etaLocal, setEtaLocal] = useState<{ km: number; min: number } | null>(
     null
@@ -124,13 +127,14 @@ export function BusTrackingScreen() {
     return () => clearInterval(id);
   }, []);
 
-  const activeChild = children[activeIdx];
   const busId = activeChild?.busId ?? params.busId;
-  const studentId = activeChild?.studentId ?? params.studentId;
+  const studentId = activeChild?.studentId ?? focusStudentId;
 
   useEffect(() => {
     stoppedSinceRef.current = null;
-  }, [busId]);
+    setLive(null);
+    setEtaLocal(null);
+  }, [busId, studentId]);
 
   const busMotion: MotionPin = useMemo(() => {
     if (!live) return 'red';
@@ -172,26 +176,71 @@ export function BusTrackingScreen() {
     setErrorMsg(null);
     try {
       const res = await getParentChildrenBuses();
-      const list = Array.isArray(res.data) ? res.data : [];
-      let picked = 0;
-      if (params.studentId != null) {
-        const idx = list.findIndex((c) => c.studentId === params.studentId);
-        if (idx >= 0) picked = idx;
-      } else if (params.busId != null) {
-        const idx = list.findIndex((c) => c.busId === params.busId);
-        if (idx >= 0) picked = idx;
+      const raw = res?.data as unknown;
+      const list: ParentChildBus[] = Array.isArray(raw)
+        ? raw
+        : Array.isArray((raw as { content?: ParentChildBus[] })?.content)
+          ? ((raw as { content: ParentChildBus[] }).content ?? [])
+          : [];
+
+      // Prefer the opened child only (hub / notification / selection store)
+      let picked: ParentChildBus | undefined;
+      if (focusStudentId != null) {
+        picked = list.find((c) => c.studentId === focusStudentId);
       }
-      setChildren(list);
-      setActiveIdx(picked);
+      if (!picked && params.busId != null) {
+        picked = list.find((c) => c.busId === params.busId);
+      }
+      // Last resort: exactly one assignment — still single-student screen
+      if (!picked && list.length === 1) {
+        picked = list[0];
+      }
+
+      // Deep-link: list empty but notification gave ids
+      if (
+        !picked &&
+        focusStudentId != null &&
+        params.busId != null &&
+        Number.isFinite(focusStudentId) &&
+        Number.isFinite(params.busId)
+      ) {
+        picked = {
+          assignmentId: 0,
+          studentId: focusStudentId,
+          studentName: t('busTracking.title'),
+          busId: params.busId,
+          busNumber: '—',
+          routeStops: [],
+        };
+      }
+
+      setActiveChild(picked ?? null);
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : t('busTracking.loadFailed');
-      setErrorMsg(message);
-      setChildren([]);
+      if (
+        focusStudentId != null &&
+        params.busId != null &&
+        Number.isFinite(focusStudentId) &&
+        Number.isFinite(params.busId)
+      ) {
+        setActiveChild({
+          assignmentId: 0,
+          studentId: focusStudentId,
+          studentName: t('busTracking.title'),
+          busId: params.busId,
+          busNumber: '—',
+          routeStops: [],
+        });
+        setErrorMsg(null);
+      } else {
+        const message =
+          err instanceof Error ? err.message : t('busTracking.loadFailed');
+        setErrorMsg(message);
+        setActiveChild(null);
+      }
     } finally {
       setLoading(false);
     }
-  }, [params.busId, params.studentId, t]);
+  }, [focusStudentId, params.busId, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -205,6 +254,24 @@ export function BusTrackingScreen() {
       const res = await getLiveBusLocation(busId, studentId);
       if (!res.data) return;
       setLive(res.data);
+      // Enrich deep-link stub with live bus meta
+      if (res.data.busNumber) {
+        setActiveChild((prev) => {
+          if (!prev || prev.assignmentId !== 0) return prev;
+          return {
+            ...prev,
+            busNumber: res.data?.busNumber || prev.busNumber,
+            driverName: res.data?.driverName ?? prev.driverName,
+            driverMobile: res.data?.driverMobile ?? prev.driverMobile,
+            driverEmployeeId:
+              res.data?.driverEmployeeId ?? prev.driverEmployeeId,
+            activeTripId: res.data?.activeTripId ?? prev.activeTripId,
+            activeTripType: res.data?.activeTripType ?? prev.activeTripType,
+            activeTripStatus:
+              res.data?.activeTripStatus ?? prev.activeTripStatus,
+          };
+        });
+      }
       if (
         res.data.latitude != null &&
         res.data.longitude != null &&
@@ -534,65 +601,6 @@ export function BusTrackingScreen() {
           />
         </Pressable>
       </View>
-
-      {children.length > 1 ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[
-            styles.tabBar,
-            { backgroundColor: theme.colors.surface },
-          ]}
-        >
-          {children.map((c, i) => {
-            const active = i === activeIdx;
-            return (
-              <Pressable
-                key={c.assignmentId}
-                onPress={() => setActiveIdx(i)}
-                style={styles.tab}
-              >
-                <View
-                  style={[
-                    styles.tabAvatar,
-                    {
-                      backgroundColor: active
-                        ? theme.colors.primary
-                        : theme.colors.surfaceVariant,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={{
-                      fontWeight: '800',
-                      color: active
-                        ? theme.colors.onPrimary
-                        : theme.colors.onSurfaceVariant,
-                    }}
-                  >
-                    {c.studentName.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-                <Text
-                  numberOfLines={1}
-                  variant="labelSmall"
-                  style={{
-                    marginTop: 4,
-                    maxWidth: 80,
-                    textAlign: 'center',
-                    fontWeight: active ? '700' : '500',
-                    color: active
-                      ? theme.colors.onSurface
-                      : theme.colors.onSurfaceVariant,
-                  }}
-                >
-                  {c.studentName}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      ) : null}
 
       <View style={styles.mapWrap}>
         {loading ? (
@@ -1158,19 +1166,6 @@ const styles = StyleSheet.create({
   },
   headerText: { flex: 1, marginHorizontal: 8 },
   iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabBar: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 12,
-  },
-  tab: { alignItems: 'center', marginRight: 12 },
-  tabAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
