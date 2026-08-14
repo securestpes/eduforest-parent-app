@@ -8,7 +8,13 @@ export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 export type ChildHubSection = Extract<
   ChildChipAction,
-  'attendance' | 'notifications' | 'homework' | 'calendar' | 'fees' | 'exams'
+  | 'attendance'
+  | 'notifications'
+  | 'homework'
+  | 'calendar'
+  | 'fees'
+  | 'exams'
+  | 'leaves'
 >;
 
 export type ChildNavigationPayload = {
@@ -112,6 +118,13 @@ export function parseNotificationNavigation(
   if (type === 'exam_results_published') {
     return {
       section: 'exams',
+      studentId: Number.isFinite(studentId) ? studentId : undefined,
+    };
+  }
+
+  if (type === 'leave_request_status') {
+    return {
+      section: 'leaves',
       studentId: Number.isFinite(studentId) ? studentId : undefined,
     };
   }

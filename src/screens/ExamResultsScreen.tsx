@@ -2,6 +2,7 @@ import { format, parseISO } from 'date-fns';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   RefreshControl,
@@ -15,6 +16,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
   getMyStudents,
   getStudentExamDetail,
+  getStudentExamReportCard,
   getStudentExams,
   type ParentExamDetail,
   type ParentExamListItem,
@@ -25,6 +27,7 @@ import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import type { AppTheme } from '../theme';
 import { useAppLanguage } from '../common';
+import { savePdfToDevice } from '../utils/savePdfToDevice';
 
 function formatShortDate(value: string | null | undefined): string {
   if (!value) return '—';
@@ -61,6 +64,7 @@ export function ExamResultsScreen({
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<ParentExamDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const selectedStudent = students.find((s) => s.id === studentId) ?? null;
 
@@ -123,6 +127,33 @@ export function ExamResultsScreen({
       setError(e?.message || t('exams.detailFailed'));
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const downloadReportCard = async () => {
+    if (studentId == null || detail == null || downloading) return;
+    setDownloading(true);
+    try {
+      const res = await getStudentExamReportCard(studentId, detail.examId);
+      if (!res.status || !res.data?.contentBase64) {
+        throw new Error(res.message || t('exams.reportCardFailed'));
+      }
+      const result = await savePdfToDevice({
+        fileName: res.data.fileName || `ReportCard_${detail.name}.pdf`,
+        contentBase64: res.data.contentBase64,
+        mimeType: res.data.mimeType || 'application/pdf',
+      });
+      if (result === 'cancelled') return;
+      Alert.alert(
+        '',
+        result === 'shared'
+          ? t('exams.reportCardShared')
+          : t('exams.reportCardSaved')
+      );
+    } catch (e: any) {
+      Alert.alert('', e?.message || t('exams.reportCardFailed'));
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -304,6 +335,34 @@ export function ExamResultsScreen({
                 </Text>
               </View>
 
+              <Pressable
+                onPress={() => void downloadReportCard()}
+                disabled={downloading}
+                style={[
+                  styles.downloadBtn,
+                  {
+                    backgroundColor: theme.colors.primary,
+                    opacity: downloading ? 0.7 : 1,
+                  },
+                ]}
+              >
+                {downloading ? (
+                  <ActivityIndicator color={theme.colors.onPrimary} />
+                ) : (
+                  <MaterialCommunityIcons
+                    name="file-pdf-box"
+                    size={22}
+                    color={theme.colors.onPrimary}
+                  />
+                )}
+                <Text
+                  variant="labelLarge"
+                  style={{ color: theme.colors.onPrimary, fontWeight: '700' }}
+                >
+                  {t('exams.downloadReportCard')}
+                </Text>
+              </Pressable>
+
               {detail.subjects.map((subject) => (
                 <View
                   key={subject.paperId}
@@ -446,6 +505,15 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 4,
     alignItems: 'flex-start',
+  },
+  downloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   subjectRow: {
     borderWidth: StyleSheet.hairlineWidth,

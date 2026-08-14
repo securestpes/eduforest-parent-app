@@ -62,6 +62,7 @@ function NotifCard({
   const isFee =
     item.kind === 'fee_payment' || item.kind === 'fee_reminder';
   const isExam = item.kind === 'exam_results';
+  const isLeave = item.kind === 'leave_status';
   const pillBg =
     item.accent === 'danger'
       ? theme.colors.errorContainer
@@ -125,16 +126,20 @@ function NotifCard({
           icon={
             isExam
               ? 'clipboard-text-outline'
-              : isFee
-                ? 'currency-inr'
-                : 'calendar-check'
+              : isLeave
+                ? 'calendar-account-outline'
+                : isFee
+                  ? 'currency-inr'
+                  : 'calendar-check'
           }
         >
           {isExam
             ? t('notifications.viewExams')
-            : isFee
-              ? t('notifications.viewFees')
-              : t('notifications.viewDetails')}
+            : isLeave
+              ? t('notifications.viewLeaves')
+              : isFee
+                ? t('notifications.viewFees')
+                : t('notifications.viewDetails')}
         </Button>
       </View>
     </View>
@@ -249,6 +254,7 @@ export function NotificationsScreen({
   onSwitchToAttendance,
   onSwitchToFees,
   onSwitchToExams,
+  onSwitchToLeaves,
 }: {
   embedded?: boolean;
   onSwitchToAttendance?: (highlight?: {
@@ -257,6 +263,7 @@ export function NotificationsScreen({
   }) => void;
   onSwitchToFees?: () => void;
   onSwitchToExams?: () => void;
+  onSwitchToLeaves?: () => void;
 } = {}) {
   const theme = useTheme() as AppTheme;
   const { t } = useAppLanguage();
@@ -497,6 +504,18 @@ export function NotificationsScreen({
       }
       navigation.navigate('ChildHub', {
         section: 'exams',
+        studentId: student?.id,
+      });
+      return;
+    }
+
+    if (item.kind === 'leave_status') {
+      if (embedded && onSwitchToLeaves) {
+        onSwitchToLeaves();
+        return;
+      }
+      navigation.navigate('ChildHub', {
+        section: 'leaves',
         studentId: student?.id,
       });
       return;

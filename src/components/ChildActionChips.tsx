@@ -12,6 +12,7 @@ export type ChildChipAction =
   | 'calendar'
   | 'fees'
   | 'exams'
+  | 'leaves'
   | 'bus';
 
 type ChipDef = {
@@ -50,6 +51,12 @@ const CHIPS: ChipDef[] = [
     action: 'exams',
     icon: 'clipboard-text-outline',
     labelKey: 'childChips.exams',
+    enabled: true,
+  },
+  {
+    action: 'leaves',
+    icon: 'calendar-account-outline',
+    labelKey: 'childChips.leaves',
     enabled: true,
   },
   {

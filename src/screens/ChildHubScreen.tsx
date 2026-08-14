@@ -26,6 +26,7 @@ import { HomeworkScreen } from './HomeworkScreen';
 import { SchoolCalendarScreen } from './SchoolCalendarScreen';
 import { FeesScreen } from './FeesScreen';
 import { ExamResultsScreen } from './ExamResultsScreen';
+import { LeaveScreen } from './LeaveScreen';
 import type { RootStackParamList } from '../navigation/Navigation';
 import { useAppLanguage } from '../common';
 
@@ -34,6 +35,7 @@ const ENABLED_SECTIONS: ChildChipAction[] = [
   'notifications',
   'homework',
   'exams',
+  'leaves',
   'calendar',
   'fees',
 ];
@@ -146,10 +148,12 @@ export function ChildHubScreen() {
               }}
               onSwitchToFees={() => setSection('fees')}
               onSwitchToExams={() => setSection('exams')}
+              onSwitchToLeaves={() => setSection('leaves')}
             />
           ) : null}
           {section === 'homework' ? <HomeworkScreen embedded /> : null}
           {section === 'exams' ? <ExamResultsScreen embedded /> : null}
+          {section === 'leaves' ? <LeaveScreen embedded /> : null}
           {section === 'calendar' ? <SchoolCalendarScreen embedded /> : null}
           {section === 'fees' ? <FeesScreen embedded /> : null}
         </View>

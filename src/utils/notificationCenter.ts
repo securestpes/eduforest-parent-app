@@ -28,7 +28,8 @@ export type CenterNotificationKind =
   | 'attendance'
   | 'fee_payment'
   | 'fee_reminder'
-  | 'exam_results';
+  | 'exam_results'
+  | 'leave_status';
 
 export type CenterNotification = {
   id: string;
@@ -120,28 +121,43 @@ export function collectCenterNotifications(
     const at = parseFeeCreatedAt(fee.createdAt);
     if (!at) continue;
     const isExam = fee.type === 'exam_results_published';
+    const isLeave = fee.type === 'leave_request_status';
     const isReminder = fee.type === 'fee_reminder';
     const kind: CenterNotificationKind = isExam
       ? 'exam_results'
-      : isReminder
-        ? 'fee_reminder'
-        : 'fee_payment';
+      : isLeave
+        ? 'leave_status'
+        : isReminder
+          ? 'fee_reminder'
+          : 'fee_payment';
     items.push({
       id: fee.id || `fee-${fee.studentId}-${at.getTime()}`,
       kind,
-      accent: isExam ? 'success' : isReminder ? 'warning' : 'success',
+      accent: isExam || isLeave ? 'success' : isReminder ? 'warning' : 'success',
       statusLabel: isExam
         ? t
           ? t('notifications.examResultsLabel')
           : 'EXAM RESULTS'
-        : isReminder
+        : isLeave
           ? t
-            ? t('notifications.feeReminderLabel')
-            : 'FEE REMINDER'
-          : t
-            ? t('notifications.feePaymentLabel')
-            : 'FEE RECEIVED',
-      headline: fee.title || (isExam ? 'Exam results' : isReminder ? 'Fee reminder' : 'Fee received'),
+            ? t('notifications.leaveLabel')
+            : 'LEAVE'
+          : isReminder
+            ? t
+              ? t('notifications.feeReminderLabel')
+              : 'FEE REMINDER'
+            : t
+              ? t('notifications.feePaymentLabel')
+              : 'FEE RECEIVED',
+      headline:
+        fee.title ||
+        (isExam
+          ? 'Exam results'
+          : isLeave
+            ? 'Leave update'
+            : isReminder
+              ? 'Fee reminder'
+              : 'Fee received'),
       detail: fee.body || fee.studentName,
       timeLabel: formatLocalDateTime(at),
       at,

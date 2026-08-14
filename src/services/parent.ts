@@ -54,7 +54,8 @@ export async function getMyStudents(): Promise<
 export type ParentFeeNotificationType =
   | 'fee_payment'
   | 'fee_reminder'
-  | 'exam_results_published';
+  | 'exam_results_published'
+  | 'leave_request_status';
 
 export interface ParentFeeNotification {
   id: string;
@@ -196,6 +197,75 @@ export async function getStudentExamDetail(
     `${prefix}/students/${studentId}/exams/${examId}`
   );
   return data as ApiEnvelope & { data?: ParentExamDetail };
+}
+
+export interface ParentExamReportCardFile {
+  fileName: string;
+  mimeType: string;
+  contentBase64: string;
+}
+
+export async function getStudentExamReportCard(
+  studentId: number,
+  examId: number
+): Promise<ApiEnvelope & { data?: ParentExamReportCardFile }> {
+  const { data } = await api.get(
+    `${prefix}/students/${studentId}/exams/${examId}/report-card`
+  );
+  return data as ApiEnvelope & { data?: ParentExamReportCardFile };
+}
+
+export interface ParentLeaveItem {
+  id: number;
+  studentId: number;
+  status: string;
+  leaveType: string;
+  fromDate: string;
+  toDate: string;
+  reason: string;
+  reviewNote?: string | null;
+  reviewedAt?: string | null;
+  createdAt?: string | null;
+  canCancel?: boolean;
+  divisionDisplayName?: string | null;
+}
+
+export interface ParentLeaveListResponse {
+  studentId: number;
+  leaves: ParentLeaveItem[];
+}
+
+export async function getStudentLeaves(
+  studentId: number
+): Promise<ApiEnvelope & { data?: ParentLeaveListResponse }> {
+  const { data } = await api.get(`${prefix}/students/${studentId}/leaves`);
+  return data as ApiEnvelope & { data?: ParentLeaveListResponse };
+}
+
+export async function applyStudentLeave(
+  studentId: number,
+  payload: {
+    fromDate: string;
+    toDate: string;
+    leaveType: string;
+    reason: string;
+  }
+): Promise<ApiEnvelope & { data?: ParentLeaveItem }> {
+  const { data } = await api.post(
+    `${prefix}/students/${studentId}/leaves`,
+    payload
+  );
+  return data as ApiEnvelope & { data?: ParentLeaveItem };
+}
+
+export async function cancelStudentLeave(
+  studentId: number,
+  leaveId: number
+): Promise<ApiEnvelope & { data?: ParentLeaveItem }> {
+  const { data } = await api.post(
+    `${prefix}/students/${studentId}/leaves/${leaveId}/cancel`
+  );
+  return data as ApiEnvelope & { data?: ParentLeaveItem };
 }
 
 export type ParentCalendarEventType = 'HOLIDAY' | 'EXAM' | 'EVENT' | string;
