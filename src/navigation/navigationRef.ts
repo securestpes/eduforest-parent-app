@@ -8,7 +8,7 @@ export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 export type ChildHubSection = Extract<
   ChildChipAction,
-  'attendance' | 'notifications' | 'homework' | 'calendar' | 'fees'
+  'attendance' | 'notifications' | 'homework' | 'calendar' | 'fees' | 'exams'
 >;
 
 export type ChildNavigationPayload = {
@@ -105,6 +105,13 @@ export function parseNotificationNavigation(
   if (type === 'fee_payment' || type === 'fee_reminder') {
     return {
       section: 'fees',
+      studentId: Number.isFinite(studentId) ? studentId : undefined,
+    };
+  }
+
+  if (type === 'exam_results_published') {
+    return {
+      section: 'exams',
       studentId: Number.isFinite(studentId) ? studentId : undefined,
     };
   }

@@ -51,7 +51,10 @@ export async function getMyStudents(): Promise<
   return data as ApiEnvelope & { data?: ParentStudent[] };
 }
 
-export type ParentFeeNotificationType = 'fee_payment' | 'fee_reminder';
+export type ParentFeeNotificationType =
+  | 'fee_payment'
+  | 'fee_reminder'
+  | 'exam_results_published';
 
 export interface ParentFeeNotification {
   id: string;
@@ -133,6 +136,66 @@ export async function getStudentHomeworkDetail(
     `${prefix}/students/${studentId}/homework/${homeworkId}`
   );
   return data as ApiEnvelope & { data?: ParentHomeworkDetail };
+}
+
+export interface ParentExamListItem {
+  examId: number;
+  name: string;
+  examType?: string | null;
+  customTypeLabel?: string | null;
+  status: string;
+  startDate: string;
+  endDate: string;
+  passPercent: number;
+  gradeEnabled: boolean;
+  divisionDisplayName?: string | null;
+  subjectCount: number;
+  scoredSubjects: number;
+  pendingSubjects: number;
+  obtainedMarks?: number | null;
+  maxMarks?: number | null;
+  percent?: number | null;
+  passed?: boolean;
+  grade?: string | null;
+  resultLabel?: string | null;
+}
+
+export interface ParentExamSubjectRow {
+  paperId: number;
+  subjectName: string;
+  maxMarks: number;
+  examDate?: string | null;
+  marks?: number | null;
+  attendanceStatus?: string | null;
+  remark?: string | null;
+  entered: boolean;
+}
+
+export interface ParentExamDetail extends ParentExamListItem {
+  sessionName?: string | null;
+  subjects: ParentExamSubjectRow[];
+}
+
+export interface ParentExamListResponse {
+  studentId: number;
+  exams: ParentExamListItem[];
+}
+
+export async function getStudentExams(
+  studentId: number
+): Promise<ApiEnvelope & { data?: ParentExamListResponse }> {
+  const { data } = await api.get(`${prefix}/students/${studentId}/exams`);
+  return data as ApiEnvelope & { data?: ParentExamListResponse };
+}
+
+export async function getStudentExamDetail(
+  studentId: number,
+  examId: number
+): Promise<ApiEnvelope & { data?: ParentExamDetail }> {
+  const { data } = await api.get(
+    `${prefix}/students/${studentId}/exams/${examId}`
+  );
+  return data as ApiEnvelope & { data?: ParentExamDetail };
 }
 
 export type ParentCalendarEventType = 'HOLIDAY' | 'EXAM' | 'EVENT' | string;

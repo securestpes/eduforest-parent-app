@@ -77,7 +77,9 @@ export const displayNotification = async (
       ? 'bus_alerts'
       : type === 'fee_payment' || type === 'fee_reminder'
         ? 'fee_alerts'
-        : FCM_ATTENDANCE_CHANNEL_ID;
+        : type === 'exam_results_published'
+          ? 'fee_alerts'
+          : FCM_ATTENDANCE_CHANNEL_ID;
   await notifee.displayNotification({
     title: localizedPush?.title ?? data?.title ?? 'New Notification',
     body:

@@ -61,6 +61,7 @@ function NotifCard({
   const dot = accentColor(item.accent, theme);
   const isFee =
     item.kind === 'fee_payment' || item.kind === 'fee_reminder';
+  const isExam = item.kind === 'exam_results';
   const pillBg =
     item.accent === 'danger'
       ? theme.colors.errorContainer
@@ -121,9 +122,19 @@ function NotifCard({
           compact
           onPress={onViewDetails}
           style={styles.actionBtn}
-          icon={isFee ? 'currency-inr' : 'calendar-check'}
+          icon={
+            isExam
+              ? 'clipboard-text-outline'
+              : isFee
+                ? 'currency-inr'
+                : 'calendar-check'
+          }
         >
-          {isFee ? t('notifications.viewFees') : t('notifications.viewDetails')}
+          {isExam
+            ? t('notifications.viewExams')
+            : isFee
+              ? t('notifications.viewFees')
+              : t('notifications.viewDetails')}
         </Button>
       </View>
     </View>
@@ -237,6 +248,7 @@ export function NotificationsScreen({
   embedded,
   onSwitchToAttendance,
   onSwitchToFees,
+  onSwitchToExams,
 }: {
   embedded?: boolean;
   onSwitchToAttendance?: (highlight?: {
@@ -244,6 +256,7 @@ export function NotificationsScreen({
     highlightSessionDate?: string;
   }) => void;
   onSwitchToFees?: () => void;
+  onSwitchToExams?: () => void;
 } = {}) {
   const theme = useTheme() as AppTheme;
   const { t } = useAppLanguage();
@@ -472,6 +485,18 @@ export function NotificationsScreen({
       }
       navigation.navigate('ChildHub', {
         section: 'fees',
+        studentId: student?.id,
+      });
+      return;
+    }
+
+    if (item.kind === 'exam_results') {
+      if (embedded && onSwitchToExams) {
+        onSwitchToExams();
+        return;
+      }
+      navigation.navigate('ChildHub', {
+        section: 'exams',
         studentId: student?.id,
       });
       return;

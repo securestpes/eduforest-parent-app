@@ -11,6 +11,7 @@ export type ChildChipAction =
   | 'homework'
   | 'calendar'
   | 'fees'
+  | 'exams'
   | 'bus';
 
 type ChipDef = {
@@ -43,6 +44,12 @@ const CHIPS: ChipDef[] = [
     action: 'homework',
     icon: 'book-open-outline',
     labelKey: 'childChips.homework',
+    enabled: true,
+  },
+  {
+    action: 'exams',
+    icon: 'clipboard-text-outline',
+    labelKey: 'childChips.exams',
     enabled: true,
   },
   {

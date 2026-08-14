@@ -27,7 +27,8 @@ export type NotifAccent = 'danger' | 'warning' | 'success' | 'neutral';
 export type CenterNotificationKind =
   | 'attendance'
   | 'fee_payment'
-  | 'fee_reminder';
+  | 'fee_reminder'
+  | 'exam_results';
 
 export type CenterNotification = {
   id: string;
@@ -118,22 +119,29 @@ export function collectCenterNotifications(
   for (const fee of feeAlerts) {
     const at = parseFeeCreatedAt(fee.createdAt);
     if (!at) continue;
+    const isExam = fee.type === 'exam_results_published';
     const isReminder = fee.type === 'fee_reminder';
-    const kind: CenterNotificationKind = isReminder
-      ? 'fee_reminder'
-      : 'fee_payment';
+    const kind: CenterNotificationKind = isExam
+      ? 'exam_results'
+      : isReminder
+        ? 'fee_reminder'
+        : 'fee_payment';
     items.push({
       id: fee.id || `fee-${fee.studentId}-${at.getTime()}`,
       kind,
-      accent: isReminder ? 'warning' : 'success',
-      statusLabel: isReminder
+      accent: isExam ? 'success' : isReminder ? 'warning' : 'success',
+      statusLabel: isExam
         ? t
-          ? t('notifications.feeReminderLabel')
-          : 'FEE REMINDER'
-        : t
-          ? t('notifications.feePaymentLabel')
-          : 'FEE RECEIVED',
-      headline: fee.title || (isReminder ? 'Fee reminder' : 'Fee received'),
+          ? t('notifications.examResultsLabel')
+          : 'EXAM RESULTS'
+        : isReminder
+          ? t
+            ? t('notifications.feeReminderLabel')
+            : 'FEE REMINDER'
+          : t
+            ? t('notifications.feePaymentLabel')
+            : 'FEE RECEIVED',
+      headline: fee.title || (isExam ? 'Exam results' : isReminder ? 'Fee reminder' : 'Fee received'),
       detail: fee.body || fee.studentName,
       timeLabel: formatLocalDateTime(at),
       at,

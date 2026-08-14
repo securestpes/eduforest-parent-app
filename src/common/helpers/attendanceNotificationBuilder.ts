@@ -31,7 +31,7 @@ export function buildLocalizedNotificationContent(
 
   // Bus / fee alerts: use server title/body (already parent-facing).
   const type = (data.type ?? '').toLowerCase();
-  if (type === 'bus_alert' || type === 'fee_payment' || type === 'fee_reminder') {
+  if (type === 'bus_alert' || type === 'fee_payment' || type === 'fee_reminder' || type === 'exam_results_published') {
     const title = data.title?.trim();
     const body = (data.body ?? data.short_message)?.trim();
     if (title || body) {
@@ -42,12 +42,16 @@ export function buildLocalizedNotificationContent(
             ? 'Fee reminder'
             : type === 'fee_payment'
               ? 'Fee received'
-              : 'Bus update'),
+              : type === 'exam_results_published'
+                ? 'Exam results'
+                : 'Bus update'),
         body:
           body ||
           (type === 'fee_reminder' || type === 'fee_payment'
             ? 'Open Fees to view details.'
-            : 'Open the app to track the bus.'),
+            : type === 'exam_results_published'
+              ? 'Open Results to view marks.'
+              : 'Open the app to track the bus.'),
       };
     }
     return null;
