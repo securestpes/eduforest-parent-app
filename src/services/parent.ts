@@ -221,10 +221,15 @@ export interface ParentLeaveItem {
   status: string;
   leaveType: string;
   fromDate: string;
+  fromSession?: string | null;
   toDate: string;
+  toSession?: string | null;
   reason: string;
   reviewNote?: string | null;
   reviewedAt?: string | null;
+  reviewedByName?: string | null;
+  reviewedByRole?: string | null;
+  reviewedByRoleLabel?: string | null;
   createdAt?: string | null;
   canCancel?: boolean;
   divisionDisplayName?: string | null;
@@ -246,7 +251,9 @@ export async function applyStudentLeave(
   studentId: number,
   payload: {
     fromDate: string;
+    fromSession?: string;
     toDate: string;
+    toSession?: string;
     leaveType: string;
     reason: string;
   }

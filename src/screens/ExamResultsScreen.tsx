@@ -28,6 +28,7 @@ import { EmptyState } from '../components/EmptyState';
 import type { AppTheme } from '../theme';
 import { useAppLanguage } from '../common';
 import { savePdfToDevice } from '../utils/savePdfToDevice';
+import { toTitleCase } from '../utils/toTitleCase';
 
 function formatShortDate(value: string | null | undefined): string {
   if (!value) return '—';
@@ -221,7 +222,7 @@ export function ExamResultsScreen({
               <View style={styles.cardTop}>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text variant="titleMedium" style={{ fontWeight: '700' }}>
-                    {item.name}
+                    {toTitleCase(item.name)}
                   </Text>
                   <Text
                     variant="bodySmall"
@@ -285,7 +286,7 @@ export function ExamResultsScreen({
               />
             </Pressable>
             <Text variant="titleMedium" style={{ fontWeight: '700', flex: 1 }}>
-              {detail?.name || t('exams.results')}
+              {detail?.name ? toTitleCase(detail.name) : t('exams.results')}
             </Text>
           </View>
           {detailLoading || !detail ? (

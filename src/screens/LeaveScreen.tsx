@@ -29,11 +29,59 @@ import type { AppTheme } from '../theme';
 import { useAppLanguage } from '../common';
 
 const LEAVE_TYPES = ['SICK', 'CASUAL', 'EMERGENCY', 'OTHER'] as const;
+const DAY_SESSIONS = ['FULL', 'FIRST_HALF', 'SECOND_HALF'] as const;
+
+type DaySession = (typeof DAY_SESSIONS)[number];
 
 function formatShortDate(value: string | null | undefined): string {
   if (!value) return '—';
   try {
     return format(parseISO(value), 'd MMM yyyy');
+  } catch {
+    return value;
+  }
+}
+
+function sessionLabelKey(session: string | null | undefined): string {
+  if (session === 'FIRST_HALF') return 'leaves.sessionFirstHalf';
+  if (session === 'SECOND_HALF') return 'leaves.sessionSecondHalf';
+  return 'leaves.sessionFull';
+}
+
+function formatLeaveRange(
+  item: {
+    fromDate: string;
+    toDate: string;
+    fromSession?: string | null;
+    toSession?: string | null;
+  },
+  t: (key: any) => string
+): string {
+  const fromSession = item.fromSession || 'FULL';
+  const toSession = item.toSession || 'FULL';
+  const fromPart =
+    fromSession === 'FULL'
+      ? formatShortDate(item.fromDate)
+      : `${formatShortDate(item.fromDate)} (${t(sessionLabelKey(fromSession) as any)})`;
+  if (item.fromDate === item.toDate && fromSession === toSession) {
+    return fromPart;
+  }
+  if (item.fromDate === item.toDate) {
+    return `${formatShortDate(item.fromDate)} (${t(
+      sessionLabelKey(fromSession) as any
+    )} – ${t(sessionLabelKey(toSession) as any)})`;
+  }
+  const toPart =
+    toSession === 'FULL'
+      ? formatShortDate(item.toDate)
+      : `${formatShortDate(item.toDate)} (${t(sessionLabelKey(toSession) as any)})`;
+  return `${fromPart} – ${toPart}`;
+}
+
+function formatReviewedAt(value: string | null | undefined): string {
+  if (!value) return '';
+  try {
+    return format(parseISO(value), 'd MMM yyyy, h:mm a');
   } catch {
     return value;
   }
@@ -54,6 +102,8 @@ export function LeaveScreen({ embedded = false }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [fromSession, setFromSession] = useState<DaySession>('FULL');
+  const [toSession, setToSession] = useState<DaySession>('FULL');
   const [leaveType, setLeaveType] =
     useState<(typeof LEAVE_TYPES)[number]>('SICK');
   const [reason, setReason] = useState('');
@@ -110,7 +160,9 @@ export function LeaveScreen({ embedded = false }: Props) {
     try {
       const res = await applyStudentLeave(studentId, {
         fromDate: fromDate.trim(),
+        fromSession,
         toDate: toDate.trim(),
+        toSession,
         leaveType,
         reason: reason.trim(),
       });
@@ -120,6 +172,8 @@ export function LeaveScreen({ embedded = false }: Props) {
       setShowForm(false);
       setFromDate('');
       setToDate('');
+      setFromSession('FULL');
+      setToSession('FULL');
       setReason('');
       Alert.alert('', t('leaves.applySuccess'));
       await load(true);
@@ -237,18 +291,32 @@ export function LeaveScreen({ embedded = false }: Props) {
                 variant="bodySmall"
                 style={{ color: theme.colors.onSurfaceVariant }}
               >
-                {formatShortDate(item.fromDate)}
-                {item.fromDate !== item.toDate
-                  ? ` – ${formatShortDate(item.toDate)}`
-                  : ''}
+                {formatLeaveRange(item, t)}
               </Text>
               <Text variant="bodyMedium">{item.reason}</Text>
+              {item.status === 'APPROVED' || item.status === 'REJECTED' ? (
+                <Text
+                  variant="bodySmall"
+                  style={{ color: theme.colors.onSurfaceVariant }}
+                >
+                  {item.status === 'APPROVED'
+                    ? t('leaves.approvedBy')
+                    : t('leaves.rejectedBy')}
+                  {': '}
+                  {[item.reviewedByName, item.reviewedByRoleLabel]
+                    .filter(Boolean)
+                    .join(' · ') || t('leaves.reviewerUnknown')}
+                  {item.reviewedAt
+                    ? ` · ${formatReviewedAt(item.reviewedAt)}`
+                    : ''}
+                </Text>
+              ) : null}
               {item.reviewNote ? (
                 <Text
                   variant="bodySmall"
                   style={{ color: theme.colors.onSurfaceVariant }}
                 >
-                  {item.reviewNote}
+                  {t('leaves.reviewNote')}: {item.reviewNote}
                 </Text>
               ) : null}
               {item.canCancel ? (
@@ -296,6 +364,34 @@ export function LeaveScreen({ embedded = false }: Props) {
                 },
               ]}
             />
+            <Text
+              variant="labelMedium"
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
+              {t('leaves.fromSession')}
+            </Text>
+            <View style={styles.typeRow}>
+              {DAY_SESSIONS.map((session) => (
+                <Pressable
+                  key={`from-${session}`}
+                  onPress={() => setFromSession(session)}
+                  style={[
+                    styles.typeChip,
+                    {
+                      backgroundColor:
+                        fromSession === session
+                          ? theme.colors.primaryContainer
+                          : theme.colors.surface,
+                      borderColor: theme.colors.outlineVariant,
+                    },
+                  ]}
+                >
+                  <Text variant="labelMedium">
+                    {t(sessionLabelKey(session) as any)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
             <TextInput
               value={toDate}
               onChangeText={setToDate}
@@ -309,6 +405,34 @@ export function LeaveScreen({ embedded = false }: Props) {
                 },
               ]}
             />
+            <Text
+              variant="labelMedium"
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
+              {t('leaves.toSession')}
+            </Text>
+            <View style={styles.typeRow}>
+              {DAY_SESSIONS.map((session) => (
+                <Pressable
+                  key={`to-${session}`}
+                  onPress={() => setToSession(session)}
+                  style={[
+                    styles.typeChip,
+                    {
+                      backgroundColor:
+                        toSession === session
+                          ? theme.colors.primaryContainer
+                          : theme.colors.surface,
+                      borderColor: theme.colors.outlineVariant,
+                    },
+                  ]}
+                >
+                  <Text variant="labelMedium">
+                    {t(sessionLabelKey(session) as any)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
             <View style={styles.typeRow}>
               {LEAVE_TYPES.map((type) => (
                 <Pressable
