@@ -4,6 +4,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -28,12 +30,17 @@ class AttendanceFirebaseMessagingService : FirebaseMessagingService() {
       ?: defaultBody(type)
 
     val isFee = type == "fee_payment" || type == "fee_reminder"
-    val title = if (isFee) {
+    val isParentAlert = isFee
+      || type == "exam_results_published"
+      || type == "leave_request_status"
+      || type == "homework_assigned"
+      || type == "bus_alert"
+    val title = if (isParentAlert) {
       englishTitle
     } else {
       VoiceMessageBuilder.notificationTitle(language).ifBlank { englishTitle }
     }
-    val body = if (isFee) {
+    val body = if (isParentAlert) {
       englishBody
     } else {
       VoiceMessageBuilder.notificationBody(
@@ -49,11 +56,23 @@ class AttendanceFirebaseMessagingService : FirebaseMessagingService() {
     val status = data["status"]
     if (!NotificationPrefsStorage.shouldShow(this, status, studentId)) return
 
-    val channelId = if (isFee) "fee_alerts" else "eduforest_attendance"
-    ensureChannel(channelId, if (isFee) "Fee alerts" else "Attendance & updates")
+    val channelId = when {
+      isFee || type == "exam_results_published" || type == "homework_assigned" || type == "leave_request_status" ->
+        "school_alerts_v2"
+      type == "bus_alert" -> "bus_alerts_v2"
+      else -> "eduforest_attendance_v2"
+    }
+    ensureChannel(
+      channelId,
+      when (channelId) {
+        "school_alerts_v2" -> "School alerts"
+        "bus_alerts_v2" -> "Bus alerts"
+        else -> "Attendance & updates"
+      }
+    )
     showNotification(channelId, title, body)
 
-    if (isFee) return
+    if (isParentAlert) return
 
     val playVoice = data["play_voice"]?.equals("true", ignoreCase = true) ?: false
     if (!playVoice) return
@@ -83,6 +102,9 @@ class AttendanceFirebaseMessagingService : FirebaseMessagingService() {
       "fee_payment" -> "Fee received"
       "fee_reminder" -> "Fee reminder"
       "bus_alert" -> "Bus update"
+      "homework_assigned" -> "New homework"
+      "exam_results_published" -> "Exam results"
+      "leave_request_status" -> "Leave update"
       else -> "Attendance Update"
     }
   }
@@ -91,6 +113,9 @@ class AttendanceFirebaseMessagingService : FirebaseMessagingService() {
     return when (type) {
       "fee_payment", "fee_reminder" -> "Open Fees to view details."
       "bus_alert" -> "Open the app to track the bus."
+      "homework_assigned" -> "Open Homework to view details."
+      "exam_results_published" -> "Open Results to view marks."
+      "leave_request_status" -> "Open Leave to view status."
       else -> "Attendance updated."
     }
   }
@@ -98,12 +123,24 @@ class AttendanceFirebaseMessagingService : FirebaseMessagingService() {
   private fun ensureChannel(id: String, name: String) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
     val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    nm.createNotificationChannel(
-      NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH)
-    )
+    val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+    val channel = NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH).apply {
+      description = "EduForest parent alerts"
+      enableVibration(true)
+      enableLights(true)
+      setSound(
+        soundUri,
+        AudioAttributes.Builder()
+          .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+          .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+          .build()
+      )
+    }
+    nm.createNotificationChannel(channel)
   }
 
   private fun showNotification(channelId: String, title: String, body: String) {
+    val defaultSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
     val notification = NotificationCompat.Builder(this, channelId)
       .setSmallIcon(android.R.drawable.ic_dialog_info)
       .setContentTitle(title)
@@ -111,6 +148,7 @@ class AttendanceFirebaseMessagingService : FirebaseMessagingService() {
       .setAutoCancel(true)
       .setPriority(NotificationCompat.PRIORITY_HIGH)
       .setDefaults(NotificationCompat.DEFAULT_ALL)
+      .setSound(defaultSound)
       .build()
 
     val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

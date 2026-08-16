@@ -90,7 +90,7 @@ export function shouldShowAttendanceNotification(
 ): boolean {
   const type = (data.type ?? '').toLowerCase();
   // Bus / fee alerts are not attendance-status filtered — only child allow-list applies.
-  if (type === 'bus_alert' || type === 'fee_payment' || type === 'fee_reminder' || type === 'exam_results_published' || type === 'leave_request_status') {
+  if (type === 'bus_alert' || type === 'fee_payment' || type === 'fee_reminder' || type === 'exam_results_published' || type === 'leave_request_status' || type === 'homework_assigned') {
     const studentIdRaw = data.studentId ?? data.student_id ?? data.child_id;
     const studentId = studentIdRaw ? Number(studentIdRaw) : NaN;
     if (prefs.childIds.length > 0 && Number.isFinite(studentId)) {
@@ -117,7 +117,7 @@ export function shouldPlayVoiceForNotification(
   prefs: NotificationPreferences
 ): boolean {
   const type = (data.type ?? '').toLowerCase();
-  if (type === 'bus_alert' || type === 'fee_payment' || type === 'fee_reminder' || type === 'exam_results_published' || type === 'leave_request_status') {
+  if (type === 'bus_alert' || type === 'fee_payment' || type === 'fee_reminder' || type === 'exam_results_published' || type === 'leave_request_status' || type === 'homework_assigned') {
     return false;
   }
   if (!shouldShowAttendanceNotification(data, prefs)) return false;

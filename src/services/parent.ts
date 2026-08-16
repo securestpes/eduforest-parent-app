@@ -55,7 +55,8 @@ export type ParentFeeNotificationType =
   | 'fee_payment'
   | 'fee_reminder'
   | 'exam_results_published'
-  | 'leave_request_status';
+  | 'leave_request_status'
+  | 'homework_assigned';
 
 export interface ParentFeeNotification {
   id: string;

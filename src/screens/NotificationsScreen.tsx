@@ -27,8 +27,12 @@ import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import {
+  applyUnreadFlags,
   buildWeeklySummary,
   collectCenterNotifications,
+  NOTIFICATION_RECENT_DAYS,
+  partitionRecentAndOlder,
+  sortNotificationsUnreadFirst,
   splitNotificationsByRecency,
   type CenterNotification,
   type WeeklySummaryBlock,
@@ -37,6 +41,10 @@ import type { AppTheme } from '../theme';
 import type { RootStackParamList } from '../navigation/Navigation';
 import { APP_NOTIFICATION_RECEIVED_EVENT } from '../constants/notifications';
 import { useAppLanguage } from '../common';
+import {
+  getNotificationsLastOpenedAt,
+  markNotificationsOpenedNow,
+} from '../services/notificationReadState';
 
 function accentColor(
   accent: CenterNotification['accent'],
@@ -63,6 +71,7 @@ function NotifCard({
     item.kind === 'fee_payment' || item.kind === 'fee_reminder';
   const isExam = item.kind === 'exam_results';
   const isLeave = item.kind === 'leave_status';
+  const isHomework = item.kind === 'homework';
   const pillBg =
     item.accent === 'danger'
       ? theme.colors.errorContainer
@@ -78,8 +87,10 @@ function NotifCard({
         {
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.outlineVariant,
-          borderLeftWidth: 1,
-          borderLeftColor: theme.colors.outlineVariant,
+          borderLeftWidth: item.unread ? 3 : 1,
+          borderLeftColor: item.unread
+            ? theme.colors.primary
+            : theme.colors.outlineVariant,
         },
       ]}
     >
@@ -93,6 +104,14 @@ function NotifCard({
               {item.statusLabel}
             </Text>
           </View>
+          {item.unread ? (
+            <Text
+              variant="labelSmall"
+              style={{ color: theme.colors.primary, fontWeight: '700' }}
+            >
+              {t('notifications.newBadge')}
+            </Text>
+          ) : null}
         </View>
         <Text
           variant="labelSmall"
@@ -105,7 +124,7 @@ function NotifCard({
         variant="titleSmall"
         style={{
           color: theme.colors.onSurface,
-          fontWeight: '700',
+          fontWeight: item.unread ? '800' : '700',
           marginTop: 8,
         }}
       >
@@ -128,18 +147,22 @@ function NotifCard({
               ? 'clipboard-text-outline'
               : isLeave
                 ? 'calendar-account-outline'
-                : isFee
-                  ? 'currency-inr'
-                  : 'calendar-check'
+                : isHomework
+                  ? 'book-open-page-variant-outline'
+                  : isFee
+                    ? 'currency-inr'
+                    : 'calendar-check'
           }
         >
           {isExam
             ? t('notifications.viewExams')
             : isLeave
               ? t('notifications.viewLeaves')
-              : isFee
-                ? t('notifications.viewFees')
-                : t('notifications.viewDetails')}
+              : isHomework
+                ? t('notifications.viewHomework')
+                : isFee
+                  ? t('notifications.viewFees')
+                  : t('notifications.viewDetails')}
         </Button>
       </View>
     </View>
@@ -255,6 +278,7 @@ export function NotificationsScreen({
   onSwitchToFees,
   onSwitchToExams,
   onSwitchToLeaves,
+  onSwitchToHomework,
 }: {
   embedded?: boolean;
   onSwitchToAttendance?: (highlight?: {
@@ -264,6 +288,7 @@ export function NotificationsScreen({
   onSwitchToFees?: () => void;
   onSwitchToExams?: () => void;
   onSwitchToLeaves?: () => void;
+  onSwitchToHomework?: () => void;
 } = {}) {
   const theme = useTheme() as AppTheme;
   const { t } = useAppLanguage();
@@ -283,6 +308,8 @@ export function NotificationsScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+  const [showOlder, setShowOlder] = useState(false);
+  const [lastOpenedAt, setLastOpenedAt] = useState<number | null>(null);
 
   const fetchStudentAttendancePage = useCallback(
     async (studentId: number, page: number) => {
@@ -408,7 +435,19 @@ export function NotificationsScreen({
 
   useFocusEffect(
     useCallback(() => {
-      void load();
+      let active = true;
+      void (async () => {
+        const openedAt = await getNotificationsLastOpenedAt();
+        if (active) setLastOpenedAt(openedAt);
+        await load();
+      })();
+      return () => {
+        active = false;
+        setShowOlder(false);
+        void markNotificationsOpenedNow().then(() => {
+          setLastOpenedAt(Date.now());
+        });
+      };
     }, [load])
   );
 
@@ -430,7 +469,7 @@ export function NotificationsScreen({
     () => students.find((s) => s.id === selectedStudentId) ?? null,
     [students, selectedStudentId]
   );
-  const visibleItems = useMemo(() => {
+  const scopedItems = useMemo(() => {
     if (!embedded || !selectedStudent) return allItems;
     return allItems.filter(
       (n) =>
@@ -438,20 +477,33 @@ export function NotificationsScreen({
         n.studentName === selectedStudent.name
     );
   }, [allItems, embedded, selectedStudent]);
+
+  const { recent, older } = useMemo(
+    () => partitionRecentAndOlder(scopedItems, NOTIFICATION_RECENT_DAYS),
+    [scopedItems]
+  );
+
+  const feedItems = useMemo(() => {
+    const base = showOlder ? [...recent, ...older] : recent;
+    return sortNotificationsUnreadFirst(
+      applyUnreadFlags(base, lastOpenedAt)
+    );
+  }, [recent, older, showOlder, lastOpenedAt]);
+
   const { today, thisWeekNotToday, earlier } = useMemo(
-    () => splitNotificationsByRecency(visibleItems),
-    [visibleItems]
+    () => splitNotificationsByRecency(feedItems),
+    [feedItems]
   );
   const todaySorted = useMemo(
-    () => [...today].sort((a, b) => b.at.getTime() - a.at.getTime()),
+    () => sortNotificationsUnreadFirst(today),
     [today]
   );
   const thisWeekSorted = useMemo(
-    () => [...thisWeekNotToday].sort((a, b) => b.at.getTime() - a.at.getTime()),
+    () => sortNotificationsUnreadFirst(thisWeekNotToday),
     [thisWeekNotToday]
   );
   const earlierSorted = useMemo(
-    () => [...earlier].sort((a, b) => b.at.getTime() - a.at.getTime()),
+    () => sortNotificationsUnreadFirst(earlier),
     [earlier]
   );
   const weekly = useMemo(
@@ -516,6 +568,18 @@ export function NotificationsScreen({
       }
       navigation.navigate('ChildHub', {
         section: 'leaves',
+        studentId: student?.id,
+      });
+      return;
+    }
+
+    if (item.kind === 'homework') {
+      if (embedded && onSwitchToHomework) {
+        onSwitchToHomework();
+        return;
+      }
+      navigation.navigate('ChildHub', {
+        section: 'homework',
         studentId: student?.id,
       });
       return;
@@ -594,11 +658,21 @@ export function NotificationsScreen({
             title={t('notifications.emptyNoStudentsTitle')}
             message={t('notifications.emptyNoStudentsMessage')}
           />
-        ) : visibleItems.length === 0 ? (
+        ) : feedItems.length === 0 && older.length === 0 ? (
           <EmptyState
             icon="bell-sleep-outline"
             title={t('notifications.emptyNoActivityTitle')}
-            message={t('notifications.emptyNoActivityMessage')}
+            message={t('notifications.emptyNoActivityMessage', {
+              days: NOTIFICATION_RECENT_DAYS,
+            })}
+          />
+        ) : feedItems.length === 0 && older.length > 0 ? (
+          <EmptyState
+            icon="bell-sleep-outline"
+            title={t('notifications.emptyRecentTitle', {
+              days: NOTIFICATION_RECENT_DAYS,
+            })}
+            message={t('notifications.emptyRecentMessage')}
           />
         ) : (
           <>
@@ -663,6 +737,21 @@ export function NotificationsScreen({
               </>
             ) : null}
 
+            {older.length > 0 ? (
+              <Button
+                mode="outlined"
+                onPress={() => setShowOlder((v) => !v)}
+                style={styles.loadMoreBtn}
+              >
+                {showOlder
+                  ? t('notifications.hideOlder')
+                  : t('notifications.showOlder', {
+                      count: older.length,
+                      days: NOTIFICATION_RECENT_DAYS,
+                    })}
+              </Button>
+            ) : null}
+
             {hasMore ? (
               <Button
                 mode="outlined"
@@ -676,6 +765,19 @@ export function NotificationsScreen({
             ) : null}
           </>
         )}
+
+        {feedItems.length === 0 && older.length > 0 ? (
+          <Button
+            mode="contained-tonal"
+            onPress={() => setShowOlder(true)}
+            style={styles.loadMoreBtn}
+          >
+            {t('notifications.showOlder', {
+              count: older.length,
+              days: NOTIFICATION_RECENT_DAYS,
+            })}
+          </Button>
+        ) : null}
       </ScrollView>
     </>
   );

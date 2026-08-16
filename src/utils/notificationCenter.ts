@@ -29,7 +29,8 @@ export type CenterNotificationKind =
   | 'fee_payment'
   | 'fee_reminder'
   | 'exam_results'
-  | 'leave_status';
+  | 'leave_status'
+  | 'homework';
 
 export type CenterNotification = {
   id: string;
@@ -44,7 +45,16 @@ export type CenterNotification = {
   row?: ParentAttendanceRow;
   studentId?: number;
   studentName: string;
+  /** True when newer than last time Notifications was opened. */
+  unread?: boolean;
 };
+
+/** Default feed window — older items behind “Show older”. */
+export const NOTIFICATION_RECENT_DAYS = 14;
+const MAX_ATTENDANCE_IN_FEED = 20;
+const MAX_INBOX_IN_FEED = 15;
+const MAX_OLDER_ATTENDANCE = 10;
+const MAX_OLDER_INBOX = 10;
 
 function statusUpperFromKind(
   kind: ReturnType<typeof kindFromStatus>,
@@ -122,18 +132,26 @@ export function collectCenterNotifications(
     if (!at) continue;
     const isExam = fee.type === 'exam_results_published';
     const isLeave = fee.type === 'leave_request_status';
+    const isHomework = fee.type === 'homework_assigned';
     const isReminder = fee.type === 'fee_reminder';
     const kind: CenterNotificationKind = isExam
       ? 'exam_results'
       : isLeave
         ? 'leave_status'
-        : isReminder
-          ? 'fee_reminder'
-          : 'fee_payment';
+        : isHomework
+          ? 'homework'
+          : isReminder
+            ? 'fee_reminder'
+            : 'fee_payment';
     items.push({
       id: fee.id || `fee-${fee.studentId}-${at.getTime()}`,
       kind,
-      accent: isExam || isLeave ? 'success' : isReminder ? 'warning' : 'success',
+      accent:
+        isExam || isLeave || isHomework
+          ? 'success'
+          : isReminder
+            ? 'warning'
+            : 'success',
       statusLabel: isExam
         ? t
           ? t('notifications.examResultsLabel')
@@ -142,22 +160,28 @@ export function collectCenterNotifications(
           ? t
             ? t('notifications.leaveLabel')
             : 'LEAVE'
-          : isReminder
+          : isHomework
             ? t
-              ? t('notifications.feeReminderLabel')
-              : 'FEE REMINDER'
-            : t
-              ? t('notifications.feePaymentLabel')
-              : 'FEE RECEIVED',
+              ? t('notifications.homeworkLabel')
+              : 'HOMEWORK'
+            : isReminder
+              ? t
+                ? t('notifications.feeReminderLabel')
+                : 'FEE REMINDER'
+              : t
+                ? t('notifications.feePaymentLabel')
+                : 'FEE RECEIVED',
       headline:
         fee.title ||
         (isExam
           ? 'Exam results'
           : isLeave
             ? 'Leave update'
-            : isReminder
-              ? 'Fee reminder'
-              : 'Fee received'),
+            : isHomework
+              ? 'New homework'
+              : isReminder
+                ? 'Fee reminder'
+                : 'Fee received'),
       detail: fee.body || fee.studentName,
       timeLabel: formatLocalDateTime(at),
       at,
@@ -188,6 +212,70 @@ export function splitNotificationsByRecency(
     }
   }
   return { today, thisWeekNotToday, earlier };
+}
+
+function isInboxKind(kind: CenterNotificationKind): boolean {
+  return kind !== 'attendance';
+}
+
+function trimByKindCaps(
+  items: CenterNotification[],
+  maxAttendance: number,
+  maxInbox: number
+): CenterNotification[] {
+  const sorted = [...items].sort((a, b) => b.at.getTime() - a.at.getTime());
+  const attendance: CenterNotification[] = [];
+  const inbox: CenterNotification[] = [];
+  for (const item of sorted) {
+    if (isInboxKind(item.kind)) {
+      if (inbox.length < maxInbox) inbox.push(item);
+    } else if (attendance.length < maxAttendance) {
+      attendance.push(item);
+    }
+  }
+  return [...attendance, ...inbox].sort((a, b) => b.at.getTime() - a.at.getTime());
+}
+
+/** Split into recent (≤ days) vs older, with per-type caps. */
+export function partitionRecentAndOlder(
+  items: CenterNotification[],
+  days = NOTIFICATION_RECENT_DAYS,
+  now = new Date()
+): { recent: CenterNotification[]; older: CenterNotification[] } {
+  const cutoff = now.getTime() - days * 24 * 60 * 60 * 1000;
+  const recentRaw: CenterNotification[] = [];
+  const olderRaw: CenterNotification[] = [];
+  for (const item of items) {
+    if (item.at.getTime() >= cutoff) recentRaw.push(item);
+    else olderRaw.push(item);
+  }
+  return {
+    recent: trimByKindCaps(recentRaw, MAX_ATTENDANCE_IN_FEED, MAX_INBOX_IN_FEED),
+    older: trimByKindCaps(olderRaw, MAX_OLDER_ATTENDANCE, MAX_OLDER_INBOX),
+  };
+}
+
+/** Unread first, then newest. */
+export function sortNotificationsUnreadFirst(
+  items: CenterNotification[]
+): CenterNotification[] {
+  return [...items].sort((a, b) => {
+    const au = a.unread ? 1 : 0;
+    const bu = b.unread ? 1 : 0;
+    if (au !== bu) return bu - au;
+    return b.at.getTime() - a.at.getTime();
+  });
+}
+
+export function applyUnreadFlags(
+  items: CenterNotification[],
+  lastOpenedAt: number | null
+): CenterNotification[] {
+  return items.map((item) => ({
+    ...item,
+    unread:
+      lastOpenedAt != null ? item.at.getTime() > lastOpenedAt : false,
+  }));
 }
 
 export type WeeklySummaryBlock = {

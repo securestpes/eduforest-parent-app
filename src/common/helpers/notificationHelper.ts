@@ -1,8 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { localStorageKeys } from '../constants';
-import notifee, { AndroidImportance } from '@notifee/react-native';
 import * as Speech from 'expo-speech';
-import { FCM_ATTENDANCE_CHANNEL_ID } from '@/constants/fcmAndroid';
+import { FCM_ATTENDANCE_CHANNEL_ID, FCM_BUS_ALERTS_CHANNEL_ID, FCM_SCHOOL_ALERTS_CHANNEL_ID } from '@/constants/fcmAndroid';
 import type { AppLanguage } from '../contexts/parentTranslations';
 import { buildLocalizedNotificationContent } from './attendanceNotificationBuilder';
 import { buildLocalizedVoiceMessage } from './voiceAnnouncementBuilder';
@@ -11,6 +10,7 @@ import {
   shouldPlayVoiceForNotification,
   shouldShowAttendanceNotification,
 } from '../../services/notificationPreferences';
+import { getNotifee } from '../../native/notifeeSafe';
 
 export const isVoiceAnnouncementsEnabled = async () => {
   const raw = await AsyncStorage.getItem(
@@ -72,14 +72,19 @@ export const displayNotification = async (
   }
   const localizedPush = buildLocalizedNotificationContent(data, language);
   const type = (data?.type ?? '').toLowerCase();
+  // Default system sound for every type; TTS voice is gated separately (attendance only).
   const channelId =
     type === 'bus_alert'
-      ? 'bus_alerts'
-      : type === 'fee_payment' || type === 'fee_reminder'
-        ? 'fee_alerts'
-        : type === 'exam_results_published'
-          ? 'fee_alerts'
-          : FCM_ATTENDANCE_CHANNEL_ID;
+      ? FCM_BUS_ALERTS_CHANNEL_ID
+      : type === 'fee_payment' ||
+          type === 'fee_reminder' ||
+          type === 'exam_results_published' ||
+          type === 'leave_request_status' ||
+          type === 'homework_assigned'
+        ? FCM_SCHOOL_ALERTS_CHANNEL_ID
+        : FCM_ATTENDANCE_CHANNEL_ID;
+  const notifee = getNotifee();
+  const { AndroidImportance } = notifee;
   await notifee.displayNotification({
     title: localizedPush?.title ?? data?.title ?? 'New Notification',
     body:

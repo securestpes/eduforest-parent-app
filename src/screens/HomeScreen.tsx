@@ -1,147 +1,85 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  ComponentProps,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { NavigationProp } from '@react-navigation/native';
-import { format, isSameDay } from 'date-fns';
+import type { NavigationProp } from '@react-navigation/native';
+import { format } from 'date-fns';
 import { useSelector } from 'react-redux';
 import {
   getMe,
   getMyStudents,
   getStudentAttendance,
   PARENT_ATTENDANCE_PAGE_SIZE,
-  ParentAttendanceRow,
-  ParentStudent,
+  type ParentAttendanceRow,
+  type ParentStudent,
 } from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import { initials, avatarHue } from '../utils/attendanceVisuals';
 import {
-  aggregateFamilyWeekStats,
-  formatLastSessionLine,
-  kindFromStatus,
-  latestRow,
-  parseRowDate,
+  resolveTodayAttendance,
+  type TodayAttendanceKind,
 } from '../utils/dashboardHome';
-import { formatLocalDateTime, formatApiTime } from '../utils/localDateTime';
-import { AppTheme } from '../theme';
-import { RootState } from '../redux/store';
-import { RootStackParamList } from '../navigation/Navigation';
-import { useAppLanguage, TranslationKey } from '../common';
+import { formatApiTime, formatLocalDateTime } from '../utils/localDateTime';
+import type { RootState } from '../redux/store';
+import type { RootStackParamList } from '../navigation/Navigation';
+import { useAppLanguage, type TranslationKey } from '../common';
+import type { ChildChipAction } from '../components/ChildActionChips';
+import {
+  EduForestColors,
+  EduForestRadius,
+  EduForestSpacing,
+  EduForestTypography,
+  eduForestCardShell,
+} from '../theme/eduForestTokens';
+import { ChildDashboard } from './ChildDashboard';
 
 type Translate = (
   key: TranslationKey,
   params?: Record<string, string | number | undefined>
 ) => string;
 
-type TodayStatusKind =
-  | 'present'
-  | 'absent'
-  | 'late'
-  | 'leave'
-  | 'not_marked';
-
-function todayAttendanceForStudent(
-  rows: ParentAttendanceRow[],
-  date = new Date()
-): ParentAttendanceRow | null {
-  for (const row of rows) {
-    const dt = parseRowDate(row);
-    if (dt && isSameDay(dt, date)) return row;
+function todayTone(kind: TodayAttendanceKind): { fg: string; bg: string } {
+  switch (kind) {
+    case 'present':
+      return {
+        fg: EduForestColors.successStrong,
+        bg: EduForestColors.successLight,
+      };
+    case 'absent':
+      return {
+        fg: EduForestColors.dangerStrong,
+        bg: EduForestColors.dangerLight,
+      };
+    case 'late':
+      return {
+        fg: EduForestColors.warningStrong,
+        bg: EduForestColors.warningLight,
+      };
+    case 'leave':
+      return {
+        fg: EduForestColors.secondaryStrong,
+        bg: EduForestColors.secondaryLight,
+      };
+    default:
+      return {
+        fg: EduForestColors.primaryStrong,
+        bg: EduForestColors.primaryLight,
+      };
   }
-  return null;
 }
 
-function resolveTodayStatus(
-  rows: ParentAttendanceRow[],
-  date = new Date()
-): { kind: TodayStatusKind; row: ParentAttendanceRow | null } {
-  const row = todayAttendanceForStudent(rows, date);
-  if (row) {
-    const k = kindFromStatus(row.status);
-    if (k === 'present' || k === 'absent' || k === 'late' || k === 'leave') {
-      return { kind: k, row };
-    }
-  }
-  return { kind: 'not_marked', row: null };
-}
-
-function StatCard({
-  icon,
-  value,
-  label,
-  theme,
-  tint,
-}: {
-  icon: ComponentProps<typeof MaterialCommunityIcons>['name'];
-  value: string;
-  label: string;
-  theme: AppTheme;
-  tint: 'success' | 'warning' | 'danger' | 'leave';
-}) {
-  const bg =
-    tint === 'success'
-      ? theme.palette.successSoft
-      : tint === 'danger'
-        ? theme.palette.dangerSoft
-        : tint === 'leave'
-          ? theme.palette.card4_alpha
-          : theme.palette.warningSoft;
-  const fg =
-    tint === 'success'
-      ? theme.colors.success
-      : tint === 'danger'
-        ? theme.colors.error
-        : tint === 'leave'
-          ? theme.palette.card4_base
-          : theme.colors.warning;
-  return (
-    <View style={[styles.statCard, { backgroundColor: theme.colors.surface }]}>
-      <View style={[styles.statIconWrap, { backgroundColor: bg }]}>
-        <MaterialCommunityIcons name={icon} size={22} color={fg} />
-      </View>
-      <Text
-        variant="headlineSmall"
-        style={[styles.statValue, { color: theme.colors.onSurface }]}
-      >
-        {value}
-      </Text>
-      <Text
-        variant="labelSmall"
-        style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
-        numberOfLines={2}
-        adjustsFontSizeToFit
-        minimumFontScale={0.72}
-      >
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-function TodayStatusBadge({
-  kind,
-  theme,
-}: {
-  kind: TodayStatusKind;
-  theme: AppTheme;
-}) {
+function TodayStatusBadge({ kind }: { kind: TodayAttendanceKind }) {
   const { t } = useAppLanguage();
   const label =
     kind === 'present'
@@ -153,160 +91,96 @@ function TodayStatusBadge({
           : kind === 'leave'
             ? t('attendance.status.leave')
             : t('home.todayNotMarked');
-  const bg =
-    kind === 'present'
-      ? theme.palette.successSoft
-      : kind === 'absent'
-        ? theme.palette.dangerSoft
-        : kind === 'late'
-          ? theme.palette.warningSoft
-          : kind === 'leave'
-            ? theme.palette.card4_alpha
-            : theme.palette.primarySoft;
-  const fg =
-    kind === 'present'
-      ? theme.colors.success
-      : kind === 'absent'
-        ? theme.colors.error
-        : kind === 'late'
-          ? theme.colors.warning
-          : kind === 'leave'
-            ? theme.palette.card4_base
-            : theme.colors.primary;
+  const tone = todayTone(kind);
   return (
-    <View style={[styles.statusBadge, { backgroundColor: bg }]}>
-      <View style={[styles.statusDot, { backgroundColor: fg }]} />
-      <Text variant="labelSmall" style={{ color: fg, fontWeight: '700' }}>
-        {label}
-      </Text>
+    <View style={[styles.statusBadge, { backgroundColor: tone.bg }]}>
+      <View style={[styles.statusDot, { backgroundColor: tone.fg }]} />
+      <Text style={[styles.statusBadgeText, { color: tone.fg }]}>{label}</Text>
     </View>
   );
 }
 
 function childTodayDetailLine(
-  kind: TodayStatusKind,
+  kind: TodayAttendanceKind,
   todayRow: ParentAttendanceRow | null,
-  allRows: ParentAttendanceRow[],
   t: Translate
 ): string {
   if (kind === 'present' || kind === 'absent' || kind === 'late' || kind === 'leave') {
-    if (todayRow) {
-      const time = todayRow.startTime ? formatApiTime(todayRow.startTime) : '';
-      return time
-        ? `${todayRow.batchName} · ${time}`
-        : todayRow.batchName;
+    if (todayRow?.startTime) {
+      return formatApiTime(todayRow.startTime);
     }
+    return '';
   }
-  if (kind === 'not_marked') {
-    return t('home.todayNotMarked');
-  }
-  const last = latestRow(allRows);
-  return last ? formatLastSessionLine(last) : t('home.noAttendanceYet');
+  if (kind === 'not_marked') return t('home.todayNotMarked');
+  return t('home.noAttendanceYet');
 }
 
-function ChildOverviewCard({
+function ChildPickerCard({
   item,
   onPress,
-  theme,
   rows,
   t,
 }: {
   item: ParentStudent;
   onPress: () => void;
-  theme: AppTheme;
   rows: ParentAttendanceRow[];
   t: Translate;
 }) {
   const hue = avatarHue(item.name);
-  const avatarBg = `hsl(${hue} 45% 46%)`;
-  const { kind, row: todayRow } = resolveTodayStatus(rows);
+  const { kind, row: todayRow } = resolveTodayAttendance(rows);
   const batchLine = item.batchNames?.length
     ? item.batchNames.join(' · ')
     : t('common.dash');
-  const detailLine = childTodayDetailLine(kind, todayRow, rows, t);
+  const detailLine = childTodayDetailLine(kind, todayRow, t);
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [{ opacity: pressed ? 0.94 : 1 }]}
-    >
-      <View
-        style={[
-          styles.childCard,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.outlineVariant,
-            borderWidth: 1,
-          },
-        ]}
-      >
-        <View style={[styles.childAvatar, { backgroundColor: avatarBg }]}>
+    <TouchableOpacity activeOpacity={0.85} onPress={onPress}>
+      <View style={styles.childCard}>
+        <View
+          style={[
+            styles.childAvatar,
+            { backgroundColor: `hsl(${hue} 45% 46%)` },
+          ]}
+        >
           <Text style={styles.childAvatarText}>{initials(item.name)}</Text>
         </View>
         <View style={styles.childCardBody}>
           <View style={styles.childTopRow}>
-            <Text
-              variant="titleMedium"
-              style={[styles.childName, { color: theme.colors.onSurface }]}
-              numberOfLines={1}
-            >
+            <Text style={styles.childName} numberOfLines={1}>
               {item.name}
             </Text>
-            <TodayStatusBadge kind={kind} theme={theme} />
+            <TodayStatusBadge kind={kind} />
           </View>
-          <Text
-            variant="bodySmall"
-            style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}
-            numberOfLines={2}
-          >
+          <Text style={styles.childMeta} numberOfLines={2}>
             {item.instituteName}
           </Text>
-          <Text
-            variant="bodySmall"
-            style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}
-            numberOfLines={2}
-          >
-            {batchLine} <Text style={{ color: theme.colors.outline }}>|</Text>{' '}
-            {t('home.guardianLabel')} {item.guardianName}
+          <Text style={styles.childBatch} numberOfLines={2}>
+            {batchLine}
           </Text>
           <View style={styles.lastRow}>
             <MaterialCommunityIcons
-              name={
-                kind === 'not_marked'
-                  ? 'clock-outline'
-                  : kind === 'leave'
-                    ? 'beach'
-                    : 'calendar-check-outline'
-              }
+              name="calendar-check-outline"
               size={16}
-              color={
-                kind === 'not_marked'
-                  ? theme.colors.primary
-                  : kind === 'leave'
-                    ? theme.palette.card4_base
-                    : theme.colors.success
-              }
+              color={EduForestColors.primary}
             />
-            <Text
-              variant="bodySmall"
-              style={{
-                color: theme.colors.onSurfaceVariant,
-                marginLeft: 6,
-                flex: 1,
-              }}
-              numberOfLines={2}
-            >
+            <Text style={styles.detailLine} numberOfLines={2}>
               {detailLine}
             </Text>
           </View>
         </View>
+        <View style={styles.chevronWrap}>
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={18}
+            color={EduForestColors.textTertiary}
+          />
+        </View>
       </View>
-    </Pressable>
+    </TouchableOpacity>
   );
 }
 
 export function HomeScreen() {
-  const theme = useTheme() as AppTheme;
   const { t } = useAppLanguage();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const user = useSelector((s: RootState) => s.auth.user);
@@ -320,9 +194,11 @@ export function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+  const [pickingChild, setPickingChild] = useState(false);
 
   const setSelected = useSelectionStore((s) => s.setSelectedStudentId);
   const selectedStudentId = useSelectionStore((s) => s.selectedStudentId);
+  const hydrated = useSelectionStore((s) => s.hydrated);
 
   const load = useCallback(async () => {
     setError(null);
@@ -335,7 +211,7 @@ export function HomeScreen() {
           if (d.firstName) label = d.firstName;
         }
       } catch {
-        /* profile optional for greeting */
+        /* optional */
       }
       setParentLabel(label);
 
@@ -368,33 +244,46 @@ export function HomeScreen() {
       );
       setRowsByStudent(map);
       setLastUpdatedAt(Date.now());
+
+      if (list.length === 1) {
+        setSelected(list[0].id);
+        setPickingChild(false);
+      } else if (list.length > 1) {
+        const stillValid =
+          selectedStudentId != null &&
+          list.some((s) => s.id === selectedStudentId);
+        if (!stillValid) {
+          setSelected(null);
+          setPickingChild(true);
+        } else {
+          setPickingChild(false);
+        }
+      }
     } catch {
       setError(t('home.networkError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?.name, t]);
+  }, [user?.name, t, setSelected, selectedStudentId]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!hydrated) return;
+    void load();
+  }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps -- initial load after hydrate
 
   useFocusEffect(
     useCallback(() => {
+      if (!hydrated) return;
       void load();
-    }, [load])
-  );
-
-  const weekStats = useMemo(
-    () => aggregateFamilyWeekStats(rowsByStudent),
-    [rowsByStudent]
+    }, [hydrated, load])
   );
 
   const todayLine = useMemo(() => {
     const now = new Date();
     return t('home.todayPrefix', { date: format(now, 'MMM d, yyyy') });
   }, [t]);
+
   const lastUpdatedLabel = useMemo(() => {
     if (!lastUpdatedAt) return null;
     const secondsAgo = Math.floor((Date.now() - lastUpdatedAt) / 1000);
@@ -417,30 +306,62 @@ export function HomeScreen() {
     return t('home.waveGreeting', { greeting: gm, name });
   }, [parentLabel, user?.name, t]);
 
-  const openChild = (id: number) => {
+  const activeStudent =
+    students.find((s) => s.id === selectedStudentId) ??
+    (students.length === 1 ? students[0] : null);
+
+  const showPicker =
+    students.length > 1 && (pickingChild || !activeStudent);
+
+  const openModule = (action: ChildChipAction) => {
+    if (!activeStudent) return;
+    setSelected(activeStudent.id);
+    if (action === 'bus') {
+      navigation.navigate('BusTrackingMap', { studentId: activeStudent.id });
+      return;
+    }
+    navigation.navigate('ChildHub', {
+      studentId: activeStudent.id,
+      section: action,
+    });
+  };
+
+  const selectChild = (id: number) => {
     setSelected(id);
-    navigation.navigate('ChildHub', { studentId: id, section: 'attendance' });
+    setPickingChild(false);
   };
 
-  const onRefreshPress = () => {
-    if (refreshing || loading) return;
-    setRefreshing(true);
-    void load();
-  };
-
-  if (loading) {
+  if (loading || !hydrated) {
     return (
       <ScreenDecor>
         <SafeAreaView style={styles.safe} edges={['top']}>
           <View style={styles.center}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text
-              variant="bodyLarge"
-              style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}
-            >
-              {t('home.loadingDashboard')}
-            </Text>
+            <ActivityIndicator size="large" color={EduForestColors.primary} />
+            <Text style={styles.loadingText}>{t('home.loadingDashboard')}</Text>
           </View>
+        </SafeAreaView>
+      </ScreenDecor>
+    );
+  }
+
+  if (!showPicker && activeStudent) {
+    return (
+      <ScreenDecor>
+        <SafeAreaView style={styles.safe} edges={['top']}>
+          <ChildDashboard
+            student={activeStudent}
+            siblings={students}
+            greeting={`👋 ${greeting}`}
+            onChangeChild={(id) => selectChild(id)}
+            onOpenModule={openModule}
+            onShowAllChildren={
+              students.length > 1
+                ? () => {
+                    setPickingChild(true);
+                  }
+                : undefined
+            }
+          />
         </SafeAreaView>
       </ScreenDecor>
     );
@@ -456,121 +377,32 @@ export function HomeScreen() {
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
-              load();
+              void load();
             }}
-            tintColor={theme.colors.primary}
+            tintColor={EduForestColors.primary}
           />
         }
       >
-        <View style={styles.greetingRow}>
-          <Text
-            variant="titleLarge"
-            style={[styles.greeting, { color: theme.colors.onBackground }]}
-            numberOfLines={2}
-          >
-            👋 {greeting}
-          </Text>
-          <Pressable
-            onPress={onRefreshPress}
-            disabled={refreshing}
-            accessibilityRole="button"
-            accessibilityLabel={t('home.refresh')}
-            style={({ pressed }) => [
-              styles.refreshBtn,
-              { opacity: pressed || refreshing ? 0.6 : 1 },
-            ]}
-          >
-            {refreshing ? (
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-            ) : (
-              <MaterialCommunityIcons
-                name="refresh"
-                size={24}
-                color={theme.colors.primary}
-              />
-            )}
-          </Pressable>
-        </View>
-
-        <Text
-          variant="bodyMedium"
-          style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}
-        >
-          {todayLine}
-        </Text>
+        <Text style={styles.greeting}>👋 {greeting}</Text>
+        <Text style={styles.todayLine}>{todayLine}</Text>
         {lastUpdatedLabel ? (
-          <Text
-            variant="labelSmall"
-            style={{ color: theme.colors.primary, marginTop: 4 }}
-          >
-            {lastUpdatedLabel}
-          </Text>
+          <Text style={styles.lastUpdated}>{lastUpdatedLabel}</Text>
         ) : null}
 
         {error ? (
-          <View
-            style={[
-              styles.errBanner,
-              { backgroundColor: theme.colors.errorContainer },
-            ]}
-          >
+          <View style={styles.errBanner}>
             <MaterialCommunityIcons
               name="alert-circle-outline"
               size={20}
-              color={theme.colors.error}
+              color={EduForestColors.dangerStrong}
             />
-            <Text
-              style={[styles.errText, { color: theme.colors.onErrorContainer }]}
-            >
-              {error}
-            </Text>
+            <Text style={styles.errText}>{error}</Text>
           </View>
         ) : null}
 
-        <View style={styles.statsRow}>
-          <StatCard
-            icon="check-decagram"
-            value={String(weekStats.present)}
-            label={t('home.statsPresentWeek')}
-            theme={theme}
-            tint="success"
-          />
-          <StatCard
-            icon="close-circle-outline"
-            value={String(weekStats.absent)}
-            label={t('home.statsAbsentWeek')}
-            theme={theme}
-            tint="danger"
-          />
-          <StatCard
-            icon="clock-alert-outline"
-            value={String(weekStats.late)}
-            label={t('home.statsLateWeek')}
-            theme={theme}
-            tint="warning"
-          />
-          <StatCard
-            icon="beach"
-            value={String(weekStats.leave)}
-            label={t('home.statsLeaveWeek')}
-            theme={theme}
-            tint="leave"
-          />
-        </View>
-
         <View style={styles.sectionHeader}>
-          <Text
-            variant="titleMedium"
-            style={{ color: theme.colors.onBackground, fontWeight: '700' }}
-          >
-            {t('home.myChildren')}
-          </Text>
-          <Text
-            variant="labelMedium"
-            style={{ color: theme.colors.onSurfaceVariant }}
-          >
-            {t('home.tapToOpen')}
-          </Text>
+          <Text style={styles.sectionTitle}>{t('home.selectChild')}</Text>
+          <Text style={styles.sectionHint}>{t('home.tapToOpenDashboard')}</Text>
         </View>
 
         {students.length === 0 && !error ? (
@@ -581,11 +413,10 @@ export function HomeScreen() {
           />
         ) : (
           students.map((s) => (
-            <ChildOverviewCard
+            <ChildPickerCard
               key={s.id}
               item={s}
-              onPress={() => openChild(s.id)}
-              theme={theme}
+              onPress={() => selectChild(s.id)}
               rows={rowsByStudent.get(s.id) ?? []}
               t={t}
             />
@@ -597,136 +428,138 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 36, paddingTop: 12 },
+  safe: { flex: 1, backgroundColor: EduForestColors.background },
+  scrollContent: {
+    paddingHorizontal: EduForestSpacing.lg,
+    paddingBottom: 36,
+    paddingTop: EduForestSpacing.md,
+    backgroundColor: EduForestColors.background,
+  },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: EduForestSpacing.xl,
+    backgroundColor: EduForestColors.background,
   },
-
-  greeting: { fontWeight: '700', flex: 1 },
-  greetingRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 8,
-    marginTop: 12,
-    paddingRight: 4,
+  loadingText: {
+    ...EduForestTypography.body,
+    marginTop: EduForestSpacing.base,
+    color: EduForestColors.textSecondary,
   },
-  refreshBtn: {
-    padding: 8,
-    marginTop: 2,
-    minWidth: 40,
-    minHeight: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+  greeting: {
+    ...EduForestTypography.h2,
+    color: EduForestColors.textPrimary,
+    marginTop: EduForestSpacing.md,
   },
-  topIcons: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  iconBtn: { padding: 6 },
-  statsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 20,
-    justifyContent: 'space-between',
+  todayLine: {
+    ...EduForestTypography.body,
+    color: EduForestColors.textSecondary,
+    marginTop: EduForestSpacing.xs,
   },
-  statCard: {
-    width: '48%',
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    minWidth: 0,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  statIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  statValue: { fontWeight: '800' },
-  statLabel: {
-    marginTop: 4,
-    textAlign: 'center',
-    paddingHorizontal: 2,
-    width: '100%',
+  lastUpdated: {
+    ...EduForestTypography.smallSemiBold,
+    color: EduForestColors.primary,
+    marginTop: EduForestSpacing.xs,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 28,
-    marginBottom: 12,
+    marginTop: EduForestSpacing.xl,
+    marginBottom: EduForestSpacing.md,
+    gap: EduForestSpacing.xs,
+  },
+  sectionTitle: {
+    ...EduForestTypography.h2,
+    color: EduForestColors.textPrimary,
+  },
+  sectionHint: {
+    ...EduForestTypography.small,
+    color: EduForestColors.textTertiary,
   },
   childCard: {
+    ...eduForestCardShell,
     flexDirection: 'row',
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 12,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 3,
+    alignItems: 'center',
+    padding: EduForestSpacing.base,
+    marginBottom: EduForestSpacing.md,
+    gap: EduForestSpacing.md,
   },
   childAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: EduForestRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  childAvatarText: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  childCardBody: { flex: 1, marginLeft: 12 },
+  childAvatarText: {
+    color: EduForestColors.textInverse,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  childCardBody: { flex: 1, minWidth: 0 },
   childTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: EduForestSpacing.sm,
   },
-  childName: { fontWeight: '700', flex: 1 },
+  childName: {
+    ...EduForestTypography.bodySemiBold,
+    color: EduForestColors.textPrimary,
+    flex: 1,
+  },
+  childMeta: {
+    ...EduForestTypography.small,
+    color: EduForestColors.textTertiary,
+    marginTop: EduForestSpacing.xs,
+  },
+  childBatch: {
+    ...EduForestTypography.small,
+    color: EduForestColors.textTertiary,
+    marginTop: 6,
+  },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 999,
+    borderRadius: EduForestRadius.full,
   },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
-  lastRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-  notifSection: { marginTop: 8 },
-  notifCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 10,
+  statusBadgeText: {
+    ...EduForestTypography.smallSemiBold,
   },
-  notifTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  notifDot: { width: 10, height: 10, borderRadius: 5 },
-  notifEmpty: {
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderRadius: 16,
-    padding: 20,
+  lastRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 10,
+  },
+  detailLine: {
+    ...EduForestTypography.small,
+    color: EduForestColors.textSecondary,
+    marginLeft: 6,
+    flex: 1,
+  },
+  chevronWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: EduForestColors.borderLight,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   errBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    padding: 12,
-    borderRadius: 14,
-    marginTop: 12,
+    padding: EduForestSpacing.md,
+    borderRadius: EduForestRadius.md,
+    marginTop: EduForestSpacing.md,
+    backgroundColor: EduForestColors.dangerLight,
   },
-  errText: { flex: 1, fontSize: 14 },
+  errText: {
+    ...EduForestTypography.body,
+    flex: 1,
+    color: EduForestColors.dangerStrong,
+  },
 });
