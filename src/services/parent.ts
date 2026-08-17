@@ -353,6 +353,11 @@ export interface ParentFeeLedger {
   totalDue: number;
   nextDueDate?: string | null;
   hasAssignment?: boolean;
+  dueBreakdown?: Array<{
+    feeHeadId?: number;
+    feeHeadName: string;
+    amount: number;
+  }>;
   installments: ParentFeeInstallment[];
   payments: ParentFeePayment[];
 }

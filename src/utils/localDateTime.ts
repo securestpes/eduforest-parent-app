@@ -10,10 +10,18 @@ export function parsePushTimestamp(iso?: string | null): Date | null {
   if (!iso?.trim()) {
     return null;
   }
-  const trimmed = iso.trim();
+  let trimmed = iso.trim().replace(' ', 'T');
+  trimmed = trimmed.replace(/(\.\d{3})\d+/, '$1');
+  const hasOffset =
+    /[zZ]$/.test(trimmed) || /[+-]\d{2}:\d{2}$/.test(trimmed);
+  const utcIso = hasOffset ? trimmed : `${trimmed}Z`;
   try {
-    const hasOffset = /[zZ]$/.test(trimmed) || /[+-]\d{2}:\d{2}$/.test(trimmed);
-    const parsed = parseISO(hasOffset ? trimmed : `${trimmed}Z`);
+    const ms = Date.parse(utcIso);
+    if (!Number.isNaN(ms)) {
+      const date = new Date(ms);
+      return isValid(date) ? date : null;
+    }
+    const parsed = parseISO(utcIso);
     return isValid(parsed) ? parsed : null;
   } catch {
     return null;

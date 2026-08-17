@@ -19,6 +19,7 @@ import {
   formatLocalDate,
   formatLocalDateTime,
   formatRowLocalDateTime,
+  parsePushTimestamp,
   parseRowLocalDateTime,
 } from './localDateTime';
 
@@ -68,9 +69,7 @@ function statusUpperFromKind(
 }
 
 function parseFeeCreatedAt(raw?: string | null): Date | null {
-  if (!raw) return null;
-  const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? null : d;
+  return parsePushTimestamp(raw);
 }
 
 export function collectCenterNotifications(

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -24,6 +24,11 @@ import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import type { AppTheme } from '../theme';
 import { useAppLanguage } from '../common';
+import {
+  formatDueBreakdown,
+  installmentHeadBreakdown,
+  ledgerDueBreakdown,
+} from '../utils/feeDueBreakdown';
 
 type Props = { embedded?: boolean };
 
@@ -63,6 +68,11 @@ export function FeesScreen({ embedded = false }: Props) {
   const [receiptText, setReceiptText] = useState<string | null>(null);
 
   const selectedStudent = students.find((s) => s.id === studentId) ?? null;
+
+  const dueBreakdown = useMemo(
+    () => ledgerDueBreakdown(ledger),
+    [ledger]
+  );
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -236,6 +246,19 @@ export function FeesScreen({ embedded = false }: Props) {
             </View>
           </View>
 
+          {dueBreakdown.length > 1 ? (
+            <Text
+              variant="bodySmall"
+              style={{
+                color: theme.colors.onSurfaceVariant,
+                marginTop: 10,
+                lineHeight: 18,
+              }}
+            >
+              {formatDueBreakdown(dueBreakdown, true)}
+            </Text>
+          ) : null}
+
           <Text
             variant="titleSmall"
             style={{
@@ -248,7 +271,9 @@ export function FeesScreen({ embedded = false }: Props) {
             {t('fees.months')}
           </Text>
 
-          {(ledger.installments || []).map((inst) => (
+          {(ledger.installments || []).map((inst) => {
+            const monthBreakdown = installmentHeadBreakdown(inst.heads, true);
+            return (
             <Pressable
               key={inst.key}
               onPress={() => setSelected(inst)}
@@ -274,6 +299,18 @@ export function FeesScreen({ embedded = false }: Props) {
                   {t('fees.dueOn', { date: inst.dueDate })} · ₹
                   {Number(inst.amount).toFixed(0)}
                 </Text>
+                {monthBreakdown ? (
+                  <Text
+                    variant="bodySmall"
+                    style={{
+                      color: theme.colors.primary,
+                      marginTop: 4,
+                      fontWeight: '600',
+                    }}
+                  >
+                    {monthBreakdown}
+                  </Text>
+                ) : null}
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text
@@ -309,7 +346,8 @@ export function FeesScreen({ embedded = false }: Props) {
                 ) : null}
               </View>
             </Pressable>
-          ))}
+            );
+          })}
 
           {(ledger.payments || []).length > 0 ? (
             <>
