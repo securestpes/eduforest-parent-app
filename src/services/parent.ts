@@ -388,6 +388,22 @@ export async function getStudentFeeReceipt(
   return data as ApiEnvelope & { data?: Record<string, unknown> };
 }
 
+export async function getStudentFeeReceiptPdf(
+  studentId: number,
+  receiptId: number
+): Promise<
+  ApiEnvelope & {
+    data?: { fileName: string; mimeType: string; contentBase64: string };
+  }
+> {
+  const { data } = await api.get(
+    `${prefix}/students/${studentId}/fees/receipts/${receiptId}/pdf`
+  );
+  return data as ApiEnvelope & {
+    data?: { fileName: string; mimeType: string; contentBase64: string };
+  };
+}
+
 export async function registerDeviceToken(
   fcmToken: string,
   platform: string,

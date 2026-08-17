@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   View,
 } from 'react-native';
@@ -14,6 +16,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
   getMyStudents,
   getStudentFeeReceipt,
+  getStudentFeeReceiptPdf,
   getStudentFees,
   type ParentFeeInstallment,
   type ParentFeeLedger,
@@ -29,8 +32,57 @@ import {
   installmentHeadBreakdown,
   ledgerDueBreakdown,
 } from '../utils/feeDueBreakdown';
+import { formatLocalDateTime, parsePushTimestamp } from '../utils/localDateTime';
+import { savePdfToDevice } from '../utils/savePdfToDevice';
 
 type Props = { embedded?: boolean };
+
+function formatReceiptPaidAt(paidAt?: unknown): string {
+  if (!paidAt) return '';
+  const iso = String(paidAt).trim();
+  const hasOffset = /[zZ]$/.test(iso) || /[+-]\d{2}:\d{2}$/.test(iso);
+  if (hasOffset) {
+    const parsed = parsePushTimestamp(iso);
+    return parsed ? formatLocalDateTime(parsed) : iso.replace('T', ' ').slice(0, 16);
+  }
+  return iso.replace('T', ' ').slice(0, 16);
+}
+
+function formatParentReceipt(
+  d: Record<string, unknown>,
+  t: (key: any, params?: Record<string, string | number>) => string
+): string {
+  const lines: string[] = [];
+  const school = String(d.instituteName || '').trim();
+  if (school) lines.push(school);
+  lines.push(`${t('fees.receipt')} ${d.receiptNo ?? ''}`.trim());
+  if (d.studentName) lines.push(String(d.studentName));
+  if (d.className) lines.push(String(d.className));
+  const paidAt = formatReceiptPaidAt(d.paidAt);
+  if (paidAt) lines.push(paidAt);
+  if (d.paymentMode) lines.push(String(d.paymentMode));
+  if (d.referenceNo) lines.push(`Ref ${d.referenceNo}`);
+  lines.push(`₹${Number(d.amount ?? 0).toFixed(2)}`);
+  if (Number(d.concessionAmount ?? 0) > 0) {
+    lines.push(
+      t('fees.concessionLine', {
+        amount: Number(d.concessionAmount).toFixed(2),
+      })
+    );
+  }
+  if (d.collectedByName) {
+    lines.push(t('fees.collectedBy', { name: String(d.collectedByName) }));
+  }
+  const allocations = Array.isArray(d.allocations) ? d.allocations : [];
+  for (const row of allocations) {
+    const item = row as Record<string, unknown>;
+    const label = [item.label, item.feeHeadName].filter(Boolean).join(' · ');
+    if (label) {
+      lines.push(`${label}  ₹${Number(item.amount ?? 0).toFixed(2)}`);
+    }
+  }
+  return lines.filter(Boolean).join('\n');
+}
 
 function statusColor(status: string, theme: AppTheme): string {
   const s = (status || '').toUpperCase();
@@ -66,6 +118,8 @@ export function FeesScreen({ embedded = false }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<ParentFeeInstallment | null>(null);
   const [receiptText, setReceiptText] = useState<string | null>(null);
+  const [receiptId, setReceiptId] = useState<number | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const selectedStudent = students.find((s) => s.id === studentId) ?? null;
 
@@ -116,21 +170,38 @@ export function FeesScreen({ embedded = false }: Props) {
     try {
       const res = await getStudentFeeReceipt(studentId, receiptId);
       if (res.status && res.data) {
-        const d = res.data;
-        setReceiptText(
-          [
-            `Receipt ${d.receiptNo ?? ''}`,
-            `Amount ₹${Number(d.amount ?? 0).toFixed(2)}`,
-            `Mode ${d.paymentMode ?? ''}`,
-            d.paidAt ? `Paid ${String(d.paidAt).slice(0, 16)}` : '',
-            d.referenceNo ? `Ref ${d.referenceNo}` : '',
-          ]
-            .filter(Boolean)
-            .join('\n')
-        );
+        setReceiptId(receiptId);
+        setReceiptText(formatParentReceipt(res.data, t));
       }
     } catch (e: any) {
       setReceiptText(e?.message || t('fees.loadFailed'));
+    }
+  };
+
+  const downloadReceipt = async () => {
+    if (studentId == null || receiptId == null || downloading) return;
+    setDownloading(true);
+    try {
+      const res = await getStudentFeeReceiptPdf(studentId, receiptId);
+      if (!res.status || !res.data?.contentBase64) {
+        throw new Error(res.message || t('fees.receiptDownloadFailed'));
+      }
+      const result = await savePdfToDevice({
+        fileName: res.data.fileName || `Receipt_${receiptId}.pdf`,
+        contentBase64: res.data.contentBase64,
+        mimeType: res.data.mimeType || 'application/pdf',
+      });
+      if (result === 'cancelled') return;
+      Alert.alert(
+        '',
+        result === 'shared'
+          ? t('fees.receiptShared')
+          : t('fees.receiptSaved')
+      );
+    } catch (e: any) {
+      Alert.alert('', e?.message || t('fees.receiptDownloadFailed'));
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -478,17 +549,59 @@ export function FeesScreen({ embedded = false }: Props) {
             >
               {receiptText}
             </Text>
-            <Pressable
-              onPress={() => setReceiptText(null)}
-              style={[
-                styles.closeBtn,
-                { backgroundColor: theme.colors.primary },
-              ]}
-            >
-              <Text style={{ color: theme.colors.onPrimary, fontWeight: '700' }}>
-                {t('common.close') || 'Close'}
-              </Text>
-            </Pressable>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+              <Pressable
+                onPress={() => {
+                  if (!receiptText) return;
+                  void Share.share({
+                    message: receiptText,
+                    title: t('fees.receipt'),
+                  });
+                }}
+                style={[
+                  styles.closeBtn,
+                  { backgroundColor: theme.colors.primary, flex: 1 },
+                ]}
+              >
+                <Text style={{ color: theme.colors.onPrimary, fontWeight: '700' }}>
+                  {t('fees.share')}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void downloadReceipt()}
+                disabled={downloading || receiptId == null}
+                style={[
+                  styles.closeBtn,
+                  {
+                    backgroundColor: theme.colors.primary,
+                    flex: 1,
+                    opacity: downloading ? 0.7 : 1,
+                  },
+                ]}
+              >
+                {downloading ? (
+                  <ActivityIndicator color={theme.colors.onPrimary} />
+                ) : (
+                  <Text style={{ color: theme.colors.onPrimary, fontWeight: '700' }}>
+                    {t('fees.download')}
+                  </Text>
+                )}
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setReceiptText(null);
+                  setReceiptId(null);
+                }}
+                style={[
+                  styles.closeBtn,
+                  { backgroundColor: theme.colors.primary, flex: 1 },
+                ]}
+              >
+                <Text style={{ color: theme.colors.onPrimary, fontWeight: '700' }}>
+                  {t('common.close') || 'Close'}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
