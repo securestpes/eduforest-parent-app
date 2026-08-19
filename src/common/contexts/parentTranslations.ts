@@ -202,6 +202,10 @@ const en = {
   'exams.emptyDesc':
     'When the school publishes an exam, your child’s marks will appear here.',
   'exams.pendingMarks': 'Pending',
+  'exams.partialResults': 'Partial · {{released}} of {{total}} subjects',
+  'exams.partialMarksHint': 'Verified subjects only',
+  'exams.partialProvisional': 'Provisional · more subjects coming',
+  'exams.awaitingSubject': 'Result awaiting',
   'exams.notEntered': 'Not entered',
   'exams.passAt': 'Pass at {{percent}}%',
   'exams.attendanceABSENT': 'Absent',
@@ -682,6 +686,10 @@ const hi: Record<TranslationKey, string> = {
   'exams.emptyDesc':
     'स्कूल परीक्षा प्रकाशित करने पर आपके बच्चे के अंक यहाँ दिखेंगे।',
   'exams.pendingMarks': 'लंबित',
+  'exams.partialResults': 'आंशिक · {{released}} / {{total}} विषय',
+  'exams.partialMarksHint': 'सिर्फ verified विषय',
+  'exams.partialProvisional': 'अस्थायी · और विषय आएँगे',
+  'exams.awaitingSubject': 'परिणाम प्रतीक्षित',
   'exams.notEntered': 'दर्ज नहीं',
   'exams.passAt': 'पास {{percent}}%',
   'exams.attendanceABSENT': 'अनुपस्थित',
@@ -1158,6 +1166,10 @@ const bn: Record<TranslationKey, string> = {
   'exams.emptyDesc':
     'স্কুল পরীক্ষা প্রকাশ করলে আপনার সন্তানের মার্কস এখানে দেখা যাবে।',
   'exams.pendingMarks': 'বাকি',
+  'exams.partialResults': 'আংশিক · {{released}} / {{total}} বিষয়',
+  'exams.partialMarksHint': 'শুধু verified বিষয়',
+  'exams.partialProvisional': 'সাময়িক · আরও বিষয় আসবে',
+  'exams.awaitingSubject': 'ফলাফল অপেক্ষমাণ',
   'exams.notEntered': 'দেওয়া হয়নি',
   'exams.passAt': 'পাস {{percent}}%',
   'exams.attendanceABSENT': 'অনুপস্থিত',
@@ -1643,6 +1655,10 @@ const ta: Record<TranslationKey, string> = {
   'exams.emptyDesc':
     'பள்ளி தேர்வை வெளியிட்டதும் உங்கள் குழந்தையின் மதிப்பெண்கள் இங்கே தோன்றும்.',
   'exams.pendingMarks': 'நிலுவை',
+  'exams.partialResults': 'பகுதி · {{released}} / {{total}} பாடங்கள்',
+  'exams.partialMarksHint': 'Verified பாடங்கள் மட்டும்',
+  'exams.partialProvisional': 'தற்காலிகம் · மேலும் பாடங்கள் வரும்',
+  'exams.awaitingSubject': 'முடிவு காத்திருக்கிறது',
   'exams.notEntered': 'உள்ளிடவில்லை',
   'exams.passAt': 'பாஸ் {{percent}}%',
   'exams.attendanceABSENT': 'வரவில்லை',

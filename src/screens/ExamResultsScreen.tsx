@@ -158,9 +158,25 @@ export function ExamResultsScreen({
     }
   };
 
-  const resultColor = (item: ParentExamListItem) => {
+  const resultColor = (item: ParentExamListItem | ParentExamDetail) => {
+    if (item.partialResults || item.resultLabel === 'PARTIAL') {
+      return theme.colors.primary;
+    }
     if (item.percent == null) return theme.colors.onSurfaceVariant;
     return item.passed ? theme.colors.tertiary : theme.colors.error;
+  };
+
+  const resultHeadline = (item: ParentExamListItem | ParentExamDetail) => {
+    if (item.partialResults || item.resultLabel === 'PARTIAL') {
+      return t('exams.partialResults', {
+        released: item.releasedSubjects ?? item.scoredSubjects,
+        total: item.subjectCount,
+      });
+    }
+    if (item.percent != null) {
+      return `${formatMarks(item.percent)}%`;
+    }
+    return t('exams.pendingMarks');
   };
 
   const body = (
@@ -251,17 +267,19 @@ export function ExamResultsScreen({
               </Text>
               <View style={styles.metaRow}>
                 <Text variant="labelLarge" style={{ color: resultColor(item) }}>
-                  {item.percent != null
-                    ? `${formatMarks(item.percent)}%`
-                    : t('exams.pendingMarks')}
-                  {item.grade ? ` · ${item.grade}` : ''}
-                  {item.resultLabel ? ` · ${item.resultLabel}` : ''}
+                  {resultHeadline(item)}
+                  {!item.partialResults && item.grade ? ` · ${item.grade}` : ''}
+                  {!item.partialResults && item.resultLabel && item.resultLabel !== 'PARTIAL'
+                    ? ` · ${item.resultLabel}`
+                    : ''}
                 </Text>
                 <Text
                   variant="labelMedium"
                   style={{ color: theme.colors.onSurfaceVariant }}
                 >
-                  {formatMarks(item.obtainedMarks)} / {formatMarks(item.maxMarks)}
+                  {item.partialResults
+                    ? t('exams.partialMarksHint')
+                    : `${formatMarks(item.obtainedMarks)} / ${formatMarks(item.maxMarks)}`}
                 </Text>
               </View>
             </Pressable>
@@ -316,24 +334,27 @@ export function ExamResultsScreen({
                   variant="headlineSmall"
                   style={{ fontWeight: '700', color: resultColor(detail) }}
                 >
-                  {detail.percent != null
-                    ? `${formatMarks(detail.percent)}%`
-                    : '—'}
+                  {resultHeadline(detail)}
                 </Text>
                 <Text variant="titleMedium">
-                  {formatMarks(detail.obtainedMarks)} /{' '}
-                  {formatMarks(detail.maxMarks)}
+                  {detail.partialResults
+                    ? t('exams.partialMarksHint')
+                    : `${formatMarks(detail.obtainedMarks)} / ${formatMarks(detail.maxMarks)}`}
                 </Text>
                 <Text variant="labelLarge" style={{ color: resultColor(detail) }}>
-                  {[detail.grade, detail.resultLabel].filter(Boolean).join(' · ') ||
-                    t('exams.pendingMarks')}
+                  {detail.partialResults
+                    ? t('exams.partialProvisional')
+                    : [detail.grade, detail.resultLabel].filter(Boolean).join(' · ') ||
+                      t('exams.pendingMarks')}
                 </Text>
-                <Text
-                  variant="bodySmall"
-                  style={{ color: theme.colors.onSurfaceVariant }}
-                >
-                  {t('exams.passAt', { percent: detail.passPercent })}
-                </Text>
+                {!detail.partialResults ? (
+                  <Text
+                    variant="bodySmall"
+                    style={{ color: theme.colors.onSurfaceVariant }}
+                  >
+                    {t('exams.passAt', { percent: detail.passPercent })}
+                  </Text>
+                ) : null}
               </View>
 
               <Pressable
@@ -383,28 +404,36 @@ export function ExamResultsScreen({
                       variant="bodySmall"
                       style={{ color: theme.colors.onSurfaceVariant }}
                     >
-                      {subject.attendanceStatus &&
-                      subject.attendanceStatus !== 'PRESENT'
-                        ? t(
-                            `exams.attendance${subject.attendanceStatus}` as any
-                          )
-                        : subject.entered
-                          ? formatShortDate(subject.examDate)
-                          : t('exams.notEntered')}
+                      {subject.awaiting
+                        ? t('exams.awaitingSubject')
+                        : subject.attendanceStatus &&
+                            subject.attendanceStatus !== 'PRESENT'
+                          ? t(
+                              `exams.attendance${subject.attendanceStatus}` as any
+                            )
+                          : subject.entered
+                            ? formatShortDate(subject.examDate)
+                            : t('exams.notEntered')}
                     </Text>
                   </View>
                   <Text variant="titleMedium" style={{ fontWeight: '700' }}>
-                    {subject.attendanceStatus &&
-                    subject.attendanceStatus !== 'PRESENT'
-                      ? '—'
-                      : formatMarks(subject.marks)}
-                    <Text
-                      variant="bodySmall"
-                      style={{ color: theme.colors.onSurfaceVariant }}
-                    >
-                      {' '}
-                      / {subject.maxMarks}
-                    </Text>
+                    {subject.awaiting ? (
+                      '—'
+                    ) : (
+                      <>
+                        {subject.attendanceStatus &&
+                        subject.attendanceStatus !== 'PRESENT'
+                          ? '—'
+                          : formatMarks(subject.marks)}
+                        <Text
+                          variant="bodySmall"
+                          style={{ color: theme.colors.onSurfaceVariant }}
+                        >
+                          {' '}
+                          / {subject.maxMarks}
+                        </Text>
+                      </>
+                    )}
                   </Text>
                 </View>
               ))}

@@ -153,10 +153,12 @@ export interface ParentExamListItem {
   subjectCount: number;
   scoredSubjects: number;
   pendingSubjects: number;
+  releasedSubjects?: number;
+  partialResults?: boolean;
   obtainedMarks?: number | null;
   maxMarks?: number | null;
   percent?: number | null;
-  passed?: boolean;
+  passed?: boolean | null;
   grade?: string | null;
   resultLabel?: string | null;
 }
@@ -170,6 +172,9 @@ export interface ParentExamSubjectRow {
   attendanceStatus?: string | null;
   remark?: string | null;
   entered: boolean;
+  awaiting?: boolean;
+  released?: boolean;
+  paperStatus?: string | null;
 }
 
 export interface ParentExamDetail extends ParentExamListItem {
