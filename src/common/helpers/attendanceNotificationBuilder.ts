@@ -29,9 +29,9 @@ export function buildLocalizedNotificationContent(
 ): { title: string; body: string } | null {
   if (!data) return null;
 
-  // Bus / fee alerts: use server title/body (already parent-facing).
+  // Bus / fee / exam / leave / homework alerts: use server title/body (already parent-facing).
   const type = (data.type ?? '').toLowerCase();
-  if (type === 'bus_alert' || type === 'fee_payment' || type === 'fee_reminder' || type === 'exam_results_published' || type === 'leave_request_status') {
+  if (type === 'bus_alert' || type === 'fee_payment' || type === 'fee_reminder' || type === 'exam_results_published' || type === 'leave_request_status' || type === 'homework_assigned') {
     const title = data.title?.trim();
     const body = (data.body ?? data.short_message)?.trim();
     if (title || body) {
@@ -46,7 +46,9 @@ export function buildLocalizedNotificationContent(
                 ? 'Exam results'
                 : type === 'leave_request_status'
                   ? 'Leave update'
-                  : 'Bus update'),
+                  : type === 'homework_assigned'
+                    ? 'New homework'
+                    : 'Bus update'),
         body:
           body ||
           (type === 'fee_reminder' || type === 'fee_payment'
@@ -55,7 +57,9 @@ export function buildLocalizedNotificationContent(
               ? 'Open Results to view marks.'
               : type === 'leave_request_status'
                 ? 'Open Leave to view status.'
-                : 'Open the app to track the bus.'),
+                : type === 'homework_assigned'
+                  ? 'Open Homework to view details.'
+                  : 'Open the app to track the bus.'),
       };
     }
     return null;

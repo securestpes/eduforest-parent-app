@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import {
-  addDays,
   eachDayOfInterval,
   endOfMonth,
   format,
@@ -13,35 +12,59 @@ import {
 import type { ParentAttendanceRow } from '../services/parent';
 import { kindFromStatus, parseRowDate } from '../utils/dashboardHome';
 import type { AppTheme } from '../theme';
+import { EduForestColors } from '../theme/eduForestTokens';
 
 type Props = {
   monthAnchor: Date;
   rows: ParentAttendanceRow[];
   onSelectDay?: (date: Date) => void;
+  selectedDay?: Date | null;
 };
 
 const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-function dotColor(
-  kind: ReturnType<typeof kindFromStatus>,
-  theme: AppTheme
-): string {
-  if (kind === 'present') return theme.colors.success;
-  if (kind === 'absent') return theme.colors.error;
-  if (kind === 'late') return theme.colors.warning;
-  if (kind === 'leave') return theme.palette.card4_base;
-  return theme.colors.outline;
+type StatusKind = ReturnType<typeof kindFromStatus>;
+
+function statusColors(kind: StatusKind): { base: string; light: string } {
+  switch (kind) {
+    case 'present':
+      return {
+        base: EduForestColors.success,
+        light: EduForestColors.successLight,
+      };
+    case 'late':
+      return {
+        base: EduForestColors.warning,
+        light: EduForestColors.warningLight,
+      };
+    case 'absent':
+      return {
+        base: EduForestColors.danger,
+        light: EduForestColors.dangerLight,
+      };
+    case 'leave':
+      return {
+        base: EduForestColors.secondary,
+        light: EduForestColors.secondaryLight,
+      };
+    default:
+      return {
+        base: EduForestColors.textTertiary,
+        light: EduForestColors.borderLight,
+      };
+  }
 }
 
 export function AttendanceCalendarView({
   monthAnchor,
   rows,
   onSelectDay,
+  selectedDay,
 }: Props) {
   const theme = useTheme() as AppTheme;
 
   const statusByDay = useMemo(() => {
-    const map = new Map<string, ReturnType<typeof kindFromStatus>>();
+    const map = new Map<string, StatusKind>();
     for (const row of rows) {
       const dt = parseRowDate(row);
       if (!dt) continue;
@@ -99,7 +122,9 @@ export function AttendanceCalendarView({
           }
           const key = format(day, 'yyyy-MM-dd');
           const kind = statusByDay.get(key) ?? 'unknown';
+          const colors = statusColors(kind);
           const isToday = isSameDay(day, new Date());
+          const isSelected = selectedDay ? isSameDay(day, selectedDay) : false;
           const hasStatus = kind !== 'unknown';
           return (
             <Pressable
@@ -112,33 +137,29 @@ export function AttendanceCalendarView({
               <View
                 style={[
                   styles.dayCircle,
-                  isToday && {
-                    borderColor: theme.colors.primary,
-                    borderWidth: 2,
-                  },
+                  hasStatus && { backgroundColor: colors.base },
+                  isToday && !hasStatus && styles.dayCircleToday,
+                  isToday && hasStatus && styles.dayCircleTodayOnStatus,
+                  isSelected && !hasStatus && styles.dayCircleSelected,
+                  isSelected && hasStatus && styles.dayCircleSelectedOnStatus,
                 ]}
               >
                 <Text
                   variant="labelMedium"
-                  style={{
-                    color: isToday
-                      ? theme.colors.primary
-                      : theme.colors.onSurface,
-                    fontWeight: isToday ? '800' : '500',
-                  }}
+                  style={[
+                    styles.dayNumber,
+                    {
+                      color: hasStatus
+                        ? '#FFFFFF'
+                        : isToday
+                          ? theme.colors.primary
+                          : theme.colors.onSurface,
+                      fontWeight: hasStatus || isToday ? '700' : '500',
+                    },
+                  ]}
                 >
                   {format(day, 'd')}
                 </Text>
-                {hasStatus ? (
-                  <View
-                    style={[
-                      styles.dot,
-                      { backgroundColor: dotColor(kind, theme) },
-                    ]}
-                  />
-                ) : (
-                  <View style={styles.dotPlaceholder} />
-                )}
               </View>
             </Pressable>
           );
@@ -180,15 +201,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginTop: 2,
+  dayCircleToday: {
+    borderColor: EduForestColors.primary,
+    borderWidth: 2,
   },
-  dotPlaceholder: {
-    width: 6,
-    height: 6,
-    marginTop: 2,
+  dayCircleTodayOnStatus: {
+    borderColor: '#FFFFFF',
+    borderWidth: 2,
+  },
+  dayCircleSelected: {
+    borderColor: EduForestColors.primary,
+    borderWidth: 2,
+  },
+  dayCircleSelectedOnStatus: {
+    borderColor: '#FFFFFF',
+    borderWidth: 2,
+  },
+  dayNumber: {
+    textAlign: 'center',
   },
 });

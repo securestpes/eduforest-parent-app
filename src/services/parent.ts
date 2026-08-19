@@ -55,7 +55,8 @@ export type ParentFeeNotificationType =
   | 'fee_payment'
   | 'fee_reminder'
   | 'exam_results_published'
-  | 'leave_request_status';
+  | 'leave_request_status'
+  | 'homework_assigned';
 
 export interface ParentFeeNotification {
   id: string;
@@ -357,6 +358,11 @@ export interface ParentFeeLedger {
   totalDue: number;
   nextDueDate?: string | null;
   hasAssignment?: boolean;
+  dueBreakdown?: Array<{
+    feeHeadId?: number;
+    feeHeadName: string;
+    amount: number;
+  }>;
   installments: ParentFeeInstallment[];
   payments: ParentFeePayment[];
 }
@@ -385,6 +391,22 @@ export async function getStudentFeeReceipt(
     `${prefix}/students/${studentId}/fees/receipts/${receiptId}`
   );
   return data as ApiEnvelope & { data?: Record<string, unknown> };
+}
+
+export async function getStudentFeeReceiptPdf(
+  studentId: number,
+  receiptId: number
+): Promise<
+  ApiEnvelope & {
+    data?: { fileName: string; mimeType: string; contentBase64: string };
+  }
+> {
+  const { data } = await api.get(
+    `${prefix}/students/${studentId}/fees/receipts/${receiptId}/pdf`
+  );
+  return data as ApiEnvelope & {
+    data?: { fileName: string; mimeType: string; contentBase64: string };
+  };
 }
 
 export async function registerDeviceToken(

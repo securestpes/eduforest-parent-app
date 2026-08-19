@@ -2,8 +2,6 @@ import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { PermissionsAndroid, Platform, StatusBar } from 'react-native';
-import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
-import messaging from '@react-native-firebase/messaging';
 import React, { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
@@ -12,7 +10,7 @@ import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { store } from './redux/store';
 import { Navigation } from './navigation/Navigation';
-import { FCM_ATTENDANCE_CHANNEL_ID } from './constants/fcmAndroid';
+import { FCM_ATTENDANCE_CHANNEL_ID, FCM_BUS_ALERTS_CHANNEL_ID, FCM_SCHOOL_ALERTS_CHANNEL_ID } from './constants/fcmAndroid';
 import { displayNotification } from './common/helpers/notificationHelper';
 import {
   AppLanguageProvider,
@@ -32,9 +30,13 @@ import { VersionService } from './features/versionCheck/versionService';
 import { getNotificationPreferences } from './services/notificationPreferences';
 import { syncNativeNotificationPrefs } from './common/helpers/syncNativeNotificationPrefs';
 import { isFirebaseDisabled } from '../config/featureFlags';
+import { getNotifee } from './native/notifeeSafe';
 
 async function createNotificationChannel() {
   if (Platform.OS !== 'android' || isFirebaseDisabled) return;
+
+  const notifee = getNotifee();
+  const { AndroidImportance } = notifee;
 
   await notifee.createChannel({
     id: FCM_ATTENDANCE_CHANNEL_ID,
@@ -46,7 +48,7 @@ async function createNotificationChannel() {
     badge: true,
   });
   await notifee.createChannel({
-    id: 'bus_alerts',
+    id: FCM_BUS_ALERTS_CHANNEL_ID,
     name: 'Bus alerts',
     importance: AndroidImportance.HIGH,
     sound: 'default',
@@ -55,8 +57,8 @@ async function createNotificationChannel() {
     badge: true,
   });
   await notifee.createChannel({
-    id: 'fee_alerts',
-    name: 'Fee alerts',
+    id: FCM_SCHOOL_ALERTS_CHANNEL_ID,
+    name: 'School alerts',
     importance: AndroidImportance.HIGH,
     sound: 'default',
     vibration: true,
@@ -74,6 +76,9 @@ async function requestNotificationPermission() {
     );
   }
 
+  // Lazy require — same early-load hazard as Notifee on new arch.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const messaging = require('@react-native-firebase/messaging').default;
   await messaging().requestPermission();
 }
 
@@ -103,6 +108,8 @@ function AppContent() {
       await createNotificationChannel();
       const prefs = await getNotificationPreferences();
       syncNativeNotificationPrefs(prefs);
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const messaging = require('@react-native-firebase/messaging').default;
       const token = await messaging().getToken();
       console.log('FCM TOKEN:', token);
     }
@@ -118,7 +125,9 @@ function AppContent() {
 
   useEffect(() => {
     if (isFirebaseDisabled) return;
-    const unsubscribe = messaging().onMessage(async (remoteMessage) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const messaging = require('@react-native-firebase/messaging').default;
+    const unsubscribe = messaging().onMessage(async (remoteMessage: any) => {
       console.log('FOREGROUND MESSAGE:', remoteMessage);
       await displayNotification(remoteMessage, language);
       await handleIncomingPushNotification(remoteMessage.data);
@@ -130,7 +139,12 @@ function AppContent() {
   useEffect(() => {
     if (isFirebaseDisabled) return;
 
-    const unsubscribeFg = notifee.onForegroundEvent(({ type, detail }) => {
+    const notifee = getNotifee();
+    const { EventType } = notifee;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const messaging = require('@react-native-firebase/messaging').default;
+
+    const unsubscribeFg = notifee.onForegroundEvent(({ type, detail }: any) => {
       if (type === EventType.PRESS) {
         handleNotificationOpen(
           detail.notification?.data as Record<string, string> | undefined
@@ -139,7 +153,7 @@ function AppContent() {
     });
 
     const unsubscribeOpened = messaging().onNotificationOpenedApp(
-      (remoteMessage) => {
+      (remoteMessage: any) => {
         handleNotificationOpen(
           remoteMessage.data as Record<string, string> | undefined
         );
@@ -148,7 +162,7 @@ function AppContent() {
 
     void messaging()
       .getInitialNotification()
-      .then((remoteMessage) => {
+      .then((remoteMessage: any) => {
         if (remoteMessage?.data) {
           handleNotificationOpen(remoteMessage.data as Record<string, string>);
         }

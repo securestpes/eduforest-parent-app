@@ -129,6 +129,13 @@ export function parseNotificationNavigation(
     };
   }
 
+  if (type === 'homework_assigned') {
+    return {
+      section: 'homework',
+      studentId: Number.isFinite(studentId) ? studentId : undefined,
+    };
+  }
+
   const attendanceIdRaw = data.attendanceId ?? data.attendance_id;
   const attendanceId = attendanceIdRaw ? Number(attendanceIdRaw) : undefined;
   const sessionDate = data.sessionDate ?? data.session_date;

@@ -36,6 +36,41 @@ export function parseRowDate(row: ParentAttendanceRow): Date | null {
   }
 }
 
+/** Local calendar day key (yyyy-MM-dd) for comparing "today" without TZ drift. */
+export function rowDateKey(row: ParentAttendanceRow): string | null {
+  const raw = row.sessionDate?.trim();
+  if (!raw) return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+  const dt = parseRowDate(row);
+  return dt ? format(dt, 'yyyy-MM-dd') : null;
+}
+
+export function localDateKey(date = new Date()): string {
+  return format(date, 'yyyy-MM-dd');
+}
+
+export type TodayAttendanceKind =
+  | 'present'
+  | 'absent'
+  | 'late'
+  | 'leave'
+  | 'not_marked';
+
+export function resolveTodayAttendance(
+  rows: ParentAttendanceRow[],
+  date = new Date()
+): { kind: TodayAttendanceKind; row: ParentAttendanceRow | null } {
+  const todayKey = localDateKey(date);
+  for (const row of rows) {
+    if (rowDateKey(row) !== todayKey) continue;
+    const k = kindFromStatus(row.status);
+    if (k === 'present' || k === 'absent' || k === 'late' || k === 'leave') {
+      return { kind: k, row };
+    }
+  }
+  return { kind: 'not_marked', row: null };
+}
+
 export function aggregateFamilyStats(
   perStudentRows: Map<number, ParentAttendanceRow[]>,
   now = new Date()

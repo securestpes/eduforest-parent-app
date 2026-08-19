@@ -7,7 +7,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  SectionList,
   StyleSheet,
   View,
 } from 'react-native';
@@ -108,12 +107,6 @@ function SessionCard({
           style={{ color: headerFg, fontWeight: '800' }}
         >
           {label}
-        </Text>
-        <Text
-          variant="labelMedium"
-          style={{ color: headerFg, marginTop: 2, opacity: 0.9 }}
-        >
-          {row.batchName}
         </Text>
       </View>
       <View style={styles.sessionBody}>
@@ -314,19 +307,6 @@ function findAttendanceIdBySessionDate(
   return null;
 }
 
-function findRowInSections(
-  sections: DaySection[],
-  attendanceId: number
-): { sectionIndex: number; itemIndex: number } | null {
-  for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
-    const itemIndex = sections[sectionIndex].data.findIndex(
-      (row) => row.attendanceId === attendanceId
-    );
-    if (itemIndex >= 0) return { sectionIndex, itemIndex };
-  }
-  return null;
-}
-
 export function AttendanceScreen({
   embedded,
   highlightAttendanceId,
@@ -356,7 +336,9 @@ export function AttendanceScreen({
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<Date | null>(
+    null
+  );
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -367,8 +349,6 @@ export function AttendanceScreen({
   const [filter, setFilter] = useState<AttendanceFilter>('all');
   const [filterModal, setFilterModal] = useState(false);
   const [monthModal, setMonthModal] = useState(false);
-  const [pulseAttendanceId, setPulseAttendanceId] = useState<number | null>(null);
-  const listRef = useRef<SectionList<ParentAttendanceRow, DaySection>>(null);
   const highlightDoneRef = useRef(false);
 
   const PAGE_SIZE = PARENT_ATTENDANCE_PAGE_SIZE;
@@ -382,8 +362,8 @@ export function AttendanceScreen({
           : highlightSessionDate;
       const d = parseISO(iso);
       setFocusMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+      setSelectedCalendarDay(d);
       setFilter('all');
-      setViewMode('list');
     } catch {
       /* ignore invalid date */
     }
@@ -468,6 +448,14 @@ export function AttendanceScreen({
     [filteredMonthRows]
   );
 
+  const calendarDaySections: DaySection[] = useMemo(() => {
+    if (!selectedCalendarDay) return [];
+    const key = format(selectedCalendarDay, 'yyyy-MM-dd');
+    return sections.filter((s) =>
+      s.data.some((row) => row.sessionDate?.slice(0, 10) === key)
+    );
+  }, [sections, selectedCalendarDay]);
+
   const resolvedHighlightId = useMemo(() => {
     if (highlightAttendanceId) return highlightAttendanceId;
     if (highlightSessionDate) {
@@ -478,26 +466,25 @@ export function AttendanceScreen({
 
   useEffect(() => {
     if (!resolvedHighlightId || highlightDoneRef.current || loading) return;
-    const loc = findRowInSections(sections, resolvedHighlightId);
-    if (!loc) {
+    const row = allRows.find((r) => r.attendanceId === resolvedHighlightId);
+    if (!row) {
       if (hasMore && !loadingMore) void loadMore();
       return;
     }
     highlightDoneRef.current = true;
-    const timer = setTimeout(() => {
-      listRef.current?.scrollToLocation({
-        sectionIndex: loc.sectionIndex,
-        itemIndex: loc.itemIndex,
-        animated: true,
-        viewPosition: 0.25,
-      });
-      setPulseAttendanceId(resolvedHighlightId);
-      setTimeout(() => setPulseAttendanceId(null), 2000);
-    }, 400);
-    return () => clearTimeout(timer);
+    const dt = row.sessionDate?.slice(0, 10);
+    if (dt) {
+      try {
+        const d = parseISO(`${dt}T12:00:00`);
+        setFocusMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+        setSelectedCalendarDay(d);
+      } catch {
+        /* ignore */
+      }
+    }
   }, [
     resolvedHighlightId,
-    sections,
+    allRows,
     loading,
     hasMore,
     loadingMore,
@@ -579,116 +566,95 @@ export function AttendanceScreen({
         </Text>
       </View>
 
-      <View style={styles.viewToggleRow}>
-        <Pressable
-          onPress={() => setViewMode('list')}
-          style={[
-            styles.viewToggleBtn,
-            viewMode === 'list' && {
-              backgroundColor: theme.colors.primaryContainer,
-            },
-          ]}
-        >
-          <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>
-            {t('attendance.listView')}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setViewMode('calendar')}
-          style={[
-            styles.viewToggleBtn,
-            viewMode === 'calendar' && {
-              backgroundColor: theme.colors.primaryContainer,
-            },
-          ]}
-        >
-          <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>
-            {t('attendance.calendarView')}
-          </Text>
-        </Pressable>
-      </View>
-
-      {viewMode === 'calendar' ? (
-        <View style={{ paddingHorizontal: 16 }}>
-          <MonthSummaryBanner
-            monthAnchor={focusMonth}
-            stats={stats}
-            theme={theme}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              load();
+            }}
+            tintColor={theme.colors.primary}
           />
-          <AttendanceCalendarView monthAnchor={focusMonth} rows={monthRows} />
-          {sections.map((section) => (
-            <View key={section.title}>
-              <View
-                style={[
-                  styles.dayHeader,
-                  { backgroundColor: theme.colors.background },
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name="calendar"
-                  size={18}
-                  color={theme.colors.primary}
-                />
-                <Text
-                  variant="titleSmall"
-                  style={{
-                    color: theme.colors.onBackground,
-                    fontWeight: '700',
-                    marginLeft: 8,
-                  }}
-                >
-                  {section.title}
-                </Text>
-              </View>
-              {section.data.map((item) => (
-                <SessionCard key={item.attendanceId} row={item} theme={theme} />
-              ))}
-            </View>
-          ))}
-        </View>
-      ) : (
-        <SectionList
-          ref={listRef}
-          sections={sections}
-          keyExtractor={(item) => String(item.attendanceId)}
-          stickySectionHeadersEnabled
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                load();
-              }}
-              tintColor={theme.colors.primary}
+        }
+      >
+        {loading && allRows.length === 0 ? (
+          <View style={styles.loader}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+          </View>
+        ) : (
+          <View>
+            <MonthSummaryBanner
+              monthAnchor={focusMonth}
+              stats={stats}
+              theme={theme}
             />
-          }
-          ListHeaderComponent={
-            <View style={{ marginBottom: 12 }}>
-              <MonthSummaryBanner
-                monthAnchor={focusMonth}
-                stats={stats}
-                theme={theme}
-              />
-              {filter !== 'all' ? (
-                <Text
-                  variant="labelMedium"
-                  style={{ color: theme.colors.primary, marginTop: 8 }}
+            {filter !== 'all' ? (
+              <Text
+                variant="labelMedium"
+                style={{ color: theme.colors.primary, marginTop: 8 }}
+              >
+                {t('attendance.filterActive', {
+                  label:
+                    FILTER_OPTIONS.find((f) => f.key === filter)?.label ?? '',
+                })}
+              </Text>
+            ) : null}
+            <AttendanceCalendarView
+              monthAnchor={focusMonth}
+              rows={monthRows}
+              selectedDay={selectedCalendarDay}
+              onSelectDay={setSelectedCalendarDay}
+            />
+            {calendarDaySections.map((section) => (
+              <View key={section.title}>
+                <View
+                  style={[
+                    styles.dayHeader,
+                    { backgroundColor: theme.colors.background },
+                  ]}
                 >
-                  {t('attendance.filterActive', {
-                    label:
-                      FILTER_OPTIONS.find((f) => f.key === filter)?.label ?? '',
-                  })}
-                </Text>
-              ) : null}
-            </View>
-          }
-          ListEmptyComponent={
-            loading ? (
-              <View style={styles.loader}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
+                  <MaterialCommunityIcons
+                    name="calendar"
+                    size={18}
+                    color={theme.colors.primary}
+                  />
+                  <Text
+                    variant="titleSmall"
+                    style={{
+                      color: theme.colors.onBackground,
+                      fontWeight: '700',
+                      marginLeft: 8,
+                    }}
+                  >
+                    {section.title}
+                  </Text>
+                </View>
+                {section.data.map((item) => (
+                  <SessionCard
+                    key={item.attendanceId}
+                    row={item}
+                    theme={theme}
+                    highlighted={resolvedHighlightId === item.attendanceId}
+                  />
+                ))}
               </View>
-            ) : (
+            ))}
+            {selectedCalendarDay && calendarDaySections.length === 0 ? (
+              <Text
+                variant="bodyMedium"
+                style={{
+                  color: theme.colors.onSurfaceVariant,
+                  textAlign: 'center',
+                  marginVertical: 16,
+                }}
+              >
+                {t('home.noAttendanceYet')}
+              </Text>
+            ) : null}
+            {!loading && !selectedCalendarDay && sections.length === 0 ? (
               <EmptyState
                 icon={error ? 'alert-circle-outline' : 'calendar-blank-outline'}
                 title={
@@ -703,40 +669,7 @@ export function AttendanceScreen({
                     : t('attendance.noRowsThisMonth'))
                 }
               />
-            )
-          }
-          renderSectionHeader={({ section: { title } }) => (
-            <View
-              style={[
-                styles.dayHeader,
-                { backgroundColor: theme.colors.background },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="calendar"
-                size={18}
-                color={theme.colors.primary}
-              />
-              <Text
-                variant="titleSmall"
-                style={{
-                  color: theme.colors.onBackground,
-                  fontWeight: '700',
-                  marginLeft: 8,
-                }}
-              >
-                {title}
-              </Text>
-            </View>
-          )}
-          renderItem={({ item }) => (
-            <SessionCard
-              row={item}
-              theme={theme}
-              highlighted={pulseAttendanceId === item.attendanceId}
-            />
-          )}
-          ListFooterComponent={
+            ) : null}
             <View style={styles.footer}>
               {hasMore ? (
                 <Button
@@ -778,9 +711,9 @@ export function AttendanceScreen({
                 </Text>
               </View>
             </View>
-          }
-        />
-      )}
+          </View>
+        )}
+      </ScrollView>
 
       <Modal
         visible={filterModal}
@@ -983,18 +916,4 @@ const styles = StyleSheet.create({
   },
   modalCard: { borderRadius: 16, padding: 16, maxHeight: '80%' },
   modalRow: { paddingVertical: 14, paddingHorizontal: 12, borderRadius: 10 },
-  viewToggleRow: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 16,
-    marginBottom: 8,
-  },
-  viewToggleBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
 });

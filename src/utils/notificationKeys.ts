@@ -19,7 +19,7 @@ export function notificationKeyFromFcm(data: Record<string, string> | undefined)
   const explicit = data.notificationKey?.trim();
   if (explicit && STABLE_KEY.test(explicit)) return explicit;
   const type = (data.type ?? '').toLowerCase();
-  if ((type === 'bus_alert' || type === 'fee_payment' || type === 'fee_reminder' || type === 'exam_results_published' || type === 'leave_request_status') && explicit) {
+  if ((type === 'bus_alert' || type === 'fee_payment' || type === 'fee_reminder' || type === 'exam_results_published' || type === 'leave_request_status' || type === 'homework_assigned') && explicit) {
     return explicit;
   }
   const attendanceRaw = data.attendanceId ?? data.attendance_id;
