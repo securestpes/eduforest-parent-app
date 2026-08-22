@@ -81,7 +81,14 @@ function formatLeaveRange(
 function formatReviewedAt(value: string | null | undefined): string {
   if (!value) return '';
   try {
-    return format(parseISO(value), 'd MMM yyyy, h:mm a');
+    const trimmed = value.trim();
+    const hasZone = /Z$/i.test(trimmed) || /[+-]\d{2}:?\d{2}$/.test(trimmed);
+    const iso = hasZone
+      ? trimmed
+      : trimmed.includes('T')
+        ? `${trimmed}Z`
+        : `${trimmed}T00:00:00Z`;
+    return format(parseISO(iso), 'd MMM yyyy, h:mm a');
   } catch {
     return value;
   }
