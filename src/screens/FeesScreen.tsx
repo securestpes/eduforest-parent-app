@@ -26,6 +26,7 @@ import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import type { AppTheme } from '../theme';
+import { shadows } from '../theme/appTheme';
 import { useAppLanguage } from '../common';
 import {
   formatDueBreakdown,
@@ -270,9 +271,9 @@ export function FeesScreen({ embedded = false }: Props) {
           <View
             style={[
               styles.summary,
+              shadows.card,
               {
                 backgroundColor: theme.colors.primaryContainer,
-                borderColor: theme.colors.outlineVariant,
               },
             ]}
           >
@@ -350,9 +351,9 @@ export function FeesScreen({ embedded = false }: Props) {
               onPress={() => setSelected(inst)}
               style={[
                 styles.monthCard,
+                shadows.card,
                 {
                   backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.outlineVariant,
                 },
               ]}
             >
@@ -441,9 +442,9 @@ export function FeesScreen({ embedded = false }: Props) {
                   }
                   style={[
                     styles.monthCard,
+                    shadows.card,
                     {
                       backgroundColor: theme.colors.surface,
-                      borderColor: theme.colors.outlineVariant,
                     },
                   ]}
                 >
@@ -625,18 +626,16 @@ const styles = StyleSheet.create({
   center: { paddingVertical: 48, alignItems: 'center' },
   summary: {
     marginTop: 14,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 20,
+    padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 8,
   },
   summaryCol: { flex: 1 },
   monthCard: {
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 20,
+    padding: 16,
     marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',

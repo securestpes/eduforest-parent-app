@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
   eachDayOfInterval,
   endOfMonth,
@@ -13,12 +14,14 @@ import type { ParentAttendanceRow } from '../services/parent';
 import { kindFromStatus, parseRowDate } from '../utils/dashboardHome';
 import type { AppTheme } from '../theme';
 import { EduForestColors } from '../theme/eduForestTokens';
+import { useAppLanguage } from '../common';
 
 type Props = {
   monthAnchor: Date;
   rows: ParentAttendanceRow[];
   onSelectDay?: (date: Date) => void;
   selectedDay?: Date | null;
+  onPressMonth?: () => void;
 };
 
 const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -44,8 +47,8 @@ function statusColors(kind: StatusKind): { base: string; light: string } {
       };
     case 'leave':
       return {
-        base: EduForestColors.secondary,
-        light: EduForestColors.secondaryLight,
+        base: EduForestColors.primary,
+        light: EduForestColors.primaryLight,
       };
     default:
       return {
@@ -60,8 +63,10 @@ export function AttendanceCalendarView({
   rows,
   onSelectDay,
   selectedDay,
+  onPressMonth,
 }: Props) {
   const theme = useTheme() as AppTheme;
+  const { t } = useAppLanguage();
 
   const statusByDay = useMemo(() => {
     const map = new Map<string, StatusKind>();
@@ -104,6 +109,19 @@ export function AttendanceCalendarView({
         },
       ]}
     >
+      <Pressable
+        onPress={onPressMonth}
+        disabled={!onPressMonth}
+        style={styles.monthHead}
+        accessibilityRole={onPressMonth ? 'button' : undefined}
+      >
+        <Text variant="titleSmall" style={[styles.monthTitle, { color: theme.colors.onSurface }]}>
+          {format(monthAnchor, 'MMMM yyyy')}
+        </Text>
+        {onPressMonth ? (
+          <MaterialCommunityIcons name="chevron-down" size={20} color={theme.colors.primary} />
+        ) : null}
+      </Pressable>
       <View style={styles.weekRow}>
         {WEEKDAY_LABELS.map((label, i) => (
           <Text
@@ -134,37 +152,61 @@ export function AttendanceCalendarView({
               accessibilityRole="button"
               accessibilityLabel={format(day, 'MMMM d')}
             >
-              <View
-                style={[
-                  styles.dayCircle,
-                  hasStatus && { backgroundColor: colors.base },
-                  isToday && !hasStatus && styles.dayCircleToday,
-                  isToday && hasStatus && styles.dayCircleTodayOnStatus,
-                  isSelected && !hasStatus && styles.dayCircleSelected,
-                  isSelected && hasStatus && styles.dayCircleSelectedOnStatus,
-                ]}
-              >
-                <Text
-                  variant="labelMedium"
+                <View
                   style={[
-                    styles.dayNumber,
-                    {
-                      color: hasStatus
-                        ? '#FFFFFF'
-                        : isToday
-                          ? theme.colors.primary
-                          : theme.colors.onSurface,
-                      fontWeight: hasStatus || isToday ? '700' : '500',
+                    styles.dayRing,
+                    isSelected && {
+                      borderColor: theme.colors.primary,
+                      borderWidth: 2,
                     },
                   ]}
                 >
-                  {format(day, 'd')}
-                </Text>
+                <View
+                  style={[
+                    styles.dayDot,
+                    hasStatus && { backgroundColor: colors.base },
+                  ]}
+                >
+                  <Text
+                    variant="labelMedium"
+                    style={[
+                      styles.dayNumber,
+                      {
+                        color: hasStatus
+                          ? '#FFFFFF'
+                          : isToday || isSelected
+                            ? theme.colors.primary
+                            : theme.colors.onSurface,
+                        fontWeight: hasStatus || isToday || isSelected ? '700' : '500',
+                      },
+                    ]}
+                  >
+                    {format(day, 'd')}
+                  </Text>
+                </View>
               </View>
+              {isToday ? <View style={styles.todayDot} /> : <View style={styles.todayDotSpacer} />}
             </Pressable>
           );
         })}
       </View>
+      <View style={styles.legendRow}>
+        <LegendDot color={EduForestColors.success} label={t('attendance.statPresent')} />
+        <LegendDot color={EduForestColors.danger} label={t('attendance.statAbsent')} />
+        <LegendDot color={EduForestColors.warning} label={t('attendance.statLate')} />
+        <LegendDot color={EduForestColors.primary} label={t('attendance.statLeave')} />
+      </View>
+    </View>
+  );
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <View style={styles.legendItem}>
+      <View style={[styles.legendDot, { backgroundColor: color }]} />
+      <Text variant="labelSmall" style={{ color: EduForestColors.textSecondary }}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -175,6 +217,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 12,
     marginBottom: 12,
+  },
+  monthHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginBottom: 12,
+  },
+  monthTitle: {
+    fontWeight: '700',
   },
   weekRow: {
     flexDirection: 'row',
@@ -192,32 +244,58 @@ const styles = StyleSheet.create({
   cell: {
     width: `${100 / 7}%`,
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
-  dayCircle: {
+  dayRing: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dayCircleToday: {
-    borderColor: EduForestColors.primary,
-    borderWidth: 2,
-  },
-  dayCircleTodayOnStatus: {
-    borderColor: '#FFFFFF',
-    borderWidth: 2,
-  },
-  dayCircleSelected: {
-    borderColor: EduForestColors.primary,
-    borderWidth: 2,
-  },
-  dayCircleSelectedOnStatus: {
-    borderColor: '#FFFFFF',
-    borderWidth: 2,
+  dayDot: {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   dayNumber: {
     textAlign: 'center',
+  },
+  todayDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: EduForestColors.primary,
+    marginTop: 2,
+  },
+  todayDotSpacer: {
+    width: 5,
+    height: 5,
+    marginTop: 2,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 14,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: EduForestColors.border,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
   },
 });

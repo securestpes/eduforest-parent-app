@@ -5,17 +5,20 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useUnreadNotificationCount } from '../common/hooks/useUnreadNotificationCount';
 import type { AppTheme } from '../theme';
 import { useAppLanguage } from '../common';
+import { colors } from '../theme/appTheme';
 
 type Props = {
   onPress: () => void;
   iconColor?: string;
+  variant?: 'plain' | 'well';
 };
 
-export function NotificationBellButton({ onPress, iconColor }: Props) {
+export function NotificationBellButton({ onPress, iconColor, variant = 'plain' }: Props) {
   const theme = useTheme() as AppTheme;
   const { t } = useAppLanguage();
   const unreadCount = useUnreadNotificationCount();
-  const color = iconColor ?? theme.colors.onBackground;
+  const well = variant === 'well';
+  const color = well ? colors.headerOn : iconColor ?? theme.colors.onBackground;
   const badgeLabel =
     unreadCount > 99 ? '99+' : unreadCount > 0 ? String(unreadCount) : null;
 
@@ -23,7 +26,7 @@ export function NotificationBellButton({ onPress, iconColor }: Props) {
     <Pressable
       hitSlop={12}
       onPress={onPress}
-      style={styles.wrap}
+      style={[styles.wrap, well && styles.well]}
       accessibilityRole="button"
       accessibilityLabel={
         unreadCount > 0
@@ -31,14 +34,19 @@ export function NotificationBellButton({ onPress, iconColor }: Props) {
           : t('nav.alerts')
       }
     >
-      <MaterialCommunityIcons name="bell-outline" size={24} color={color} />
+      <MaterialCommunityIcons
+        name={well || unreadCount > 0 ? 'bell' : 'bell-outline'}
+        size={well ? 22 : 24}
+        color={color}
+      />
       {badgeLabel ? (
         <View
           style={[
             styles.badge,
+            well && styles.badgeOnWell,
             {
               backgroundColor: theme.colors.error,
-              borderColor: theme.colors.surface,
+              borderColor: well ? 'rgba(255,255,255,0.9)' : theme.colors.surface,
             },
           ]}
         >
@@ -59,6 +67,15 @@ const styles = StyleSheet.create({
     padding: 6,
     position: 'relative',
   },
+  well: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    padding: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.overlay,
+  },
   badge: {
     position: 'absolute',
     top: 2,
@@ -70,6 +87,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
+  },
+  badgeOnWell: {
+    top: -2,
+    right: -2,
   },
   badgeText: {
     fontSize: 10,

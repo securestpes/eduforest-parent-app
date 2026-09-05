@@ -2,14 +2,11 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { EduForestColors } from '../theme/eduForestTokens';
 
-/**
- * Soft EduForest background (aligned with gentrack school home).
- */
+/** App body wash used by Attendance, Fees, Profile, and stack screens. */
 export function ScreenDecor({ children }: { children: React.ReactNode }) {
   return (
     <View style={styles.root}>
       <View pointerEvents="none" style={[styles.orb, styles.orbTop]} />
-      <View pointerEvents="none" style={[styles.orb, styles.orbBottom]} />
       <View style={styles.foreground}>{children}</View>
     </View>
   );
@@ -20,20 +17,14 @@ const styles = StyleSheet.create({
   foreground: { flex: 1 },
   orb: {
     position: 'absolute',
-    width: 280,
-    height: 280,
-    borderRadius: 140,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
   },
   orbTop: {
-    top: -240,
-    right: -75,
+    top: -140,
+    right: -80,
     backgroundColor: EduForestColors.primaryLight,
-    opacity: 0.55,
-  },
-  orbBottom: {
-    bottom: -100,
-    left: -100,
-    backgroundColor: EduForestColors.secondaryLight,
-    opacity: 0.4,
+    opacity: 0.7,
   },
 });

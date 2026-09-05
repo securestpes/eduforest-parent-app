@@ -31,6 +31,7 @@ import { getNotificationPreferences } from './services/notificationPreferences';
 import { syncNativeNotificationPrefs } from './common/helpers/syncNativeNotificationPrefs';
 import { isFirebaseDisabled } from '../config/featureFlags';
 import { getNotifee } from './native/notifeeSafe';
+import { getFirebaseMessaging } from './native/firebaseMessagingSafe';
 
 async function createNotificationChannel() {
   if (Platform.OS !== 'android' || isFirebaseDisabled) return;
@@ -76,10 +77,13 @@ async function requestNotificationPermission() {
     );
   }
 
-  // Lazy require — same early-load hazard as Notifee on new arch.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const messaging = require('@react-native-firebase/messaging').default;
-  await messaging().requestPermission();
+  const messaging = getFirebaseMessaging();
+  if (!messaging) return;
+  try {
+    await messaging().requestPermission();
+  } catch (e) {
+    console.warn('[App] FCM requestPermission failed', e);
+  }
 }
 
 function handleNotificationOpen(data: Record<string, string> | undefined) {
@@ -108,10 +112,14 @@ function AppContent() {
       await createNotificationChannel();
       const prefs = await getNotificationPreferences();
       syncNativeNotificationPrefs(prefs);
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const messaging = require('@react-native-firebase/messaging').default;
-      const token = await messaging().getToken();
-      console.log('FCM TOKEN:', token);
+      const messaging = getFirebaseMessaging();
+      if (!messaging) return;
+      try {
+        const token = await messaging().getToken();
+        console.log('FCM TOKEN:', token);
+      } catch (e) {
+        console.warn('[App] FCM getToken failed', e);
+      }
     }
 
     void initializeNotifications();
@@ -125,13 +133,18 @@ function AppContent() {
 
   useEffect(() => {
     if (isFirebaseDisabled) return;
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const messaging = require('@react-native-firebase/messaging').default;
-    const unsubscribe = messaging().onMessage(async (remoteMessage: any) => {
-      console.log('FOREGROUND MESSAGE:', remoteMessage);
-      await displayNotification(remoteMessage, language);
-      await handleIncomingPushNotification(remoteMessage.data);
-    });
+    const messaging = getFirebaseMessaging();
+    if (!messaging) return;
+    let unsubscribe: (() => void) | undefined;
+    try {
+      unsubscribe = messaging().onMessage(async (remoteMessage: any) => {
+        console.log('FOREGROUND MESSAGE:', remoteMessage);
+        await displayNotification(remoteMessage, language);
+        await handleIncomingPushNotification(remoteMessage.data);
+      });
+    } catch (e) {
+      console.warn('[App] FCM onMessage failed', e);
+    }
 
     return unsubscribe;
   }, [language]);
@@ -141,8 +154,10 @@ function AppContent() {
 
     const notifee = getNotifee();
     const { EventType } = notifee;
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const messaging = require('@react-native-firebase/messaging').default;
+    const messaging = getFirebaseMessaging();
+    if (!messaging) {
+      return () => {};
+    }
 
     const unsubscribeFg = notifee.onForegroundEvent(({ type, detail }: any) => {
       if (type === EventType.PRESS) {
@@ -152,21 +167,29 @@ function AppContent() {
       }
     });
 
-    const unsubscribeOpened = messaging().onNotificationOpenedApp(
-      (remoteMessage: any) => {
-        handleNotificationOpen(
-          remoteMessage.data as Record<string, string> | undefined
-        );
-      }
-    );
-
-    void messaging()
-      .getInitialNotification()
-      .then((remoteMessage: any) => {
-        if (remoteMessage?.data) {
-          handleNotificationOpen(remoteMessage.data as Record<string, string>);
+    let unsubscribeOpened = () => {};
+    try {
+      unsubscribeOpened = messaging().onNotificationOpenedApp(
+        (remoteMessage: any) => {
+          handleNotificationOpen(
+            remoteMessage.data as Record<string, string> | undefined
+          );
         }
-      });
+      );
+
+      void messaging()
+        .getInitialNotification()
+        .then((remoteMessage: any) => {
+          if (remoteMessage?.data) {
+            handleNotificationOpen(remoteMessage.data as Record<string, string>);
+          }
+        })
+        .catch((e: unknown) => {
+          console.warn('[App] FCM getInitialNotification failed', e);
+        });
+    } catch (e) {
+      console.warn('[App] FCM open handlers failed', e);
+    }
 
     return () => {
       unsubscribeFg();

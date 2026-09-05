@@ -1,28 +1,32 @@
 import { useEffect, useState } from 'react';
-import { BottomNavigation, useTheme } from 'react-native-paper';
+import { View } from 'react-native';
 import { HomeScreen } from '../screens/HomeScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
-import { AppTheme } from '../theme';
-import { useAppLanguage } from '../common';
+import { AttendanceScreen } from '../screens/AttendanceScreen';
+import { FeesScreen } from '../screens/FeesScreen';
+import { StudyScreen } from '../features/study/screens/StudyScreen';
 import { TabNavigationProvider } from './TabNavigationContext';
 import {
   registerTabNavigateHandler,
   unregisterTabNavigateHandler,
 } from './navigationRef';
 import { useSelectionStore } from '../store/selectionStore';
-import { AppBarHeader } from '../features/app-bar/AppBarHeader';
+import { MainTabBar, type MainTabKey } from './MainTabBar';
+import { colors } from '../theme/appTheme';
 
 export type MainTabParamList = {
   Home: undefined;
-  Profile: undefined;
+  Attendance: undefined;
+  Study: undefined;
+  Fees: undefined;
+  More: undefined;
 };
 
+const KEYS: MainTabKey[] = ['home', 'attendance', 'study', 'fees', 'more'];
+
 export function MainTabs() {
-  const theme = useTheme() as AppTheme;
-  const { t } = useAppLanguage();
   const hydrateSelection = useSelectionStore((s) => s.hydrate);
   const setSelectedStudentId = useSelectionStore((s) => s.setSelectedStudentId);
-
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -31,48 +35,42 @@ export function MainTabs() {
 
   useEffect(() => {
     registerTabNavigateHandler(({ tab, studentId }) => {
-      const tabIndex = tab === 'Profile' ? 1 : 0;
-      setIndex(tabIndex);
-      if (studentId != null) {
-        setSelectedStudentId(studentId);
-      }
+      const map: Record<string, number> = {
+        Home: 0,
+        Attendance: 1,
+        Study: 2,
+        Fees: 3,
+        More: 4,
+        Profile: 4,
+      };
+      setIndex(map[tab] ?? 0);
+      if (studentId != null) setSelectedStudentId(studentId);
     });
     return () => unregisterTabNavigateHandler();
   }, [setSelectedStudentId]);
 
-  const routes = [
-    {
-      key: 'home',
-      title: t('nav.home'),
-      focusedIcon: 'home-variant',
-      unfocusedIcon: 'home-variant-outline',
-    },
-    {
-      key: 'profile',
-      title: t('nav.profile'),
-      focusedIcon: 'account-circle',
-      unfocusedIcon: 'account-circle-outline',
-    },
-  ];
-
-  const renderScene = BottomNavigation.SceneMap({
-    home: HomeScreen,
-    profile: ProfileScreen,
-  });
+  const active = KEYS[index] ?? 'home';
 
   return (
     <TabNavigationProvider index={index} setIndex={setIndex}>
-      <AppBarHeader />
-      <BottomNavigation
-        navigationState={{ index, routes }}
-        onIndexChange={setIndex}
-        renderScene={renderScene}
-        barStyle={{
-          backgroundColor: theme.colors.surface,
-          borderTopColor: theme.colors.outlineVariant,
-          borderTopWidth: 1,
-        }}
-      />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ flex: 1, display: index === 0 ? 'flex' : 'none' }}>
+          <HomeScreen />
+        </View>
+        <View style={{ flex: 1, display: index === 1 ? 'flex' : 'none' }}>
+          <AttendanceScreen />
+        </View>
+        <View style={{ flex: 1, display: index === 2 ? 'flex' : 'none' }}>
+          <StudyScreen />
+        </View>
+        <View style={{ flex: 1, display: index === 3 ? 'flex' : 'none' }}>
+          <FeesScreen />
+        </View>
+        <View style={{ flex: 1, display: index === 4 ? 'flex' : 'none' }}>
+          <ProfileScreen />
+        </View>
+        <MainTabBar active={active} onChange={(key) => setIndex(KEYS.indexOf(key))} />
+      </View>
     </TabNavigationProvider>
   );
 }

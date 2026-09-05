@@ -11,7 +11,6 @@ import {
   Linking,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import auth from '@react-native-firebase/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { StackScreenProps } from '@react-navigation/stack';
 import {
@@ -29,10 +28,13 @@ import { AuthService, firebasePhoneMatchesIndiaLocal } from '../services';
 import type { ILoginFormState } from '../interfaces';
 import type { RootStackParamList } from '../../../navigation/Navigation';
 import { legalWebUrls } from '../../../common/constants';
+import { getFirebaseAuth } from '../../../native/firebaseAuthSafe';
 import { isFirebaseLoginEnabled } from '../../../../config/firebaseLogin';
 import {
   BACKEND_OTP_VERIFICATION_ID,
 } from '../services/AuthService';
+
+const auth = getFirebaseAuth();
 
 const initialLoginState: ILoginFormState = {
   mobileNumber: {
