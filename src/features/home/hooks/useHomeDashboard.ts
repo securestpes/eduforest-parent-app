@@ -7,6 +7,7 @@ import {
   getStudentExams,
   getStudentFees,
   getStudentHomework,
+  getStudentLeaves,
   getStudentSchoolCalendar,
   PARENT_ATTENDANCE_PAGE_SIZE,
   type ParentCalendarEvent,
@@ -45,6 +46,8 @@ export function useHomeDashboard() {
   const [pendingHomework, setPendingHomework] = useState<number | null>(null);
   const [nextExamLabel, setNextExamLabel] = useState<string | null>(null);
   const [nextExamDate, setNextExamDate] = useState<string | null>(null);
+  const [hasExam, setHasExam] = useState(false);
+  const [pendingLeaves, setPendingLeaves] = useState<number | null>(null);
   const [className, setClassName] = useState<string | null>(null);
   const [sectionName, setSectionName] = useState<string | null>(null);
   const [bus, setBus] = useState<ParentChildBus | null>(null);
@@ -90,14 +93,16 @@ export function useHomeDashboard() {
   const loadOverview = useCallback(async (studentId: number) => {
     setOverviewLoading(true);
     try {
-      const [attRes, feeRes, hwRes, examRes, busesRes, calRes] = await Promise.all([
-        getStudentAttendance(studentId, 0, PARENT_ATTENDANCE_PAGE_SIZE).catch(() => null),
-        getStudentFees(studentId).catch(() => null),
-        getStudentHomework(studentId).catch(() => null),
-        getStudentExams(studentId).catch(() => null),
-        getParentChildrenBuses().catch(() => null),
-        getStudentSchoolCalendar(studentId).catch(() => null),
-      ]);
+      const [attRes, feeRes, hwRes, examRes, leaveRes, busesRes, calRes] =
+        await Promise.all([
+          getStudentAttendance(studentId, 0, PARENT_ATTENDANCE_PAGE_SIZE).catch(() => null),
+          getStudentFees(studentId).catch(() => null),
+          getStudentHomework(studentId).catch(() => null),
+          getStudentExams(studentId).catch(() => null),
+          getStudentLeaves(studentId).catch(() => null),
+          getParentChildrenBuses().catch(() => null),
+          getStudentSchoolCalendar(studentId).catch(() => null),
+        ]);
 
       const rows = attRes?.status && attRes.data?.content ? attRes.data.content : [];
       setAttendancePct(monthAttendancePct(rows));
@@ -117,12 +122,27 @@ export function useHomeDashboard() {
 
       const today = startOfDay(new Date());
       const exams = examRes?.status ? examRes.data?.exams ?? [] : [];
+      setHasExam(exams.length > 0);
       const upcomingExam = exams
-        .map((e) => ({ e, d: safeParseDate(e.startDate) }))
+        .map((e) => ({
+          e,
+          d: safeParseDate(e.nextPaperDate || e.startDate),
+        }))
         .filter((x) => x.d && !isBefore(x.d, today))
         .sort((a, b) => a.d!.getTime() - b.d!.getTime())[0];
-      setNextExamLabel(upcomingExam?.e.name ?? null);
-      setNextExamDate(upcomingExam?.d ? format(upcomingExam.d, 'd MMM') : null);
+      setNextExamLabel(upcomingExam?.e.name ?? exams[0]?.name ?? null);
+      setNextExamDate(
+        upcomingExam?.d
+          ? format(upcomingExam.d, 'd MMM')
+          : exams.length > 0
+            ? String(exams.length)
+            : null
+      );
+
+      const leaves = leaveRes?.status ? leaveRes.data?.leaves ?? [] : [];
+      setPendingLeaves(
+        leaves.filter((item) => (item.status || '').toUpperCase().includes('PEND')).length
+      );
 
       const buses: ParentChildBus[] =
         busesRes?.status && Array.isArray(busesRes.data) ? busesRes.data : [];
@@ -183,6 +203,8 @@ export function useHomeDashboard() {
     feeMetric,
     feeSub,
     pendingHomework,
+    pendingLeaves,
+    hasExam,
     nextExamLabel,
     nextExamDate,
     bus,

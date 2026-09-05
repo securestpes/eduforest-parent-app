@@ -1,18 +1,21 @@
-import { format, parseISO } from 'date-fns';
-import React, { useCallback, useEffect, useState } from 'react';
+import { addDays, differenceInCalendarDays, format, parseISO, startOfDay } from 'date-fns';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Modal,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Text, useTheme } from 'react-native-paper';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
+import type { NavigationProp } from '@react-navigation/native';
 import {
   getMyStudents,
   getStudentExamDetail,
@@ -25,19 +28,42 @@ import {
 import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
-import type { AppTheme } from '../theme';
-import { shadows } from '../theme/appTheme';
+import { StudentModuleHero } from '../components/layout/StudentModuleHero';
+import { colors, shadows, spacing } from '../theme/appTheme';
 import { useAppLanguage } from '../common';
 import { savePdfToDevice } from '../utils/savePdfToDevice';
 import { toTitleCase } from '../utils/toTitleCase';
+import { navigateToTab } from '../navigation/navigationRef';
+import type { RootStackParamList } from '../navigation/Navigation';
+import { subjectVisual } from '../features/homework/utils/homeworkStatus';
+
+type Props = { embedded?: boolean; highlightExamId?: number };
+type ExamsTab = 'upcoming' | 'results' | 'completed';
+
+function parseDay(value?: string | null): Date | null {
+  if (!value) return null;
+  try {
+    return parseISO(value.length <= 10 ? `${value}T00:00:00` : value);
+  } catch {
+    return null;
+  }
+}
 
 function formatShortDate(value: string | null | undefined): string {
-  if (!value) return '—';
-  try {
-    return format(parseISO(value), 'd MMM yyyy');
-  } catch {
-    return value;
-  }
+  const date = parseDay(value);
+  if (!date) return '—';
+  return format(date, 'd MMM yyyy');
+}
+
+function formatClock(value?: string | null): string | null {
+  if (!value) return null;
+  const parts = value.split(':');
+  const h = Number(parts[0]);
+  const m = Number(parts[1] ?? 0);
+  if (!Number.isFinite(h)) return null;
+  const date = new Date();
+  date.setHours(h, m, 0, 0);
+  return format(date, 'h:mm a');
 }
 
 function formatMarks(value: number | null | undefined): string {
@@ -46,17 +72,72 @@ function formatMarks(value: number | null | undefined): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
-type Props = {
-  embedded?: boolean;
-  highlightExamId?: number;
-};
+function hasResults(item: ParentExamListItem): boolean {
+  return Boolean(item.resultsReady) && (item.percent != null || item.partialResults);
+}
 
-export function ExamResultsScreen({
-  embedded = false,
-  highlightExamId,
-}: Props) {
-  const theme = useTheme() as AppTheme;
+function countdownLabel(
+  item: ParentExamListItem,
+  today: Date,
+  t: (key: any, params?: Record<string, string | number>) => string
+): string {
+  const day = parseDay(item.nextPaperDate || item.startDate);
+  if (!day) return '';
+  const days = differenceInCalendarDays(startOfDay(day), startOfDay(today));
+  if (days <= 0) return t('exams.today');
+  if (days === 1) return t('exams.inOneDay');
+  return t('exams.inDays', { count: days });
+}
+
+function googleCalendarUrl(item: ParentExamListItem): string {
+  const start = parseDay(item.startDate) ?? new Date();
+  const end = parseDay(item.endDate) ?? start;
+  const dates = `${format(start, 'yyyyMMdd')}/${format(addDays(end, 1), 'yyyyMMdd')}`;
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
+    item.name
+  )}&dates=${dates}`;
+}
+
+function ExamOverviewCard({
+  upcoming,
+  completed,
+  results,
+}: {
+  upcoming: number;
+  completed: number;
+  results: number;
+}) {
   const { t } = useAppLanguage();
+  const cells = [
+    { value: upcoming, label: t('exams.statUpcoming'), color: colors.primary, icon: 'calendar-blank-outline' as const },
+    { value: completed, label: t('exams.statCompleted'), color: colors.success, icon: 'check-circle-outline' as const },
+    { value: results, label: t('exams.statResults'), color: colors.primary, icon: 'chart-bar' as const },
+  ];
+  return (
+    <View style={styles.summaryCard}>
+      <Text style={styles.summaryTitle}>{t('exams.overview')}</Text>
+      <View style={styles.summaryRow}>
+        {cells.map((cell, index) => (
+          <View
+            key={cell.label}
+            style={[styles.summaryCell, index < cells.length - 1 && styles.summaryCellBorder]}
+          >
+            <MaterialCommunityIcons name={cell.icon} size={18} color={cell.color} />
+            <Text style={[styles.summaryValue, { color: cell.color }]}>{String(cell.value)}</Text>
+            <Text style={styles.summaryLabel} numberOfLines={2}>
+              {cell.label}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) {
+  const { t } = useAppLanguage();
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const studentId = useSelectionStore((s) => s.selectedStudentId);
 
   const [students, setStudents] = useState<ParentStudent[]>([]);
@@ -64,11 +145,13 @@ export function ExamResultsScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState<ParentExamListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<ExamsTab>('upcoming');
   const [detail, setDetail] = useState<ParentExamDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
   const selectedStudent = students.find((s) => s.id === studentId) ?? null;
+  const today = useMemo(() => new Date(), [items.length]);
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -109,12 +192,6 @@ export function ExamResultsScreen({
     void load();
   }, [load]);
 
-  useEffect(() => {
-    if (highlightExamId == null || studentId == null) return;
-    void openDetail(highlightExamId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [highlightExamId, studentId]);
-
   const openDetail = async (examId: number) => {
     if (studentId == null) return;
     setDetailLoading(true);
@@ -123,17 +200,73 @@ export function ExamResultsScreen({
       if (res.status && res.data) {
         setDetail(res.data);
       } else {
-        setError(res.message || t('exams.detailFailed'));
+        Alert.alert('', res.message || t('exams.detailFailed'));
       }
     } catch (e: any) {
-      setError(e?.message || t('exams.detailFailed'));
+      Alert.alert('', e?.message || t('exams.detailFailed'));
     } finally {
       setDetailLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (highlightExamId == null || studentId == null) return;
+    void openDetail(highlightExamId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightExamId, studentId]);
+
+  const upcoming = useMemo(() => {
+    const start = startOfDay(today);
+    return [...items]
+      .filter((item) => {
+        const end = parseDay(item.endDate);
+        return end ? !isNaN(end.getTime()) && end >= start : false;
+      })
+      .sort((a, b) => {
+        const da = parseDay(a.nextPaperDate || a.startDate)?.getTime() ?? 0;
+        const db = parseDay(b.nextPaperDate || b.startDate)?.getTime() ?? 0;
+        return da - db;
+      });
+  }, [items, today]);
+
+  const completed = useMemo(() => {
+    const start = startOfDay(today);
+    return [...items]
+      .filter((item) => {
+        const end = parseDay(item.endDate);
+        return end ? end < start : false;
+      })
+      .sort((a, b) => String(b.endDate).localeCompare(String(a.endDate)));
+  }, [items, today]);
+
+  const results = useMemo(
+    () => items.filter(hasResults).sort((a, b) => String(b.endDate).localeCompare(String(a.endDate))),
+    [items]
+  );
+
+  const featured = upcoming[0] ?? null;
+  const restUpcoming = upcoming.slice(1);
+
+  const resultHeadline = (item: ParentExamListItem | ParentExamDetail) => {
+    if (item.partialResults || item.resultLabel === 'PARTIAL') {
+      return t('exams.partialResults', {
+        released: item.releasedSubjects ?? item.scoredSubjects,
+        total: item.subjectCount,
+      });
+    }
+    if (item.percent != null) return `${formatMarks(item.percent)}%`;
+    return t('exams.pendingMarks');
+  };
+
+  const resultColor = (item: ParentExamListItem | ParentExamDetail) => {
+    if (item.partialResults || item.resultLabel === 'PARTIAL') return colors.primary;
+    if (item.percent == null) return colors.textSecondary;
+    return item.passed ? colors.success : colors.danger;
+  };
+
   const downloadReportCard = async () => {
     if (studentId == null || detail == null || downloading) return;
+    if (!detail.resultsReady) return;
     setDownloading(true);
     try {
       const res = await getStudentExamReportCard(studentId, detail.examId);
@@ -148,9 +281,7 @@ export function ExamResultsScreen({
       if (result === 'cancelled') return;
       Alert.alert(
         '',
-        result === 'shared'
-          ? t('exams.reportCardShared')
-          : t('exams.reportCardSaved')
+        result === 'shared' ? t('exams.reportCardShared') : t('exams.reportCardSaved')
       );
     } catch (e: any) {
       Alert.alert('', e?.message || t('exams.reportCardFailed'));
@@ -159,398 +290,607 @@ export function ExamResultsScreen({
     }
   };
 
-  const resultColor = (item: ParentExamListItem | ParentExamDetail) => {
-    if (item.partialResults || item.resultLabel === 'PARTIAL') {
-      return theme.colors.primary;
+  const addToCalendar = async (item: ParentExamListItem) => {
+    try {
+      const ok = await Linking.openURL(googleCalendarUrl(item));
+      if (!ok) throw new Error('unavailable');
+    } catch {
+      Alert.alert('', t('exams.calendarFailed'));
     }
-    if (item.percent == null) return theme.colors.onSurfaceVariant;
-    return item.passed ? theme.colors.tertiary : theme.colors.error;
   };
 
-  const resultHeadline = (item: ParentExamListItem | ParentExamDetail) => {
-    if (item.partialResults || item.resultLabel === 'PARTIAL') {
-      return t('exams.partialResults', {
-        released: item.releasedSubjects ?? item.scoredSubjects,
-        total: item.subjectCount,
-      });
+  const goBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
     }
-    if (item.percent != null) {
-      return `${formatMarks(item.percent)}%`;
-    }
-    return t('exams.pendingMarks');
+    navigateToTab({ tab: 'Home' });
   };
+
+  const openCalendar = () => {
+    if (studentId == null) return;
+    navigation.navigate('ChildHub', { studentId, section: 'calendar' });
+  };
+
+  const renderCompactCard = (item: ParentExamListItem) => {
+    const visual = subjectVisual(item.subjectNames?.[0] || item.name);
+    return (
+      <Pressable
+        key={item.examId}
+        onPress={() => void openDetail(item.examId)}
+        style={styles.compactCard}
+      >
+        <View style={[styles.compactBar, { backgroundColor: visual.tint }]} />
+        <View style={[styles.compactIcon, { backgroundColor: visual.bg }]}>
+          <MaterialCommunityIcons name={visual.icon} size={20} color={visual.tint} />
+        </View>
+        <View style={styles.compactBody}>
+          <Text style={styles.compactTitle} numberOfLines={1}>
+            {toTitleCase(item.name)}
+          </Text>
+          <Text style={styles.compactMeta} numberOfLines={1}>
+            {formatShortDate(item.nextPaperDate || item.startDate)}
+          </Text>
+          {item.subjectNames?.length ? (
+            <Text style={styles.tag} numberOfLines={1}>
+              {item.subjectNames.slice(0, 2).join(' · ')}
+            </Text>
+          ) : null}
+        </View>
+        <View style={[styles.daysPill, { backgroundColor: visual.bg }]}>
+          <Text style={[styles.daysPillText, { color: visual.tint }]}>
+            {countdownLabel(item, today, t)}
+          </Text>
+        </View>
+        <MaterialCommunityIcons name="chevron-right" size={20} color={colors.primaryMuted} />
+      </Pressable>
+    );
+  };
+
+  const renderResultCard = (item: ParentExamListItem) => (
+    <Pressable
+      key={item.examId}
+      onPress={() => void openDetail(item.examId)}
+      style={styles.resultCard}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={styles.compactTitle}>{toTitleCase(item.name)}</Text>
+        <Text style={styles.compactMeta}>
+          {formatShortDate(item.startDate)}
+          {item.startDate !== item.endDate ? ` – ${formatShortDate(item.endDate)}` : ''}
+        </Text>
+      </View>
+      <View style={{ alignItems: 'flex-end' }}>
+        <Text style={[styles.resultScore, { color: resultColor(item) }]}>
+          {resultHeadline(item)}
+        </Text>
+        <Text style={styles.compactMeta}>
+          {item.partialResults
+            ? t('exams.partialMarksHint')
+            : `${formatMarks(item.obtainedMarks)} / ${formatMarks(item.maxMarks)}`}
+        </Text>
+      </View>
+    </Pressable>
+  );
+
+  const timeLine = (item: ParentExamListItem) => {
+    const start = formatClock(item.nextStartTime);
+    const end = formatClock(item.nextEndTime);
+    const date = formatShortDate(item.nextPaperDate || item.startDate);
+    if (start && end) return `${date}  •  ${start} - ${end}`;
+    return date;
+  };
+
+  const tabs: { id: ExamsTab; label: string; icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'] }[] = [
+    { id: 'upcoming', label: t('exams.tabUpcoming'), icon: 'calendar-blank-outline' },
+    { id: 'results', label: t('exams.tabResults'), icon: 'file-document-outline' },
+    { id: 'completed', label: t('exams.tabCompleted'), icon: 'check-circle-outline' },
+  ];
+
+  const firstName = (selectedStudent?.name || t('common.student')).split(' ')[0];
 
   const body = (
-    <>
-      {selectedStudent ? (
-        <Text
-          variant="labelLarge"
-          style={{
-            marginHorizontal: 16,
-            marginTop: 8,
-            color: theme.colors.onSurfaceVariant,
-          }}
-        >
-          {selectedStudent.name}
-          {selectedStudent.instituteName
-            ? ` · ${selectedStudent.instituteName}`
-            : ''}
-        </Text>
-      ) : null}
+    <ScrollView
+      style={styles.flex}
+      contentContainerStyle={styles.scroll}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => void load(true)}
+          tintColor={colors.primary}
+        />
+      }
+    >
+      <View style={styles.tabs}>
+        {tabs.map((item) => {
+          const active = tab === item.id;
+          return (
+            <Pressable key={item.id} onPress={() => setTab(item.id)} style={styles.tabBtn}>
+              <View style={styles.tabInner}>
+                <MaterialCommunityIcons
+                  name={item.icon}
+                  size={16}
+                  color={active ? colors.primary : colors.textTertiary}
+                />
+                <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{item.label}</Text>
+              </View>
+              <View style={[styles.tabUnderline, active && styles.tabUnderlineActive]} />
+            </Pressable>
+          );
+        })}
+      </View>
 
-      {error ? (
-        <Text
-          variant="bodyMedium"
-          style={{ margin: 16, color: theme.colors.error }}
-        >
-          {error}
-        </Text>
-      ) : null}
-
-      <ScrollView
-        contentContainerStyle={styles.list}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => void load(true)}
-            tintColor={theme.colors.primary}
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : error ? (
+        <EmptyState icon="alert-circle-outline" title={t('exams.loadFailed')} message={error} />
+      ) : tab === 'upcoming' ? (
+        upcoming.length === 0 ? (
+          <EmptyState
+            icon="calendar-blank-outline"
+            title={t('exams.emptyUpcomingTitle')}
+            message={t('exams.emptyUpcomingMessage')}
           />
-        }
+        ) : (
+          <>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>{t('exams.upcomingHeading')}</Text>
+              <Pressable onPress={openCalendar} hitSlop={8}>
+                <Text style={styles.sectionLink}>{t('exams.viewSchedule')}</Text>
+              </Pressable>
+            </View>
+            {featured ? (
+              <View style={styles.featured}>
+                <View style={styles.featuredTop}>
+                  <View style={[styles.featuredIcon, { backgroundColor: subjectVisual(featured.subjectNames?.[0] || featured.name).bg }]}>
+                    <MaterialCommunityIcons
+                      name={subjectVisual(featured.subjectNames?.[0] || featured.name).icon}
+                      size={22}
+                      color={subjectVisual(featured.subjectNames?.[0] || featured.name).tint}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.nextBadge}>
+                      <Text style={styles.nextBadgeText}>{t('exams.nextExam')}</Text>
+                    </View>
+                    <Text style={styles.featuredTitle}>{toTitleCase(featured.name)}</Text>
+                    <View style={styles.metaLine}>
+                      <MaterialCommunityIcons name="calendar-blank-outline" size={14} color={colors.textSecondary} />
+                      <Text style={styles.featuredMeta}>{timeLine(featured)}</Text>
+                    </View>
+                    {featured.divisionDisplayName ? (
+                      <View style={styles.metaLine}>
+                        <MaterialCommunityIcons name="map-marker-outline" size={14} color={colors.textSecondary} />
+                        <Text style={styles.featuredMeta}>{featured.divisionDisplayName}</Text>
+                      </View>
+                    ) : null}
+                    {featured.subjectNames?.length ? (
+                      <View style={styles.tagRow}>
+                        {featured.subjectNames.slice(0, 3).map((name) => (
+                          <View key={name} style={styles.chip}>
+                            <Text style={styles.chipText}>{name}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+                  </View>
+                  <View style={styles.featuredDays}>
+                    <Text style={styles.featuredDaysText}>{countdownLabel(featured, today, t)}</Text>
+                  </View>
+                </View>
+                <View style={styles.featuredActions}>
+                  <Pressable style={styles.primaryBtn} onPress={() => void addToCalendar(featured)}>
+                    <MaterialCommunityIcons name="calendar-plus" size={16} color={colors.headerOn} />
+                    <Text style={styles.primaryBtnText}>{t('exams.addToCalendar')}</Text>
+                  </Pressable>
+                  <Pressable style={styles.outlineBtn} onPress={() => void openDetail(featured.examId)}>
+                    <MaterialCommunityIcons name="book-open-page-variant-outline" size={16} color={colors.primary} />
+                    <Text style={styles.outlineBtnText}>{t('exams.viewSyllabus')}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+            {restUpcoming.map(renderCompactCard)}
+            <View style={styles.hintBanner}>
+              <MaterialCommunityIcons name="information-outline" size={16} color={colors.primary} />
+              <Text style={styles.hintText}>{t('exams.resultsHint')}</Text>
+            </View>
+            <View style={styles.prepBanner}>
+              <MaterialCommunityIcons name="clipboard-check-outline" size={22} color={colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.prepTitle}>{t('exams.stayPreparedTitle')}</Text>
+                <Text style={styles.prepBody}>
+                  {t('exams.stayPreparedMessage', { name: firstName })}
+                </Text>
+              </View>
+            </View>
+          </>
+        )
+      ) : tab === 'results' ? (
+        results.length === 0 ? (
+          <EmptyState
+            icon="file-document-outline"
+            title={t('exams.emptyTitle')}
+            message={t('exams.emptyDesc')}
+          />
+        ) : (
+          <View style={{ gap: 12 }}>{results.map(renderResultCard)}</View>
+        )
+      ) : completed.length === 0 ? (
+        <EmptyState
+          icon="check-circle-outline"
+          title={t('exams.emptyCompletedTitle')}
+          message={t('exams.emptyCompletedMessage')}
+        />
+      ) : (
+        <View style={{ gap: 12 }}>{completed.map(renderCompactCard)}</View>
+      )}
+
+      <Modal
+        visible={detail != null || detailLoading}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setDetail(null)}
       >
-        {items.length === 0 ? (
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDetail(null)} />
+          <View style={[styles.modalCard, { paddingBottom: Math.max(insets.bottom, 12) + 16 }]}>
+            <Pressable
+              onPress={() => setDetail(null)}
+              style={styles.sheetClose}
+              accessibilityLabel={t('common.close')}
+            >
+              <MaterialCommunityIcons name="close" size={22} color={colors.text} />
+            </Pressable>
+            {detailLoading || !detail ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <Text style={styles.modalTitle}>{toTitleCase(detail.name)}</Text>
+                <Text style={styles.modalMeta}>
+                  {[detail.sessionName, detail.divisionDisplayName].filter(Boolean).join(' · ')}
+                </Text>
+                {detail.resultsReady ? (
+                  <View style={styles.summaryBox}>
+                    <Text style={[styles.resultScore, { color: resultColor(detail), fontSize: 28 }]}>
+                      {resultHeadline(detail)}
+                    </Text>
+                    <Text style={styles.compactTitle}>
+                      {detail.partialResults
+                        ? t('exams.partialMarksHint')
+                        : `${formatMarks(detail.obtainedMarks)} / ${formatMarks(detail.maxMarks)}`}
+                    </Text>
+                    <Text style={{ color: resultColor(detail), fontWeight: '700' }}>
+                      {detail.partialResults
+                        ? t('exams.partialProvisional')
+                        : [detail.grade, detail.resultLabel].filter(Boolean).join(' · ') ||
+                          t('exams.pendingMarks')}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.sectionTitle}>{t('exams.syllabus')}</Text>
+                )}
+                {detail.resultsReady ? (
+                  <Pressable
+                    onPress={() => void downloadReportCard()}
+                    disabled={downloading}
+                    style={[styles.downloadBtn, { opacity: downloading ? 0.7 : 1 }]}
+                  >
+                    {downloading ? (
+                      <ActivityIndicator color={colors.headerOn} />
+                    ) : (
+                      <MaterialCommunityIcons name="file-pdf-box" size={22} color={colors.headerOn} />
+                    )}
+                    <Text style={styles.primaryBtnText}>{t('exams.downloadReportCard')}</Text>
+                  </Pressable>
+                ) : null}
+                {detail.subjects.map((subject) => (
+                  <View key={subject.paperId} style={styles.subjectRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.compactTitle}>{subject.subjectName}</Text>
+                      <Text style={styles.compactMeta}>
+                        {subject.awaiting
+                          ? t('exams.awaitingSubject')
+                          : subject.attendanceStatus && subject.attendanceStatus !== 'PRESENT'
+                            ? t(`exams.attendance${subject.attendanceStatus}` as any)
+                            : subject.entered
+                              ? formatShortDate(subject.examDate)
+                              : t('exams.notEntered')}
+                      </Text>
+                    </View>
+                    {detail.resultsReady ? (
+                      <Text style={styles.compactTitle}>
+                        {subject.awaiting ||
+                        (subject.attendanceStatus && subject.attendanceStatus !== 'PRESENT')
+                          ? '—'
+                          : formatMarks(subject.marks)}{' '}
+                        <Text style={styles.compactMeta}>/ {subject.maxMarks}</Text>
+                      </Text>
+                    ) : (
+                      <Text style={styles.compactMeta}>{formatShortDate(subject.examDate)}</Text>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </ScrollView>
+  );
+
+  if (studentId == null) {
+    if (embedded) return null;
+    return (
+      <ScreenDecor>
+        <SafeAreaView style={styles.flex} edges={['top']}>
           <EmptyState
             icon="clipboard-text-outline"
             title={t('exams.emptyTitle')}
             message={t('exams.emptyDesc')}
           />
-        ) : (
-          items.map((item) => (
-            <Pressable
-              key={item.examId}
-              onPress={() => void openDetail(item.examId)}
-              style={[
-                styles.card,
-                shadows.card,
-                {
-                  backgroundColor: theme.colors.surface,
-                },
-              ]}
-            >
-              <View style={styles.cardTop}>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text variant="titleMedium" style={{ fontWeight: '700' }}>
-                    {toTitleCase(item.name)}
-                  </Text>
-                  <Text
-                    variant="bodySmall"
-                    style={{ color: theme.colors.onSurfaceVariant }}
-                  >
-                    {item.divisionDisplayName ||
-                      item.customTypeLabel ||
-                      item.examType ||
-                      t('exams.results')}
-                  </Text>
-                </View>
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={22}
-                  color={theme.colors.onSurfaceVariant}
-                />
-              </View>
-              <Text
-                variant="bodySmall"
-                style={{ color: theme.colors.onSurfaceVariant }}
-              >
-                {formatShortDate(item.startDate)}
-                {item.startDate !== item.endDate
-                  ? ` – ${formatShortDate(item.endDate)}`
-                  : ''}
-              </Text>
-              <View style={styles.metaRow}>
-                <Text variant="labelLarge" style={{ color: resultColor(item) }}>
-                  {resultHeadline(item)}
-                  {!item.partialResults && item.grade ? ` · ${item.grade}` : ''}
-                  {!item.partialResults && item.resultLabel && item.resultLabel !== 'PARTIAL'
-                    ? ` · ${item.resultLabel}`
-                    : ''}
-                </Text>
-                <Text
-                  variant="labelMedium"
-                  style={{ color: theme.colors.onSurfaceVariant }}
-                >
-                  {item.partialResults
-                    ? t('exams.partialMarksHint')
-                    : `${formatMarks(item.obtainedMarks)} / ${formatMarks(item.maxMarks)}`}
-                </Text>
-              </View>
-            </Pressable>
-          ))
-        )}
-      </ScrollView>
-
-      <Modal
-        visible={detail != null || detailLoading}
-        animationType="slide"
-        onRequestClose={() => setDetail(null)}
-      >
-        <SafeAreaView
-          style={[styles.modalSafe, { backgroundColor: theme.colors.background }]}
-        >
-          <View style={styles.modalHeader}>
-            <Pressable onPress={() => setDetail(null)} hitSlop={12}>
-              <MaterialCommunityIcons
-                name="close"
-                size={24}
-                color={theme.colors.onSurface}
-              />
-            </Pressable>
-            <Text variant="titleMedium" style={{ fontWeight: '700', flex: 1 }}>
-              {detail?.name ? toTitleCase(detail.name) : t('exams.results')}
-            </Text>
-          </View>
-          {detailLoading || !detail ? (
-            <View style={styles.center}>
-              <ActivityIndicator color={theme.colors.primary} />
-            </View>
-          ) : (
-            <ScrollView contentContainerStyle={styles.modalContent}>
-              <Text
-                variant="bodyMedium"
-                style={{ color: theme.colors.onSurfaceVariant }}
-              >
-                {[detail.sessionName, detail.divisionDisplayName]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </Text>
-              <View
-                style={[
-                  styles.summaryBox,
-                  {
-                    backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.outlineVariant,
-                  },
-                ]}
-              >
-                <Text
-                  variant="headlineSmall"
-                  style={{ fontWeight: '700', color: resultColor(detail) }}
-                >
-                  {resultHeadline(detail)}
-                </Text>
-                <Text variant="titleMedium">
-                  {detail.partialResults
-                    ? t('exams.partialMarksHint')
-                    : `${formatMarks(detail.obtainedMarks)} / ${formatMarks(detail.maxMarks)}`}
-                </Text>
-                <Text variant="labelLarge" style={{ color: resultColor(detail) }}>
-                  {detail.partialResults
-                    ? t('exams.partialProvisional')
-                    : [detail.grade, detail.resultLabel].filter(Boolean).join(' · ') ||
-                      t('exams.pendingMarks')}
-                </Text>
-                {!detail.partialResults ? (
-                  <Text
-                    variant="bodySmall"
-                    style={{ color: theme.colors.onSurfaceVariant }}
-                  >
-                    {t('exams.passAt', { percent: detail.passPercent })}
-                  </Text>
-                ) : null}
-              </View>
-
-              <Pressable
-                onPress={() => void downloadReportCard()}
-                disabled={downloading}
-                style={[
-                  styles.downloadBtn,
-                  {
-                    backgroundColor: theme.colors.primary,
-                    opacity: downloading ? 0.7 : 1,
-                  },
-                ]}
-              >
-                {downloading ? (
-                  <ActivityIndicator color={theme.colors.onPrimary} />
-                ) : (
-                  <MaterialCommunityIcons
-                    name="file-pdf-box"
-                    size={22}
-                    color={theme.colors.onPrimary}
-                  />
-                )}
-                <Text
-                  variant="labelLarge"
-                  style={{ color: theme.colors.onPrimary, fontWeight: '700' }}
-                >
-                  {t('exams.downloadReportCard')}
-                </Text>
-              </Pressable>
-
-              {detail.subjects.map((subject) => (
-                <View
-                  key={subject.paperId}
-                  style={[
-                    styles.subjectRow,
-                    {
-                      backgroundColor: theme.colors.surface,
-                      borderColor: theme.colors.outlineVariant,
-                    },
-                  ]}
-                >
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text variant="titleSmall" style={{ fontWeight: '600' }}>
-                      {subject.subjectName}
-                    </Text>
-                    <Text
-                      variant="bodySmall"
-                      style={{ color: theme.colors.onSurfaceVariant }}
-                    >
-                      {subject.awaiting
-                        ? t('exams.awaitingSubject')
-                        : subject.attendanceStatus &&
-                            subject.attendanceStatus !== 'PRESENT'
-                          ? t(
-                              `exams.attendance${subject.attendanceStatus}` as any
-                            )
-                          : subject.entered
-                            ? formatShortDate(subject.examDate)
-                            : t('exams.notEntered')}
-                    </Text>
-                  </View>
-                  <Text variant="titleMedium" style={{ fontWeight: '700' }}>
-                    {subject.awaiting ? (
-                      '—'
-                    ) : (
-                      <>
-                        {subject.attendanceStatus &&
-                        subject.attendanceStatus !== 'PRESENT'
-                          ? '—'
-                          : formatMarks(subject.marks)}
-                        <Text
-                          variant="bodySmall"
-                          style={{ color: theme.colors.onSurfaceVariant }}
-                        >
-                          {' '}
-                          / {subject.maxMarks}
-                        </Text>
-                      </>
-                    )}
-                  </Text>
-                </View>
-              ))}
-            </ScrollView>
-          )}
-        </SafeAreaView>
-      </Modal>
-    </>
-  );
-
-  if (loading) {
-    const loader = (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text
-          variant="bodyLarge"
-          style={{ marginTop: 14, color: theme.colors.onSurfaceVariant }}
-        >
-          {t('exams.loading')}
-        </Text>
-      </View>
-    );
-    if (embedded) return <View style={styles.embedded}>{loader}</View>;
-    return (
-      <ScreenDecor>
-        <SafeAreaView style={styles.safe} edges={['top']}>
-          {loader}
         </SafeAreaView>
       </ScreenDecor>
     );
   }
 
-  if (embedded) {
-    return <View style={styles.embedded}>{body}</View>;
-  }
+  if (embedded) return <View style={styles.flex}>{body}</View>;
 
   return (
-    <ScreenDecor>
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <Text
-          variant="headlineSmall"
-          style={{ fontWeight: '700', marginHorizontal: 16, marginTop: 8 }}
-        >
-          {t('exams.title')}
-        </Text>
-        {body}
-      </SafeAreaView>
-    </ScreenDecor>
+    <View style={styles.standalone}>
+      <StudentModuleHero
+        title={t('exams.screenTitle')}
+        student={selectedStudent}
+        onBack={goBack}
+        backAccessibilityLabel={t('attendance.backHome')}
+        rightAction={
+          <Pressable
+            onPress={openCalendar}
+            hitSlop={8}
+            style={styles.navBtn}
+            accessibilityLabel={t('exams.viewSchedule')}
+          >
+            <MaterialCommunityIcons name="calendar-plus" size={20} color={colors.headerOn} />
+          </Pressable>
+        }
+      >
+        <ExamOverviewCard
+          upcoming={upcoming.length}
+          completed={completed.length}
+          results={results.length}
+        />
+      </StudentModuleHero>
+      {body}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  embedded: { flex: 1 },
-  center: {
-    flex: 1,
+  flex: { flex: 1 },
+  standalone: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingHorizontal: spacing.lg, paddingBottom: 40 },
+  center: { paddingVertical: 48, alignItems: 'center' },
+  navBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    backgroundColor: colors.overlay,
   },
-  list: {
-    padding: 16,
-    gap: 12,
-    paddingBottom: 40,
-  },
-  card: {
+  summaryCard: {
+    marginTop: -22,
+    marginHorizontal: spacing.base,
+    backgroundColor: colors.surface,
     borderRadius: 20,
+    ...shadows.card,
+    zIndex: 3,
     padding: 16,
-    gap: 8,
   },
-  cardTop: {
+  summaryTitle: { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  summaryRow: { flexDirection: 'row' },
+  summaryCell: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 4 },
+  summaryCellBorder: { borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: '#EEF0F3' },
+  summaryValue: { fontSize: 22, fontWeight: '800' },
+  summaryLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '600', textAlign: 'center' },
+  tabs: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
+    marginTop: 8,
+    marginBottom: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E6E8EE',
   },
-  metaRow: {
+  tabBtn: { flex: 1, alignItems: 'center' },
+  tabInner: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 10 },
+  tabLabel: { fontSize: 13, fontWeight: '600', color: colors.textTertiary },
+  tabLabelActive: { color: colors.primary },
+  tabUnderline: { height: 3, width: '70%', borderRadius: 2, backgroundColor: 'transparent' },
+  tabUnderlineActive: { backgroundColor: colors.primary },
+  sectionHead: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
+    marginBottom: 12,
   },
-  modalSafe: { flex: 1 },
-  modalHeader: {
+  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  sectionLink: { color: colors.primary, fontSize: 13, fontWeight: '700' },
+  featured: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 14,
+    ...shadows.card,
+    marginBottom: 12,
+  },
+  featuredTop: { flexDirection: 'row', gap: 10 },
+  featuredIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primarySoft,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginBottom: 4,
+  },
+  nextBadgeText: { color: colors.primary, fontSize: 11, fontWeight: '700' },
+  featuredTitle: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  featuredMeta: { color: colors.textSecondary, fontSize: 12, fontWeight: '500', flex: 1 },
+  metaLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  chip: {
+    borderWidth: 1,
+    borderColor: colors.primaryMuted,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  chipText: { color: colors.primary, fontSize: 11, fontWeight: '700' },
+  featuredDays: {
+    backgroundColor: colors.dangerSoft,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    alignSelf: 'flex-start',
+    maxWidth: 72,
+  },
+  featuredDaysText: { color: colors.danger, fontSize: 11, fontWeight: '800', textAlign: 'center' },
+  featuredActions: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  primaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 10,
+  },
+  primaryBtnText: { color: colors.headerOn, fontWeight: '700', fontSize: 13 },
+  outlineBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: colors.primaryMuted,
+    borderRadius: 12,
+    paddingVertical: 10,
+    backgroundColor: colors.surface,
+  },
+  outlineBtnText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  compactCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 12,
+    gap: 10,
+    ...shadows.card,
+    overflow: 'hidden',
+  },
+  compactBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
+  compactIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+  },
+  compactBody: { flex: 1, minWidth: 0 },
+  compactTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  compactMeta: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+  tag: { color: colors.primary, fontSize: 11, fontWeight: '700', marginTop: 4 },
+  daysPill: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6, maxWidth: 78 },
+  daysPillText: { fontSize: 11, fontWeight: '800', textAlign: 'center' },
+  resultCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 14,
+    ...shadows.card,
+  },
+  resultScore: { fontSize: 18, fontWeight: '800' },
+  hintBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.primarySoft,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 14,
+  },
+  hintText: { flex: 1, color: colors.primary, fontSize: 12, fontWeight: '600' },
+  prepBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: colors.primarySoft,
+    borderRadius: 16,
+    padding: 14,
+    marginTop: 12,
   },
-  modalContent: {
-    padding: 16,
-    gap: 12,
-    paddingBottom: 40,
+  prepTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  prepBody: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.45)',
+    justifyContent: 'flex-end',
   },
+  modalCard: {
+    maxHeight: '82%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 16,
+    paddingHorizontal: 20,
+    backgroundColor: colors.surface,
+  },
+  sheetClose: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 2,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
+  },
+  modalTitle: { color: colors.text, fontSize: 20, fontWeight: '800', paddingRight: 40 },
+  modalMeta: { color: colors.textSecondary, marginTop: 6, fontSize: 14 },
   summaryBox: {
-    borderWidth: StyleSheet.hairlineWidth,
+    marginTop: 14,
+    backgroundColor: colors.primarySoft,
     borderRadius: 14,
-    padding: 16,
+    padding: 14,
     gap: 4,
-    alignItems: 'flex-start',
   },
   downloadBtn: {
+    marginTop: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 12,
-    paddingHorizontal: 16,
   },
   subjectRow: {
-    borderWidth: StyleSheet.hairlineWidth,
+    marginTop: 10,
+    backgroundColor: colors.background,
     borderRadius: 12,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
 });

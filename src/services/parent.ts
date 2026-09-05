@@ -146,6 +146,7 @@ export interface ParentHomeworkItem {
   dueDate: string | null;
   hasAttachments: boolean;
   status: string | null;
+  completedAt?: string | null;
 }
 
 export interface ParentHomeworkDetail extends ParentHomeworkItem {
@@ -182,6 +183,26 @@ export async function getStudentHomeworkDetail(
   return data as ApiEnvelope & { data?: ParentHomeworkDetail };
 }
 
+export async function markStudentHomeworkDone(
+  studentId: number,
+  homeworkId: number
+): Promise<ApiEnvelope & { data?: ParentHomeworkDetail }> {
+  const { data } = await api.post(
+    `${prefix}/students/${studentId}/homework/${homeworkId}/done`
+  );
+  return data as ApiEnvelope & { data?: ParentHomeworkDetail };
+}
+
+export async function unmarkStudentHomeworkDone(
+  studentId: number,
+  homeworkId: number
+): Promise<ApiEnvelope & { data?: ParentHomeworkDetail }> {
+  const { data } = await api.delete(
+    `${prefix}/students/${studentId}/homework/${homeworkId}/done`
+  );
+  return data as ApiEnvelope & { data?: ParentHomeworkDetail };
+}
+
 export interface ParentExamListItem {
   examId: number;
   name: string;
@@ -194,6 +215,11 @@ export interface ParentExamListItem {
   gradeEnabled: boolean;
   divisionDisplayName?: string | null;
   subjectCount: number;
+  subjectNames?: string[];
+  nextPaperDate?: string | null;
+  nextStartTime?: string | null;
+  nextEndTime?: string | null;
+  resultsReady?: boolean;
   scoredSubjects: number;
   pendingSubjects: number;
   releasedSubjects?: number;

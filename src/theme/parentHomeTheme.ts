@@ -65,6 +65,7 @@ export type ParentHomeColors = {
     fees: ModuleAccent;
     homework: ModuleAccent;
     exams: ModuleAccent;
+    leaves: ModuleAccent;
     transport: ModuleAccent;
     announcements: ModuleAccent;
   };
@@ -98,6 +99,13 @@ const modulesLight = {
     well: '#DBEAFE',
     card: '#EFF6FF',
     metric: '#2563EB',
+  },
+  leaves: {
+    icon: '#E11D48',
+    onIcon: '#FFFFFF',
+    well: '#FFE4E8',
+    card: '#FFF1F2',
+    metric: '#BE123C',
   },
   transport: {
     icon: '#EC4899',
@@ -143,6 +151,13 @@ const modulesDark = {
     well: '#163154',
     card: '#163154',
     metric: '#93C5FD',
+  },
+  leaves: {
+    icon: '#FB7185',
+    onIcon: '#4C0519',
+    well: '#3F1A24',
+    card: '#3F1A24',
+    metric: '#FECDD3',
   },
   transport: {
     icon: '#F472B6',

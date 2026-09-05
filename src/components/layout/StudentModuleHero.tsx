@@ -7,7 +7,8 @@ import { useAppLanguage } from '../../common';
 import { normalizeUploadUrl } from '../../common/helpers/normalizeUploadUrl';
 import { initials, avatarHue } from '../../utils/attendanceVisuals';
 import { colors, spacing } from '../../theme/appTheme';
-import { HOME_HERO_BG } from '../../features/home/components/HomeHero';
+
+const MODULE_HERO_BG = require('../../assets/hero-bg.png');
 
 type Props = {
   title: string;
@@ -53,7 +54,7 @@ export function StudentModuleHero({
     <View style={styles.wrap}>
       <View style={styles.hero}>
         <Image
-          source={HOME_HERO_BG}
+          source={MODULE_HERO_BG}
           style={[styles.heroBg, { width: screenW }]}
           resizeMode="cover"
         />
