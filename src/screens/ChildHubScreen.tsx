@@ -128,14 +128,17 @@ export function ChildHubScreen() {
   const sectionTitleKey = isEnabledSection(section)
     ? SECTION_TITLE[section]
     : 'childHub.title';
+  const ownHeader =
+    section === 'homework' || section === 'exams' || section === 'leaves';
 
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerShown: !ownHeader,
       title: selectedStudent
         ? `${selectedStudent.name} · ${t(sectionTitleKey)}`
         : t(sectionTitleKey),
       headerRight:
-        students.length > 1
+        !ownHeader && students.length > 1
           ? () => (
               <Pressable
                 onPress={() => setSwitcherOpen((v) => !v)}
@@ -159,6 +162,7 @@ export function ChildHubScreen() {
     sectionTitleKey,
     t,
     theme.colors.primary,
+    ownHeader,
   ]);
 
   return (
@@ -228,9 +232,9 @@ export function ChildHubScreen() {
               onSwitchToHomework={() => setSection('homework')}
             />
           ) : null}
-          {section === 'homework' ? <HomeworkScreen embedded /> : null}
-          {section === 'exams' ? <ExamResultsScreen embedded /> : null}
-          {section === 'leaves' ? <LeaveScreen embedded /> : null}
+          {section === 'homework' ? <HomeworkScreen /> : null}
+          {section === 'exams' ? <ExamResultsScreen /> : null}
+          {section === 'leaves' ? <LeaveScreen /> : null}
           {section === 'calendar' ? <SchoolCalendarScreen embedded /> : null}
           {section === 'fees' ? <FeesScreen embedded /> : null}
         </View>

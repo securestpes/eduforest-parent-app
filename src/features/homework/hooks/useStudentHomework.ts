@@ -3,6 +3,8 @@ import {
   getMyStudents,
   getStudentHomework,
   getStudentHomeworkDetail,
+  markStudentHomeworkDone,
+  unmarkStudentHomeworkDone,
   type ParentHomeworkDetail,
   type ParentHomeworkItem,
   type ParentStudent,
@@ -29,6 +31,7 @@ export function useStudentHomework() {
   const [filter, setFilter] = useState<HomeworkFilter>('all');
   const [detail, setDetail] = useState<ParentHomeworkDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const student = students.find((s) => s.id === studentId) ?? students[0] ?? null;
 
@@ -105,6 +108,40 @@ export function useStudentHomework() {
     }
   };
 
+  const toggleDone = async (homeworkId: number, markDone: boolean) => {
+    const id = student?.id;
+    if (id == null || togglingId != null) return false;
+    setTogglingId(homeworkId);
+    try {
+      const res = markDone
+        ? await markStudentHomeworkDone(id, homeworkId)
+        : await unmarkStudentHomeworkDone(id, homeworkId);
+      if (!res.status || !res.data) {
+        setError(res.message || 'Could not update homework');
+        return false;
+      }
+      const row = res.data;
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === row.id
+            ? { ...it, status: row.status, completedAt: row.completedAt ?? null }
+            : it
+        )
+      );
+      setDetail((current) =>
+        current && current.id === row.id
+          ? { ...current, status: row.status, completedAt: row.completedAt ?? null }
+          : current
+      );
+      return true;
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not update homework');
+      return false;
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   const classLabel = [className, sectionName].filter(Boolean).join(' • ') || null;
 
   return {
@@ -123,7 +160,9 @@ export function useStudentHomework() {
     detail,
     setDetail,
     detailLoading,
+    togglingId,
     openDetail,
+    toggleDone,
   };
 }
 

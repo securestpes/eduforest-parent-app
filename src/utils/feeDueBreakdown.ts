@@ -1,4 +1,4 @@
-import type { ParentFeeLedger } from '../services/parent';
+import type { ParentFeeInstallment, ParentFeeLedger } from '../services/parent';
 
 export type FeeDueBreakdownLine = {
   feeHeadId?: number;
@@ -61,6 +61,218 @@ type InstallmentHeadLike = {
   amount?: number;
   balance?: number;
 };
+
+export type PayableFeeSummary = {
+  dueThisMonth: number;
+  overdue: number;
+  pending: number;
+  dueDate: string | null;
+};
+
+export type OverviewFeeItem = {
+  id: string;
+  title: string;
+  monthLabel: string;
+  amount: number;
+  dueDate: string | null;
+  kind: 'overdue' | 'due';
+};
+
+export type HistoryFeeItem = {
+  title: string;
+  amount: number;
+  paidOn: string | null;
+};
+
+export type HistoryMonthGroup = {
+  key: string;
+  title: string;
+  sortKey: number;
+  status: 'paid' | 'overdue' | 'due';
+  totalPaid: number;
+  items: HistoryFeeItem[];
+};
+
+export function installmentCalendarMonth(inst: ParentFeeInstallment): { year: number; month: number } {
+  const year =
+    inst.yearValue ||
+    Number(String(inst.dueDate || '').slice(0, 4)) ||
+    new Date().getFullYear();
+  const month =
+    inst.monthValue ||
+    Number(String(inst.dueDate || '').slice(5, 7)) ||
+    1;
+  return { year, month };
+}
+
+function unpaidBalance(inst: ParentFeeInstallment): number {
+  const status = (inst.status || '').toUpperCase();
+  if (status === 'PAID' || status === 'COLLECTED' || status === 'WAIVED') return 0;
+  return Math.max(0, Number(inst.balance) || 0);
+}
+
+function isPastDue(dueDate?: string | null): boolean {
+  if (!dueDate) return false;
+  const raw = dueDate.length <= 10 ? `${dueDate}T00:00:00` : dueDate;
+  const due = new Date(raw);
+  if (Number.isNaN(due.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  due.setHours(0, 0, 0, 0);
+  return due.getTime() < today.getTime();
+}
+
+export function isOverdueInstallment(inst: ParentFeeInstallment): boolean {
+  const status = (inst.status || '').toUpperCase();
+  return status === 'OVERDUE' || !!inst.overdue || isPastDue(inst.dueDate);
+}
+
+function isFutureInstallment(inst: ParentFeeInstallment, now: Date): boolean {
+  const status = (inst.status || '').toUpperCase();
+  if (status.includes('FUTURE')) return true;
+  const { year, month } = installmentCalendarMonth(inst);
+  const currentKey = now.getFullYear() * 12 + (now.getMonth() + 1);
+  return year * 12 + month > currentKey;
+}
+
+/** Current-month due, overdue now, and payable pending (excludes future months). */
+export function payableFeeSummary(
+  ledger: ParentFeeLedger | null | undefined,
+  now = new Date()
+): PayableFeeSummary {
+  let dueThisMonth = 0;
+  let overdue = 0;
+  let dueDate: string | null = null;
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+
+  for (const inst of ledger?.installments || []) {
+    const amount = unpaidBalance(inst);
+    if (amount <= 0) continue;
+    if (isFutureInstallment(inst, now)) continue;
+
+    const { year, month } = installmentCalendarMonth(inst);
+    const current = year === y && month === m;
+    if (isOverdueInstallment(inst)) {
+      overdue += amount;
+      continue;
+    }
+    if (current) {
+      dueThisMonth += amount;
+      dueDate = inst.dueDate || dueDate;
+    }
+  }
+
+  return {
+    dueThisMonth,
+    overdue,
+    pending: dueThisMonth + overdue,
+    dueDate,
+  };
+}
+
+function installmentDate(inst: ParentFeeInstallment): Date {
+  const { year, month } = installmentCalendarMonth(inst);
+  return new Date(year, month - 1, 1);
+}
+
+function installmentHeads(inst: ParentFeeInstallment) {
+  if (inst.heads?.length) return inst.heads;
+  return [
+    {
+      demandId: 0,
+      feeHeadId: 0,
+      feeHeadName: inst.label,
+      amount: inst.amount,
+      paidAmount: inst.paidAmount,
+      balance: inst.balance,
+      status: inst.status,
+    },
+  ];
+}
+
+export function overviewFeeItems(
+  ledger: ParentFeeLedger | null | undefined,
+  now = new Date()
+): { overdue: OverviewFeeItem[]; dueThisMonth: OverviewFeeItem[] } {
+  const overdue: OverviewFeeItem[] = [];
+  const dueThisMonth: OverviewFeeItem[] = [];
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+
+  for (const inst of ledger?.installments || []) {
+    const unpaid = unpaidBalance(inst);
+    if (unpaid <= 0) continue;
+    if (isFutureInstallment(inst, now)) continue;
+    const date = installmentDate(inst);
+    const { year, month } = installmentCalendarMonth(inst);
+    const current = year === y && month === m;
+    const overdueInst = isOverdueInstallment(inst);
+
+    for (const head of installmentHeads(inst)) {
+      const amount = Math.max(0, Number(head.balance) || 0);
+      if (amount <= 0) continue;
+      const item: OverviewFeeItem = {
+        id: `${inst.key}-${head.demandId || head.feeHeadName}`,
+        title: head.feeHeadName || inst.label,
+        monthLabel: date.toLocaleString('en-IN', { month: 'long', year: 'numeric' }),
+        amount,
+        dueDate: inst.dueDate || null,
+        kind: overdueInst ? 'overdue' : 'due',
+      };
+      if (overdueInst) overdue.push(item);
+      else if (current) dueThisMonth.push(item);
+    }
+  }
+
+  overdue.sort((a, b) => a.monthLabel.localeCompare(b.monthLabel));
+  dueThisMonth.sort((a, b) => a.title.localeCompare(b.title));
+  return { overdue, dueThisMonth };
+}
+
+export function historyMonthGroups(
+  ledger: ParentFeeLedger | null | undefined
+): HistoryMonthGroup[] {
+  const map = new Map<string, HistoryMonthGroup>();
+
+  for (const inst of ledger?.installments || []) {
+    const date = installmentDate(inst);
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    const title = date.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    const sortKey = date.getFullYear() * 12 + date.getMonth();
+    let group = map.get(key);
+    if (!group) {
+      group = {
+        key,
+        title,
+        sortKey,
+        status: 'paid',
+        totalPaid: 0,
+        items: [],
+      };
+      map.set(key, group);
+    }
+
+    const unpaid = unpaidBalance(inst);
+    if (unpaid > 0 && isOverdueInstallment(inst)) group.status = 'overdue';
+    else if (unpaid > 0 && group.status === 'paid') group.status = 'due';
+
+    for (const head of installmentHeads(inst)) {
+      const paidAmount = Number(head.paidAmount) || 0;
+      if (paidAmount <= 0) continue;
+      group.totalPaid += paidAmount;
+      group.items.push({
+        title: head.feeHeadName || inst.label,
+        amount: paidAmount,
+        paidOn: inst.collectedDate || inst.collectedAt || null,
+      });
+    }
+  }
+
+  return Array.from(map.values())
+    .filter((g) => g.items.length > 0)
+    .sort((a, b) => a.sortKey - b.sortKey);
+}
 
 /** Per-month split when one installment has tuition + exam etc. */
 export function installmentHeadBreakdown(

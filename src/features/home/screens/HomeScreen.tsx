@@ -85,7 +85,14 @@ export function HomeScreen() {
   const greeting = `${t(greetingKey)}, 👋`;
 
   const openChildHub = (
-    section: "attendance" | "fees" | "exams" | "calendar" | "notifications",
+    section:
+      | "attendance"
+      | "fees"
+      | "exams"
+      | "leaves"
+      | "calendar"
+      | "notifications"
+      | "homework",
   ) => {
     if (!dash.student) return;
     dash.setSelected(dash.student.id);
@@ -122,43 +129,57 @@ export function HomeScreen() {
           sub: t("home.pendingCount"),
           icon: "book-open-page-variant",
           accent: colors.modules.homework,
-          onPress: () => navigateToTab("Study"),
+          onPress: () => openChildHub("homework"),
         },
         {
-          key: "exams",
-          label: t("home.exams"),
-          metric: dash.nextExamDate ?? "—",
-          sub: dash.nextExamLabel ?? t("home.noExamSoon"),
-          icon: "file-document-outline",
-          accent: colors.modules.exams,
-          onPress: () => openChildHub("exams"),
+          key: "leaves",
+          label: t("home.leaves"),
+          metric:
+            dash.pendingLeaves != null ? String(dash.pendingLeaves) : "—",
+          sub: t("home.pendingCount"),
+          icon: "calendar-remove",
+          accent: colors.modules.leaves,
+          onPress: () => openChildHub("leaves"),
         },
-        {
-          key: "transport",
-          label: t("home.transport"),
-          metric: dash.bus
-            ? t("home.busNamed", { n: dash.bus.busNumber })
-            : t("home.noBus"),
-          sub: dash.bus?.pickupStopName || t("childChips.bus"),
-          icon: "bus",
-          accent: colors.modules.transport,
-          onPress: () => {
-            if (!dash.student) return;
-            dash.setSelected(dash.student.id);
-            navigation.navigate("BusTrackingMap", {
-              studentId: dash.student.id,
-            });
-          },
-        },
-        {
-          key: "announcements",
-          label: t("home.announcements"),
-          metric: String(dash.unreadCount),
-          sub: t("home.newUpdates"),
-          icon: "bullhorn-outline",
-          accent: colors.modules.announcements,
-          onPress: () => void openNotificationCenter(),
-        },
+        ...(dash.hasExam
+          ? [
+              {
+                key: "exams",
+                label: t("home.exams"),
+                metric: dash.nextExamDate ?? "—",
+                sub: dash.nextExamLabel ?? t("home.noExamSoon"),
+                icon: "file-document-outline" as const,
+                accent: colors.modules.exams,
+                onPress: () => openChildHub("exams"),
+              },
+            ]
+          : []),
+        // {
+        //   key: "transport",
+        //   label: t("home.transport"),
+        //   metric: dash.bus
+        //     ? t("home.busNamed", { n: dash.bus.busNumber })
+        //     : t("home.noBus"),
+        //   sub: dash.bus?.pickupStopName || t("childChips.bus"),
+        //   icon: "bus",
+        //   accent: colors.modules.transport,
+        //   onPress: () => {
+        //     if (!dash.student) return;
+        //     dash.setSelected(dash.student.id);
+        //     navigation.navigate("BusTrackingMap", {
+        //       studentId: dash.student.id,
+        //     });
+        //   },
+        // },
+        // {
+        //   key: "announcements",
+        //   label: t("home.announcements"),
+        //   metric: String(dash.unreadCount),
+        //   sub: t("home.newUpdates"),
+        //   icon: "bullhorn-outline",
+        //   accent: colors.modules.announcements,
+        //   onPress: () => void openNotificationCenter(),
+        // },
       ]
     : [];
 
