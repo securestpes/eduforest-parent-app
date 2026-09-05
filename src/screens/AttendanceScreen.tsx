@@ -2,7 +2,6 @@ import { format, parseISO } from 'date-fns';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   RefreshControl,
@@ -34,8 +33,11 @@ import {
   type DaySection,
 } from '../utils/attendanceHistory';
 import { AttendanceCalendarView } from '../components/AttendanceCalendarView';
+import { AttendanceHeroHeader } from '../components/layout/AttendanceHeroHeader';
 import type { AppTheme } from '../theme';
+import { shadows } from '../theme/appTheme';
 import { useAppLanguage, type TranslationKey } from '../common';
+import { navigateToTab } from '../navigation/navigationRef';
 
 function statusLabel(
   kind: ReturnType<typeof kindFromStatus>,
@@ -92,11 +94,10 @@ function SessionCard({
     <View
       style={[
         styles.sessionOuter,
+        shadows.card,
         {
-          borderColor: highlighted
-            ? theme.colors.primary
-            : theme.colors.outlineVariant,
-          borderWidth: highlighted ? 2 : 1,
+          borderColor: highlighted ? theme.colors.success : 'transparent',
+          borderWidth: highlighted ? 1.5 : 0,
           backgroundColor: theme.colors.surface,
         },
       ]}
@@ -289,6 +290,19 @@ function MonthSummaryBanner({
               {t('attendance.countLate', { n: stats.late })}
             </Text>
           </View>
+          <View
+            style={[
+              styles.miniChip,
+              { backgroundColor: theme.colors.primaryContainer },
+            ]}
+          >
+            <Text
+              variant="labelSmall"
+              style={{ color: theme.colors.primary, fontWeight: '700' }}
+            >
+              {t('attendance.countLeave', { n: stats.leave })}
+            </Text>
+          </View>
         </View>
       </View>
     </View>
@@ -318,14 +332,14 @@ export function AttendanceScreen({
 } = {}) {
   const theme = useTheme() as AppTheme;
   const { t } = useAppLanguage();
-  const FILTER_OPTIONS = useMemo(
+  const STATUS_CHIPS = useMemo(
     () =>
       [
-        { key: 'all' as const, label: t('attendance.filterAll') },
-        { key: 'present' as const, label: t('attendance.filterPresentOnly') },
-        { key: 'absent' as const, label: t('attendance.filterAbsentOnly') },
-        { key: 'late' as const, label: t('attendance.filterLateOnly') },
-        { key: 'leave' as const, label: t('attendance.filterLeaveOnly') },
+        { key: 'all' as const, label: t('attendance.chipAll') },
+        { key: 'present' as const, label: t('attendance.statPresent') },
+        { key: 'absent' as const, label: t('attendance.statAbsent') },
+        { key: 'late' as const, label: t('attendance.statLate') },
+        { key: 'leave' as const, label: t('attendance.statLeave') },
       ] satisfies { key: AttendanceFilter; label: string }[],
     [t]
   );
@@ -347,9 +361,10 @@ export function AttendanceScreen({
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const [filter, setFilter] = useState<AttendanceFilter>('all');
-  const [filterModal, setFilterModal] = useState(false);
   const [monthModal, setMonthModal] = useState(false);
+  const [contactModal, setContactModal] = useState(false);
   const highlightDoneRef = useRef(false);
+  const userPickedDayRef = useRef(false);
 
   const PAGE_SIZE = PARENT_ATTENDANCE_PAGE_SIZE;
 
@@ -472,6 +487,7 @@ export function AttendanceScreen({
       return;
     }
     highlightDoneRef.current = true;
+    userPickedDayRef.current = true;
     const dt = row.sessionDate?.slice(0, 10);
     if (dt) {
       try {
@@ -490,6 +506,26 @@ export function AttendanceScreen({
     loadingMore,
     loadMore,
   ]);
+
+  useEffect(() => {
+    userPickedDayRef.current = false;
+  }, [studentId, filter]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (userPickedDayRef.current) return;
+    if (resolvedHighlightId && !highlightDoneRef.current) return;
+    const latest = sections[0];
+    if (!latest) {
+      setSelectedCalendarDay(null);
+      return;
+    }
+    try {
+      setSelectedCalendarDay(parseISO(`${latest.dayKey}T12:00:00`));
+    } catch {
+      setSelectedCalendarDay(null);
+    }
+  }, [sections, loading, resolvedHighlightId]);
 
   const batchSubtitle = useMemo(() => {
     if (!student) return '';
@@ -520,51 +556,44 @@ export function AttendanceScreen({
 
   const body = (
     <>
-      <View style={styles.topBar}>
-        <View style={styles.topActions}>
-          <Pressable
-            hitSlop={10}
-            style={styles.iconBtn}
-            onPress={() => setFilterModal(true)}
-          >
-            <MaterialCommunityIcons
-              name="filter-variant"
-              size={24}
-              color={theme.colors.onBackground}
-            />
-          </Pressable>
-          <Pressable
-            hitSlop={10}
-            style={styles.iconBtn}
-            onPress={() => setMonthModal(true)}
-          >
-            <MaterialCommunityIcons
-              name="calendar-month-outline"
-              size={24}
-              color={theme.colors.onBackground}
-            />
-          </Pressable>
-        </View>
-      </View>
+      {embedded ? (
+        <>
+          <View style={styles.topBar}>
+            <View style={styles.topActions}>
+              <Pressable
+                hitSlop={10}
+                style={styles.iconBtn}
+                onPress={() => setMonthModal(true)}
+              >
+                <MaterialCommunityIcons
+                  name="calendar-month-outline"
+                  size={24}
+                  color={theme.colors.onBackground}
+                />
+              </Pressable>
+            </View>
+          </View>
 
-      <View style={styles.titleBlock}>
-        <Text
-          variant="titleLarge"
-          style={[styles.title, { color: theme.colors.onBackground }]}
-          numberOfLines={2}
-        >
-          {t('attendance.historyTitle', {
-            name: student?.name ?? t('common.student'),
-          })}
-        </Text>
-        <Text
-          variant="bodyMedium"
-          style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}
-          numberOfLines={4}
-        >
-          {batchSubtitle || t('common.loading')}
-        </Text>
-      </View>
+          <View style={styles.titleBlock}>
+            <Text
+              variant="titleLarge"
+              style={[styles.title, { color: theme.colors.onBackground }]}
+              numberOfLines={2}
+            >
+              {t('attendance.historyTitle', {
+                name: student?.name ?? t('common.student'),
+              })}
+            </Text>
+            <Text
+              variant="bodyMedium"
+              style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}
+              numberOfLines={4}
+            >
+              {batchSubtitle || t('common.loading')}
+            </Text>
+          </View>
+        </>
+      ) : null}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -586,27 +615,59 @@ export function AttendanceScreen({
           </View>
         ) : (
           <View>
-            <MonthSummaryBanner
-              monthAnchor={focusMonth}
-              stats={stats}
-              theme={theme}
-            />
-            {filter !== 'all' ? (
-              <Text
-                variant="labelMedium"
-                style={{ color: theme.colors.primary, marginTop: 8 }}
-              >
-                {t('attendance.filterActive', {
-                  label:
-                    FILTER_OPTIONS.find((f) => f.key === filter)?.label ?? '',
-                })}
-              </Text>
+            {embedded ? (
+              <MonthSummaryBanner
+                monthAnchor={focusMonth}
+                stats={stats}
+                theme={theme}
+              />
             ) : null}
+            <ScrollView
+              horizontal
+              nestedScrollEnabled
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipRow}
+            >
+              {STATUS_CHIPS.map((chip) => {
+                const on = filter === chip.key;
+                return (
+                  <Pressable
+                    key={chip.key}
+                    onPress={() => setFilter(chip.key)}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: on
+                          ? theme.colors.primary
+                          : theme.colors.surface,
+                        borderColor: on
+                          ? theme.colors.primary
+                          : theme.colors.outlineVariant,
+                      },
+                    ]}
+                  >
+                    <Text
+                      variant="labelMedium"
+                      style={{
+                        color: on ? '#FFFFFF' : theme.colors.onSurface,
+                        fontWeight: '700',
+                      }}
+                    >
+                      {chip.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
             <AttendanceCalendarView
               monthAnchor={focusMonth}
-              rows={monthRows}
+              rows={filteredMonthRows}
               selectedDay={selectedCalendarDay}
-              onSelectDay={setSelectedCalendarDay}
+              onSelectDay={(d) => {
+                userPickedDayRef.current = true;
+                setSelectedCalendarDay(d);
+              }}
+              onPressMonth={() => setMonthModal(true)}
             />
             {calendarDaySections.map((section) => (
               <View key={section.title}>
@@ -643,24 +704,31 @@ export function AttendanceScreen({
               </View>
             ))}
             {selectedCalendarDay && calendarDaySections.length === 0 ? (
-              <Text
-                variant="bodyMedium"
-                style={{
-                  color: theme.colors.onSurfaceVariant,
-                  textAlign: 'center',
-                  marginVertical: 16,
-                }}
-              >
-                {t('home.noAttendanceYet')}
-              </Text>
+              <EmptyState
+                icon="calendar-blank-outline"
+                title={
+                  filter !== 'all'
+                    ? t('attendance.emptyNoMatch')
+                    : t('attendance.noSessionsOnDay', {
+                        date: format(selectedCalendarDay, 'd MMM'),
+                      })
+                }
+                message={
+                  filter !== 'all'
+                    ? t('attendance.tryFilterOrMonth')
+                    : t('attendance.noRowsThisDay')
+                }
+              />
             ) : null}
-            {!loading && !selectedCalendarDay && sections.length === 0 ? (
+            {!selectedCalendarDay && !loading && sections.length === 0 ? (
               <EmptyState
                 icon={error ? 'alert-circle-outline' : 'calendar-blank-outline'}
                 title={
                   error
                     ? t('attendance.emptyCouldNotLoad')
-                    : t('attendance.emptyNoSessions')
+                    : filter !== 'all'
+                      ? t('attendance.emptyNoMatch')
+                      : t('attendance.emptyNoSessions')
                 }
                 message={
                   error ??
@@ -692,38 +760,25 @@ export function AttendanceScreen({
               </Text>
               <Button
                 mode="contained-tonal"
-                onPress={() =>
-                  Alert.alert(
-                    t('attendance.contactInstituteTitle'),
-                    t('attendance.contactInstituteMessage')
-                  )
-                }
+                onPress={() => setContactModal(true)}
                 icon="phone-outline"
               >
                 {t('attendance.contactButton')}
               </Button>
-              <View style={styles.legend}>
-                <Text
-                  variant="labelSmall"
-                  style={{ color: theme.colors.onSurfaceVariant }}
-                >
-                  {t('attendance.legend')}
-                </Text>
-              </View>
             </View>
           </View>
         )}
       </ScrollView>
 
       <Modal
-        visible={filterModal}
+        visible={contactModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setFilterModal(false)}
+        onRequestClose={() => setContactModal(false)}
       >
         <Pressable
           style={styles.modalBackdrop}
-          onPress={() => setFilterModal(false)}
+          onPress={() => setContactModal(false)}
         >
           <Pressable
             style={[
@@ -732,36 +787,38 @@ export function AttendanceScreen({
             ]}
             onPress={(e) => e.stopPropagation()}
           >
+            <View
+              style={[
+                styles.contactIconWrap,
+                { backgroundColor: theme.colors.primaryContainer },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="phone-outline"
+                size={28}
+                color={theme.colors.primary}
+              />
+            </View>
             <Text
               variant="titleMedium"
-              style={{ fontWeight: '700', marginBottom: 12 }}
+              style={{ fontWeight: '700', marginBottom: 8, textAlign: 'center' }}
             >
-              {t('attendance.filterByStatus')}
+              {t('attendance.contactInstituteTitle')}
             </Text>
-            {FILTER_OPTIONS.map((opt) => (
-              <Pressable
-                key={opt.key}
-                style={[
-                  styles.modalRow,
-                  filter === opt.key && {
-                    backgroundColor: theme.colors.primaryContainer,
-                  },
-                ]}
-                onPress={() => {
-                  setFilter(opt.key);
-                  setFilterModal(false);
-                }}
-              >
-                <Text
-                  style={{
-                    color: theme.colors.onSurface,
-                    fontWeight: filter === opt.key ? '700' : '400',
-                  }}
-                >
-                  {opt.label}
-                </Text>
-              </Pressable>
-            ))}
+            <Text
+              variant="bodyMedium"
+              style={{
+                color: theme.colors.onSurfaceVariant,
+                lineHeight: 22,
+                marginBottom: 20,
+                textAlign: 'center',
+              }}
+            >
+              {t('attendance.contactInstituteMessage')}
+            </Text>
+            <Button mode="contained" onPress={() => setContactModal(false)}>
+              {t('common.ok')}
+            </Button>
           </Pressable>
         </Pressable>
       </Modal>
@@ -804,6 +861,7 @@ export function AttendanceScreen({
                       },
                     ]}
                     onPress={() => {
+                      userPickedDayRef.current = false;
                       setFocusMonth(new Date(d.getFullYear(), d.getMonth(), 1));
                       setMonthModal(false);
                     }}
@@ -831,16 +889,20 @@ export function AttendanceScreen({
   }
 
   return (
-    <ScreenDecor>
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        {body}
-      </SafeAreaView>
-    </ScreenDecor>
+    <View style={styles.standalone}>
+      <AttendanceHeroHeader
+        student={student}
+        stats={stats}
+        onBack={() => navigateToTab({ tab: 'Home' })}
+      />
+      {body}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  standalone: { flex: 1, backgroundColor: '#F8F9FB' },
   embedded: { flex: 1 },
   center: { flex: 1, padding: 20, justifyContent: 'center' },
   topBar: {
@@ -862,6 +924,18 @@ const styles = StyleSheet.create({
   title: { fontWeight: '800', textAlign: 'center', width: '100%' },
   subtitle: { marginTop: 6, textAlign: 'center', width: '100%' },
   listContent: { paddingHorizontal: 16, paddingBottom: 40 },
+  chipRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 4,
+    marginBottom: 12,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
   summaryBanner: {
     flexDirection: 'row',
     borderRadius: 16,
@@ -895,8 +969,7 @@ const styles = StyleSheet.create({
     paddingTop: 14,
   },
   sessionOuter: {
-    borderRadius: 14,
-    borderWidth: 1,
+    borderRadius: 20,
     marginBottom: 10,
     overflow: 'hidden',
   },
@@ -916,4 +989,13 @@ const styles = StyleSheet.create({
   },
   modalCard: { borderRadius: 16, padding: 16, maxHeight: '80%' },
   modalRow: { paddingVertical: 14, paddingHorizontal: 12, borderRadius: 10 },
+  contactIconWrap: {
+    alignSelf: 'center',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
 });

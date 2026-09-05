@@ -26,6 +26,7 @@ import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import type { AppTheme } from '../theme';
+import { shadows } from '../theme/appTheme';
 import { useAppLanguage } from '../common';
 
 const LEAVE_TYPES = ['SICK', 'CASUAL', 'EMERGENCY', 'OTHER'] as const;
@@ -280,9 +281,9 @@ export function LeaveScreen({ embedded = false }: Props) {
               key={item.id}
               style={[
                 styles.card,
+                shadows.card,
                 {
                   backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.outlineVariant,
                 },
               ]}
             >
@@ -554,9 +555,8 @@ const styles = StyleSheet.create({
   },
   list: { padding: 16, gap: 12, paddingBottom: 40 },
   card: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 20,
+    padding: 16,
     gap: 6,
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },

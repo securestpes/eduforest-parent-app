@@ -38,6 +38,7 @@ import {
   type WeeklySummaryBlock,
 } from '../utils/notificationCenter';
 import type { AppTheme } from '../theme';
+import { shadows } from '../theme/appTheme';
 import type { RootStackParamList } from '../navigation/Navigation';
 import { APP_NOTIFICATION_RECEIVED_EVENT } from '../constants/notifications';
 import { useAppLanguage } from '../common';
@@ -84,13 +85,13 @@ function NotifCard({
     <View
       style={[
         styles.card,
+        shadows.card,
         {
           backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.outlineVariant,
-          borderLeftWidth: item.unread ? 3 : 1,
+          borderLeftWidth: item.unread ? 3 : 0,
           borderLeftColor: item.unread
             ? theme.colors.primary
-            : theme.colors.outlineVariant,
+            : 'transparent',
         },
       ]}
     >
@@ -825,15 +826,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 14,
+    borderRadius: 20,
+    padding: 16,
     marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
   },
   cardTop: {
     flexDirection: 'row',

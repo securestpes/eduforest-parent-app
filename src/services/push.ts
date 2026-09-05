@@ -1,5 +1,3 @@
-import { getApp } from '@react-native-firebase/app';
-import { getMessaging, getToken } from '@react-native-firebase/messaging';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { InteractionManager, Platform } from 'react-native';
@@ -7,7 +5,22 @@ import { localStorageKeys } from '../common/constants';
 import { registerDeviceToken } from './parent';
 import { isFirebaseDisabled } from '../../config/featureFlags';
 
-const fcm = isFirebaseDisabled ? null : getMessaging(getApp());
+function getFcmOrNull(): object | null {
+  if (Platform.OS === 'web' || isFirebaseDisabled) {
+    return null;
+  }
+  try {
+    // Lazy require — top-level getApp() throws on web/Expo Go before initializeApp().
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { getApp } = require('@react-native-firebase/app');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { getMessaging } = require('@react-native-firebase/messaging');
+    return getMessaging(getApp());
+  } catch (e) {
+    console.warn('[push] Firebase app not initialized — skipping FCM', e);
+    return null;
+  }
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -44,6 +57,7 @@ function isRetryableNetworkFailure(e: unknown): boolean {
 export async function registerParentPushToken(
   accessToken?: string | null
 ): Promise<void> {
+  const fcm = getFcmOrNull();
   if (Platform.OS === 'web' || isFirebaseDisabled || !fcm) {
     return;
   }
@@ -58,6 +72,8 @@ export async function registerParentPushToken(
     const getTokenMax = 5;
     for (let attempt = 1; attempt <= getTokenMax; attempt++) {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { getToken } = require('@react-native-firebase/messaging');
         fcmToken = await getToken(fcm);
         break;
       } catch (e) {

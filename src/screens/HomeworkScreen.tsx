@@ -27,6 +27,7 @@ import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import type { AppTheme } from '../theme';
+import { shadows } from '../theme/appTheme';
 import { useAppLanguage } from '../common';
 import type { RootStackParamList } from '../navigation/Navigation';
 
@@ -293,11 +294,11 @@ export function HomeworkScreen({ embedded = false }: Props) {
                   onPress={() => void openDetail(item)}
                   style={[
                     styles.card,
+                    shadows.card,
                     {
                       backgroundColor: theme.colors.surface,
-                      borderColor: overdue
-                        ? theme.colors.error
-                        : theme.colors.outlineVariant,
+                      borderWidth: overdue ? 1.5 : 0,
+                      borderColor: overdue ? theme.colors.error : 'transparent',
                     },
                   ]}
                 >
@@ -548,9 +549,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   card: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 20,
+    padding: 16,
   },
   cardTop: {
     flexDirection: 'row',

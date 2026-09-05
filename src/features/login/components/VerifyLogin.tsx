@@ -33,7 +33,7 @@ import {
   firebasePhoneMatchesIndiaLocal,
   subscribeFirebasePhoneAutoOtp,
 } from '../services';
-import auth from '@react-native-firebase/auth';
+import { getFirebaseAuth } from '../../../native/firebaseAuthSafe';
 import { loginSuccess } from '../slices/authSlice';
 import {
   mapParentMeToUser,
@@ -47,6 +47,8 @@ import {
 import {
   BACKEND_OTP_VERIFICATION_ID,
 } from '../services/AuthService';
+
+const auth = getFirebaseAuth();
 
 const LocalOTPInputs = React.forwardRef(
   (

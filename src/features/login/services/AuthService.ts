@@ -1,8 +1,9 @@
 import type { IApiResponse } from '../../../common/interfaces';
 import { authApiService } from '../../../common/services/authClient';
 import { isFirebaseLoginEnabled } from '../../../../config/firebaseLogin';
-import auth from '@react-native-firebase/auth';
+import { getFirebaseAuth } from '../../../native/firebaseAuthSafe';
 
+const auth = getFirebaseAuth();
 const apiService = authApiService;
 
 /** Marker verificationId when using backend Redis/SMS OTP (Firebase disabled). */

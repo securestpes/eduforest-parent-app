@@ -1,7 +1,8 @@
 import React, { type ComponentProps } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { colors, shadows } from '../theme/appTheme';
 
 export function EmptyState({
   icon,
@@ -12,16 +13,37 @@ export function EmptyState({
   title: string;
   message: string;
 }) {
-  const theme = useTheme();
   return (
-    <View style={[styles.box, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
-      <View style={[styles.iconRing, { backgroundColor: theme.colors.primaryContainer }]}>
-        <MaterialCommunityIcons name={icon} size={40} color={theme.colors.primary} />
+    <View
+      style={[
+        styles.box,
+        shadows.card,
+        { backgroundColor: colors.surface },
+      ]}
+    >
+      <View
+        style={[styles.iconRing, { backgroundColor: colors.primarySoft }]}
+      >
+        <MaterialCommunityIcons
+          name={icon}
+          size={40}
+          color={colors.primary}
+        />
       </View>
-      <Text variant="titleMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
+      <Text
+        variant="titleMedium"
+        style={[styles.title, { color: colors.text }]}
+      >
         {title}
       </Text>
-      <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 8 }}>
+      <Text
+        variant="bodyMedium"
+        style={{
+          color: colors.textSecondary,
+          textAlign: 'center',
+          marginTop: 8,
+        }}
+      >
         {message}
       </Text>
     </View>
@@ -34,7 +56,6 @@ const styles = StyleSheet.create({
     paddingVertical: 28,
     paddingHorizontal: 20,
     borderRadius: 20,
-    borderWidth: 1,
     alignItems: 'center',
   },
   iconRing: {

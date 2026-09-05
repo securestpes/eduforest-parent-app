@@ -24,22 +24,24 @@ export function monthSessionStats(rows: ParentAttendanceRow[]): {
   present: number;
   absent: number;
   late: number;
+  leave: number;
   pctPresent: number;
 } {
   let present = 0;
   let absent = 0;
   let late = 0;
-  let other = 0;
+  let leave = 0;
   for (const row of rows) {
     const k = kindFromStatus(row.status);
     if (k === 'present') present += 1;
     else if (k === 'absent') absent += 1;
     else if (k === 'late') late += 1;
-    else other += 1;
+    else if (k === 'leave') leave += 1;
   }
-  const total = present + absent + late + other;
-  const pctPresent = total > 0 ? Math.round((100 * present) / total) : 0;
-  return { total, present, absent, late, pctPresent };
+  const scored = present + absent + late;
+  const total = scored + leave;
+  const pctPresent = scored > 0 ? Math.round((100 * present) / scored) : 0;
+  return { total, present, absent, late, leave, pctPresent };
 }
 
 export type DaySection = { title: string; dayKey: string; data: ParentAttendanceRow[] };

@@ -162,7 +162,7 @@ export function navigateFromNotification(
 
 /** Tab handler kept for Home / Profile only */
 export type TabNavigationPayload = {
-  tab: 'Home' | 'Profile';
+  tab: 'Home' | 'Attendance' | 'Study' | 'Fees' | 'More' | 'Profile';
   studentId?: number;
 };
 

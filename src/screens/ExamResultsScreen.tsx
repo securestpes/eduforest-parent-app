@@ -26,6 +26,7 @@ import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import type { AppTheme } from '../theme';
+import { shadows } from '../theme/appTheme';
 import { useAppLanguage } from '../common';
 import { savePdfToDevice } from '../utils/savePdfToDevice';
 import { toTitleCase } from '../utils/toTitleCase';
@@ -229,9 +230,9 @@ export function ExamResultsScreen({
               onPress={() => void openDetail(item.examId)}
               style={[
                 styles.card,
+                shadows.card,
                 {
                   backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.outlineVariant,
                 },
               ]}
             >
@@ -500,9 +501,8 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   card: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 20,
+    padding: 16,
     gap: 8,
   },
   cardTop: {

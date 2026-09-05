@@ -1,13 +1,17 @@
 import React, { createContext, useCallback, useContext, useMemo } from 'react';
 
-export type MainTabName = 'Home' | 'Profile';
+export type MainTabName = 'Home' | 'Attendance' | 'Study' | 'Fees' | 'More' | 'Profile';
 
 const TAB_TO_INDEX: Record<MainTabName, number> = {
   Home: 0,
-  Profile: 1,
+  Attendance: 1,
+  Study: 2,
+  Fees: 3,
+  More: 4,
+  Profile: 4,
 };
 
-const INDEX_TO_TAB: MainTabName[] = ['Home', 'Profile'];
+const INDEX_TO_TAB: MainTabName[] = ['Home', 'Attendance', 'Study', 'Fees', 'More'];
 
 type TabNavigationContextValue = {
   index: number;
@@ -16,9 +20,7 @@ type TabNavigationContextValue = {
   activeTab: MainTabName;
 };
 
-const TabNavigationContext = createContext<TabNavigationContextValue | null>(
-  null
-);
+const TabNavigationContext = createContext<TabNavigationContextValue | null>(null);
 
 export function TabNavigationProvider({
   children,
@@ -31,7 +33,7 @@ export function TabNavigationProvider({
 }) {
   const navigateToTab = useCallback(
     (tab: MainTabName) => {
-      setIndex(TAB_TO_INDEX[tab]);
+      setIndex(TAB_TO_INDEX[tab] ?? 0);
     },
     [setIndex]
   );
@@ -47,18 +49,14 @@ export function TabNavigationProvider({
   );
 
   return (
-    <TabNavigationContext.Provider value={value}>
-      {children}
-    </TabNavigationContext.Provider>
+    <TabNavigationContext.Provider value={value}>{children}</TabNavigationContext.Provider>
   );
 }
 
 export function useMainTabNavigation(): TabNavigationContextValue {
   const ctx = useContext(TabNavigationContext);
   if (!ctx) {
-    throw new Error(
-      'useMainTabNavigation must be used within TabNavigationProvider'
-    );
+    throw new Error('useMainTabNavigation must be used within TabNavigationProvider');
   }
   return ctx;
 }

@@ -24,6 +24,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { initials, avatarHue } from '../utils/attendanceVisuals';
 import type { AppTheme } from '../theme';
+import { shadows } from '../theme/appTheme';
 import {
   ConfirmationPopup,
   useAppLanguage,
@@ -150,9 +151,9 @@ export function ProfileScreen() {
         <View
           style={[
             styles.heroCard,
+            shadows.card,
             {
               backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outlineVariant,
             },
           ]}
         >
@@ -206,9 +207,9 @@ export function ProfileScreen() {
         <View
           style={[
             styles.infoCard,
+            shadows.card,
             {
               backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outlineVariant,
             },
           ]}
         >
@@ -249,9 +250,9 @@ export function ProfileScreen() {
         <View
           style={[
             styles.infoCard,
+            shadows.card,
             {
               backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outlineVariant,
             },
           ]}
         >
@@ -294,9 +295,9 @@ export function ProfileScreen() {
         <View
           style={[
             styles.infoCard,
+            shadows.card,
             {
               backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outlineVariant,
             },
           ]}
         >
@@ -326,9 +327,9 @@ export function ProfileScreen() {
         <View
           style={[
             styles.infoCard,
+            shadows.card,
             {
               backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outlineVariant,
             },
           ]}
         >
@@ -441,9 +442,9 @@ export function ProfileScreen() {
           <View
             style={[
               styles.infoCard,
+              shadows.card,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.outlineVariant,
               },
             ]}
           >
@@ -489,9 +490,9 @@ export function ProfileScreen() {
           <View
             style={[
               styles.infoCard,
+              shadows.card,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.outlineVariant,
               },
             ]}
           >
@@ -537,9 +538,9 @@ export function ProfileScreen() {
           <View
             style={[
               styles.infoCard,
+              shadows.card,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.outlineVariant,
               },
             ]}
           >
@@ -675,7 +676,6 @@ const styles = StyleSheet.create({
   heroCard: {
     alignItems: 'center',
     borderRadius: 24,
-    borderWidth: 1,
     paddingVertical: 28,
     paddingHorizontal: 20,
     marginBottom: 24,
@@ -705,8 +705,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 14,
-    borderRadius: 18,
-    borderWidth: 1,
+    borderRadius: 20,
     padding: 16,
     marginTop: 12,
   },

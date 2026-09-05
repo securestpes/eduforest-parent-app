@@ -8,6 +8,14 @@ export interface ParentStudent {
   guardianName: string;
   batchNames: string[];
   instituteName: string;
+  instituteLogo?: string | null;
+  dateOfBirth?: string | null;
+  profilePicUrl?: string | null;
+  className?: string | null;
+  sectionName?: string | null;
+  rollNumber?: string | null;
+  academicYear?: string | null;
+  status?: string | null;
 }
 
 export interface ParentAttendanceRow {
@@ -44,11 +52,45 @@ export async function deleteMyAccount(): Promise<ApiEnvelope> {
   return data;
 }
 
+function pickStr(...vals: unknown[]): string {
+  for (const v of vals) {
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return '';
+}
+
+function mapParentStudent(raw: unknown): ParentStudent {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const batches = r.batchNames;
+  return {
+    id: Number(r.id ?? 0),
+    name: pickStr(r.name) || 'Student',
+    guardianName: pickStr(r.guardianName, r.guardian_name),
+    batchNames: Array.isArray(batches)
+      ? batches.map((b) => String(b)).filter(Boolean)
+      : [],
+    instituteName: pickStr(r.instituteName, r.institute_name),
+    instituteLogo: pickStr(r.instituteLogo, r.institute_logo) || null,
+    dateOfBirth: pickStr(r.dateOfBirth, r.date_of_birth) || null,
+    profilePicUrl:
+      pickStr(r.profilePicUrl, r.profile_pic_url, r.photoUrl, r.photo) || null,
+    className: pickStr(r.className, r.class_name) || null,
+    sectionName: pickStr(r.sectionName, r.section_name) || null,
+    rollNumber: pickStr(r.rollNumber, r.roll_number) || null,
+    academicYear: pickStr(r.academicYear, r.academic_year) || null,
+    status: pickStr(r.status) || null,
+  };
+}
+
 export async function getMyStudents(): Promise<
   ApiEnvelope & { data?: ParentStudent[] }
 > {
   const { data } = await api.get(`${prefix}/me/students`);
-  return data as ApiEnvelope & { data?: ParentStudent[] };
+  const envelope = data as ApiEnvelope & { data?: unknown };
+  if (Array.isArray(envelope.data)) {
+    return { ...envelope, data: envelope.data.map(mapParentStudent) };
+  }
+  return envelope as ApiEnvelope & { data?: ParentStudent[] };
 }
 
 export type ParentFeeNotificationType =
@@ -307,6 +349,28 @@ export async function getStudentSchoolCalendar(
 ): Promise<ApiEnvelope & { data?: ParentSchoolCalendar }> {
   const { data } = await api.get(`${prefix}/students/${studentId}/calendar`);
   return data as ApiEnvelope & { data?: ParentSchoolCalendar };
+}
+
+export interface ParentBatchSchedule {
+  scheduleId: number;
+  batchId: number | null;
+  batchName: string;
+  scheduleType: string;
+  startTime: string;
+  endTime: string;
+  endDate: string;
+  daysOfWeek: string[];
+  specificDates: string[];
+  periodName?: string;
+  teacherName?: string;
+  source?: 'BATCH' | 'TIMETABLE' | string;
+}
+
+export async function getStudentSchedules(
+  studentId: number
+): Promise<ApiEnvelope & { data?: ParentBatchSchedule[] }> {
+  const { data } = await api.get(`${prefix}/students/${studentId}/schedules`);
+  return data as ApiEnvelope & { data?: ParentBatchSchedule[] };
 }
 
 export interface ParentFeeInstallment {

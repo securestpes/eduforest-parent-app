@@ -28,6 +28,7 @@ import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import type { AppTheme } from '../theme';
+import { shadows } from '../theme/appTheme';
 import { useAppLanguage, type TranslationKey } from '../common';
 
 type FilterId = 'ALL' | 'HOLIDAY' | 'EXAM' | 'EVENT';
@@ -294,9 +295,9 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
           <View
             style={[
               styles.monthCard,
+              shadows.card,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.outlineVariant,
               },
             ]}
           >
@@ -468,9 +469,9 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
                   key={event.id}
                   style={[
                     styles.eventCard,
+                    shadows.card,
                     {
                       backgroundColor: colors.bg,
-                      borderColor: theme.colors.outlineVariant,
                     },
                   ]}
                 >
@@ -552,9 +553,8 @@ const styles = StyleSheet.create({
   },
   monthCard: {
     marginTop: 16,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 12,
+    borderRadius: 20,
+    padding: 16,
   },
   monthHeader: {
     flexDirection: 'row',
@@ -594,9 +594,8 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   eventCard: {
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 20,
+    padding: 16,
     marginBottom: 10,
   },
   typePill: {
