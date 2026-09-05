@@ -36,11 +36,21 @@ export function HomeHero({ greeting, welcome, contentOpacity }: Props) {
         <Animated.View
           style={[styles.greetRow, contentOpacity ? { opacity: contentOpacity } : null]}
         >
-          <Text style={[typography.greeting, { color: colors.headerOn }]}>
+          <Text
+            style={[
+              typography.greeting,
+              styles.greetLine,
+              { color: colors.headerOn },
+            ]}
+          >
             {greeting}
           </Text>
           <Text
-            style={[typography.hero, { color: colors.headerOn }]}
+            style={[
+              typography.hero,
+              styles.welcomeLine,
+              { color: colors.headerOn },
+            ]}
             numberOfLines={2}
           >
             {welcome}
@@ -69,5 +79,21 @@ const styles = StyleSheet.create({
   greetRow: {
     marginTop: 8,
     paddingRight: "36%",
+    alignSelf: "stretch",
+    alignItems: "flex-start",
+  },
+  greetLine: {
+    letterSpacing: 0,
+    includeFontPadding: false,
+    textAlign: "left",
+    padding: 0,
+    margin: 0,
+  },
+  welcomeLine: {
+    letterSpacing: 0,
+    includeFontPadding: false,
+    textAlign: "left",
+    padding: 0,
+    marginTop: 2,
   },
 });
