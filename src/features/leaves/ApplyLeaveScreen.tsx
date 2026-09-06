@@ -14,7 +14,6 @@ import {
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   Image,
   KeyboardAvoidingView,
@@ -28,18 +27,15 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSelector } from 'react-redux';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
   applyStudentLeave,
-  getMe,
   type ParentStudent,
 } from '../../services/parent';
-import { useAppLanguage } from '../../common';
+import { useAppLanguage, StatusPopup, type StatusPopupVariant } from '../../common';
 import { normalizeUploadUrl } from '../../common/helpers/normalizeUploadUrl';
 import { initials, avatarHue } from '../../utils/attendanceVisuals';
 import { colors, shadows, spacing } from '../../theme/appTheme';
-import type { RootState } from '../../redux/store';
 
 const HERO_BG = require('../../assets/hero-bg.png');
 const REASON_MAX = 300;
@@ -165,7 +161,6 @@ export function ApplyLeaveScreen({
 }) {
   const { t } = useAppLanguage();
   const insets = useSafeAreaInsets();
-  const authMobile = useSelector((s: RootState) => s.auth.user?.mobile ?? '');
   const today = isoDay(new Date());
 
   const [leaveType, setLeaveType] = useState<LeaveType>('SICK');
@@ -173,27 +168,15 @@ export function ApplyLeaveScreen({
   const [toDate, setToDate] = useState(today);
   const [dayPart, setDayPart] = useState<DaySession>('FULL');
   const [reason, setReason] = useState('');
-  const [contact, setContact] = useState(authMobile);
   const [submitting, setSubmitting] = useState(false);
   const [picker, setPicker] = useState<'from' | 'to' | null>(null);
   const [photoFailed, setPhotoFailed] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await getMe();
-        if (cancelled || !res.status || !res.data || typeof res.data !== 'object') return;
-        const mobile = (res.data as { mobile?: string }).mobile;
-        if (mobile?.trim()) setContact(mobile.trim());
-      } catch {
-        /* keep auth mobile */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const [status, setStatus] = useState<{
+    variant: StatusPopupVariant;
+    title: string;
+    message?: string;
+    closeAfter?: boolean;
+  } | null>(null);
 
   const name = student?.name || t('common.student');
   const hue = avatarHue(name);
@@ -232,7 +215,10 @@ export function ApplyLeaveScreen({
 
   const submit = async () => {
     if (!reason.trim()) {
-      Alert.alert('', t('leaves.formRequired'));
+      setStatus({
+        variant: 'error',
+        title: t('leaves.formRequired'),
+      });
       return;
     }
     setSubmitting(true);
@@ -249,10 +235,17 @@ export function ApplyLeaveScreen({
       if (!res.status) {
         throw new Error(res.message || t('leaves.applyFailed'));
       }
-      Alert.alert('', t('leaves.applySuccess'));
-      onApplied();
+      setStatus({
+        variant: 'success',
+        title: t('leaves.applySuccess'),
+        closeAfter: true,
+      });
     } catch (e: any) {
-      Alert.alert('', e?.message || t('leaves.applyFailed'));
+      setStatus({
+        variant: 'error',
+        title: t('leaves.applyFailed'),
+        message: e?.message || t('leaves.applyFailed'),
+      });
     } finally {
       setSubmitting(false);
     }
@@ -408,18 +401,6 @@ export function ApplyLeaveScreen({
                 {reason.length}/{REASON_MAX}
               </Text>
             </View>
-
-            <Text style={styles.label}>{t('leaves.contactNumber')}</Text>
-            <View style={styles.contactField}>
-              <MaterialCommunityIcons name="phone-outline" size={20} color={colors.primary} />
-              <TextInput
-                value={contact}
-                editable={false}
-                style={styles.contactInput}
-                placeholder="—"
-                placeholderTextColor={colors.textTertiary}
-              />
-            </View>
           </View>
         </ScrollView>
 
@@ -451,6 +432,17 @@ export function ApplyLeaveScreen({
         title={picker === 'to' ? t('leaves.toDate') : t('leaves.fromDate')}
         onClose={() => setPicker(null)}
         onSelect={(iso) => (picker === 'to' ? setTo(iso) : setFrom(iso))}
+      />
+      <StatusPopup
+        visible={status != null}
+        variant={status?.variant}
+        title={status?.title ?? ''}
+        message={status?.message}
+        onDismiss={() => {
+          const closeAfter = status?.closeAfter;
+          setStatus(null);
+          if (closeAfter) onApplied();
+        }}
       />
     </View>
   );
@@ -597,18 +589,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-  contactField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E6E8EE',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  contactInput: { flex: 1, color: colors.text, fontSize: 15, paddingVertical: 10 },
   footer: {
     paddingHorizontal: spacing.lg,
     paddingTop: 10,
