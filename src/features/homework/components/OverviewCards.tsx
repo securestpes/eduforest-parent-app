@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, spacing, typography } from '../../../theme/appTheme';
+import { spacing, typography, useAppColors } from '../../../theme/appTheme';
 import { Card } from '../../../components/ui/Card';
 
 export function OverviewCards({
@@ -13,6 +13,7 @@ export function OverviewCards({
   submitted: number;
   overdue: number;
 }) {
+  const colors = useAppColors();
   const items = [
     {
       label: `${pending} Pending`,

@@ -3,7 +3,7 @@ import { Animated, Image, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useParentTheme } from "../../../theme/useParentTheme";
-import { NotificationBellButton } from "../../../components/NotificationBellButton";
+import { TabHeaderActions } from "../../../components/TabHeaderActions";
 
 type Props = {
   barOpacity: Animated.AnimatedInterpolation<number>;
@@ -11,22 +11,21 @@ type Props = {
   compact: boolean;
   schoolLogoUrl?: string;
   schoolName?: string;
-  onBell: () => void;
 };
 
-export const COMPACT_BAR_HEIGHT = 64;
+export const COMPACT_BAR_HEIGHT = 72;
 
 const GRADIENT_STEPS = 18;
 
 function mixHex(from: string, to: string, t: number): string {
   const parse = (hex: string) => {
-    const n = parseInt(hex.replace('#', ''), 16);
+    const n = parseInt(hex.replace("#", ""), 16);
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   };
   const a = parse(from);
   const b = parse(to);
   const c = a.map((v, i) => Math.round(v + (b[i] - v) * t));
-  return `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+  return `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
 export function HomeCompactHeader({
@@ -34,7 +33,6 @@ export function HomeCompactHeader({
   logoShift,
   schoolLogoUrl,
   schoolName,
-  onBell,
 }: Props) {
   const { colors, spacing } = useParentTheme();
   const insets = useSafeAreaInsets();
@@ -60,7 +58,7 @@ export function HomeCompactHeader({
                 backgroundColor: mixHex(
                   colors.headerGradient[0],
                   colors.headerGradient[1],
-                  i / (GRADIENT_STEPS - 1)
+                  i / (GRADIENT_STEPS - 1),
                 ),
               }}
             />
@@ -72,51 +70,46 @@ export function HomeCompactHeader({
         pointerEvents="box-none"
       >
         <View style={styles.bar} pointerEvents="box-none">
-        <Animated.View
-          style={[
-            styles.logoWrap,
-            { opacity: barOpacity, transform: [{ translateY: logoShift }] },
-          ]}
-          pointerEvents="none"
-        >
-          <View style={styles.brand}>
-            {showLogo ? (
-              <Image
-                source={{
-                  uri: schoolLogoUrl,
-                  headers: { "ngrok-skip-browser-warning": "true" },
-                }}
-                style={styles.logo}
-                resizeMode="contain"
-                onError={() => setLogoFailed(true)}
-              />
-            ) : (
-              <View
-                style={[
-                  styles.logoFallback,
-                  { backgroundColor: colors.overlay },
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name="school-outline"
-                  size={22}
-                  color={colors.headerOn}
-                />
+          <Animated.View
+            style={[
+              styles.logoWrap,
+              { transform: [{ translateY: logoShift }] },
+            ]}
+            pointerEvents="none"
+          >
+            {schoolName || showLogo ? (
+              <View style={styles.brand}>
+                {showLogo ? (
+                  <Image
+                    source={{
+                      uri: schoolLogoUrl,
+                      headers: { "ngrok-skip-browser-warning": "true" },
+                    }}
+                    style={styles.logo}
+                    resizeMode="contain"
+                    onError={() => setLogoFailed(true)}
+                  />
+                ) : (
+                  <MaterialCommunityIcons
+                    name="school"
+                    size={28}
+                    color={colors.headerOn}
+                  />
+                )}
+                {schoolName ? (
+                  <Text
+                    style={[styles.schoolName, { color: colors.headerOn }]}
+                    numberOfLines={2}
+                  >
+                    {schoolName}
+                  </Text>
+                ) : null}
               </View>
-            )}
-            {schoolName ? (
-              <Text
-                style={[styles.schoolName, { color: colors.headerOn }]}
-                numberOfLines={1}
-              >
-                {schoolName}
-              </Text>
             ) : null}
+          </Animated.View>
+          <View style={styles.actions}>
+            <TabHeaderActions />
           </View>
-        </Animated.View>
-        <View style={styles.bell}>
-          <NotificationBellButton onPress={onBell} variant="well" />
-        </View>
         </View>
       </View>
     </View>
@@ -143,7 +136,7 @@ const styles = StyleSheet.create({
   },
   gradientRow: {
     ...StyleSheet.absoluteFillObject,
-    flexDirection: 'row',
+    flexDirection: "row",
   },
   bar: {
     height: COMPACT_BAR_HEIGHT,
@@ -165,26 +158,24 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   logo: {
-    height: 48,
-    width: 48,
+    height: 52,
+    width: 52,
     borderRadius: 10,
-  },
-  logoFallback: {
-    height: 48,
-    width: 48,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
   },
   schoolName: {
     flex: 1,
     flexShrink: 1,
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
-  bell: {
-    width: 48,
-    alignItems: "flex-end",
-    justifyContent: "center",
+  actions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
   },
 });

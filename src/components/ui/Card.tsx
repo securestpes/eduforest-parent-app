@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
-import { colors, shadows, spacing } from '../../theme/appTheme';
+import { shadows, spacing, useAppColors } from '../../theme/appTheme';
 
 export function Card({
   children,
@@ -9,12 +9,12 @@ export function Card({
   children: React.ReactNode;
   style?: ViewStyle;
 }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  const colors = useAppColors();
+  return <View style={[styles.card, { backgroundColor: colors.surface }, style]}>{children}</View>;
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: spacing.base,
     ...shadows.card,

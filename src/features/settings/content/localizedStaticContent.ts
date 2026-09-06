@@ -555,7 +555,7 @@ export const PARENT_HELP_FAQS: Record<AppLanguage, LocalizedFaqItem[]> = {
       category: 'Getting started',
       question: 'What is the EduForest Parent app for?',
       answer:
-        'You receive attendance updates when your child’s institute marks attendance using EduForest. Open Home to see a snapshot, Attendance for history, and Alerts for notifications.',
+        'You receive attendance updates when your child’s institute marks attendance using EduForest. Open Home to see a snapshot, Attendance for history, and notifications for alerts.',
     },
     {
       id: 2,
@@ -627,7 +627,7 @@ export const PARENT_HELP_FAQS: Record<AppLanguage, LocalizedFaqItem[]> = {
       category: 'शुरुआत',
       question: 'EduForest Parent ऐप किस लिए है?',
       answer:
-        'जब आपके बच्चे का संस्थान EduForest से उपस्थिति दर्ज करता है तो आपको अपडेट मिलते हैं। सारांश के लिए Home, इतिहास के लिए Attendance, और सूचनाओं के लिए Alerts खोलें।',
+        'जब आपके बच्चे का संस्थान EduForest से उपस्थिति दर्ज करता है तो आपको अपडेट मिलते हैं। सारांश के लिए होम, इतिहास के लिए उपस्थिति, और सूचनाएँ खोलें।',
     },
     {
       id: 2,
@@ -641,7 +641,7 @@ export const PARENT_HELP_FAQS: Record<AppLanguage, LocalizedFaqItem[]> = {
       category: 'लॉगिन',
       question: 'OTP नहीं मिला। क्या करूँ?',
       answer:
-        'रीसेंड टाइमर खत्म होने दें, फिर Resend OTP दबाएँ। नंबर, नेटवर्क और SMS ब्लॉक सेटिंग जाँचें। नंबर बदलने के लिए Change दबाएँ। फिर भी असफल हो तो securestepsai@gmail.com पर लिखें।',
+        'रीसेंड टाइमर खत्म होने दें, फिर OTP फिर भेजें दबाएँ। नंबर, नेटवर्क और SMS ब्लॉक सेटिंग जाँचें। नंबर बदलने के लिए बदलें दबाएँ। फिर भी असफल हो तो securestepsai@gmail.com पर लिखें।',
     },
     {
       id: 4,
@@ -662,7 +662,7 @@ export const PARENT_HELP_FAQS: Record<AppLanguage, LocalizedFaqItem[]> = {
       category: 'उपस्थिति',
       question: 'पुरानी उपस्थिति कहाँ देखूँ?',
       answer:
-        'इतिहास और सारांश के लिए Attendance टैब खोलें। संस्थान की सेटअप के अनुसार Home पर हाल की हाइलाइट्स दिख सकती हैं।',
+        'इतिहास और सारांश के लिए उपस्थिति टैब खोलें। संस्थान की सेटअप के अनुसार होम पर हाल की हाइलाइट्स दिख सकती हैं।',
     },
     {
       id: 7,
@@ -699,7 +699,7 @@ export const PARENT_HELP_FAQS: Record<AppLanguage, LocalizedFaqItem[]> = {
       category: 'শুরু',
       question: 'EduForest Parent অ্যাপটি কীসের জন্য?',
       answer:
-        'আপনার সন্তানের প্রতিষ্ঠান EduForest দিয়ে উপস্থিতি চিহ্নিত করলে আপনি আপডেট পাবেন। সারসংক্ষেপের জন্য Home, ইতিহাসের জন্য Attendance, এবং বিজ্ঞপ্তির জন্য Alerts খুলুন।',
+        'আপনার সন্তানের প্রতিষ্ঠান EduForest দিয়ে উপস্থিতি চিহ্নিত করলে আপনি আপডেট পাবেন। সারসংক্ষেপের জন্য হোম, ইতিহাসের জন্য উপস্থিতি, এবং বিজ্ঞপ্তি খুলুন।',
     },
     {
       id: 2,
@@ -713,7 +713,7 @@ export const PARENT_HELP_FAQS: Record<AppLanguage, LocalizedFaqItem[]> = {
       category: 'লগইন',
       question: 'OTP পাইনি। কী করব?',
       answer:
-        'রিসেন্ড টাইমার শেষ হওয়ার অপেক্ষা করুন, তারপর Resend OTP চাপুন। নম্বর, নেটওয়ার্ক ও SMS ব্লক সেটিংস দেখুন। নম্বর বদলাতে Change চাপুন। ব্যর্থ হলে securestepsai@gmail.com-এ লিখুন।',
+        'রিসেন্ড টাইমার শেষ হওয়ার অপেক্ষা করুন, তারপর OTP আবার পাঠান চাপুন। নম্বর, নেটওয়ার্ক ও SMS ব্লক সেটিংস দেখুন। নম্বর বদলাতে পরিবর্তন চাপুন। ব্যর্থ হলে securestepsai@gmail.com-এ লিখুন।',
     },
     {
       id: 4,
@@ -734,7 +734,7 @@ export const PARENT_HELP_FAQS: Record<AppLanguage, LocalizedFaqItem[]> = {
       category: 'উপস্থিতি',
       question: 'আগের উপস্থিতি কোথায় দেখব?',
       answer:
-        'ইতিহাস ও সারাংশের জন্য Attendance ট্যাব খুলুন। প্রতিষ্ঠানের সেটআপ অনুযায়ী Home-এ সাম্প্রতিক হাইলাইট দেখা যেতে পারে।',
+        'ইতিহাস ও সারাংশের জন্য উপস্থিতি ট্যাব খুলুন। প্রতিষ্ঠানের সেটআপ অনুযায়ী হোমে সাম্প্রতিক হাইলাইট দেখা যেতে পারে।',
     },
     {
       id: 7,
@@ -771,7 +771,7 @@ export const PARENT_HELP_FAQS: Record<AppLanguage, LocalizedFaqItem[]> = {
       category: 'தொடக்கம்',
       question: 'EduForest Parent செயலி எதற்காக?',
       answer:
-        'உங்கள் குழந்தையின் நிறுவனம் EduForest மூலம் வருகையை பதிவு செய்யும்போது புதுப்பிப்புகளைப் பெறுவீர்கள். சுருக்கத்திற்கு Home, வரலாற்றிற்கு Attendance, அறிவிப்புகளுக்கு Alerts திறக்கவும்.',
+        'உங்கள் குழந்தையின் நிறுவனம் EduForest மூலம் வருகையை பதிவு செய்யும்போது புதுப்பிப்புகளைப் பெறுவீர்கள். சுருக்கத்திற்கு முகப்பு, வரலாற்றிற்கு வருகை, அறிவிப்புகளைத் திறக்கவும்.',
     },
     {
       id: 2,
@@ -785,7 +785,7 @@ export const PARENT_HELP_FAQS: Record<AppLanguage, LocalizedFaqItem[]> = {
       category: 'உள்நுழைவு',
       question: 'OTP கிடைக்கவில்லை. என்ன செய்வது?',
       answer:
-        'மீண்டும் அனுப்பு டைமர் முடியும் வரை காத்திருந்து Resend OTP அழுத்தவும். எண், நெட்வொர்க் மற்றும் SMS தடை அமைப்புகளைச் சரிபார்க்கவும். எண்ணை மாற்ற Change அழுத்தவும். தொடர்ந்தால் securestepsai@gmail.com-க்கு எழுதவும்.',
+        'மீண்டும் அனுப்பு டைமர் முடியும் வரை காத்திருந்து OTP மீண்டும் அனுப்பு அழுத்தவும். எண், நெட்வொர்க் மற்றும் SMS தடை அமைப்புகளைச் சரிபார்க்கவும். எண்ணை மாற்ற மாற்று அழுத்தவும். தொடர்ந்தால் securestepsai@gmail.com-க்கு எழுதவும்.',
     },
     {
       id: 4,
@@ -806,7 +806,7 @@ export const PARENT_HELP_FAQS: Record<AppLanguage, LocalizedFaqItem[]> = {
       category: 'வருகை',
       question: 'கடந்த வருகையை எங்கே பார்க்கலாம்?',
       answer:
-        'வரலாறு மற்றும் சுருக்கத்திற்கு Attendance தாவலைத் திறக்கவும். நிறுவன அமைப்பின்படி Home-இல் சமீபத்திய சிறப்பம்சங்கள் தோன்றலாம்.',
+        'வரலாறு மற்றும் சுருக்கத்திற்கு வருகை தாவலைத் திறக்கவும். நிறுவன அமைப்பின்படி முகப்பில் சமீபத்திய சிறப்பம்சங்கள் தோன்றலாம்.',
     },
     {
       id: 7,

@@ -27,13 +27,22 @@ import {
 import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
+import { StudentModuleHero } from '../components/layout/StudentModuleHero';
+import { useChildHubRestore, useHubAwareBack } from '../navigation/ChildHubNavContext';
+import {
+  clampMonthToSession,
+  isDateInSession,
+  monthKey,
+  resolveSessionRange,
+  sessionMonthAnchors,
+} from '../utils/academicSession';
 import type { AppTheme } from '../theme';
 import { shadows } from '../theme/appTheme';
 import { useAppLanguage, type TranslationKey } from '../common';
+import type { AppLanguage } from '../common/contexts/parentTranslations';
+import { formatAppDate, weekdayNarrowLabelsSundayFirst } from '../utils/appDateLocale';
 
 type FilterId = 'ALL' | 'HOLIDAY' | 'EXAM' | 'EVENT';
-
-const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 const TYPE_COLORS: Record<string, { fg: string; bg: string }> = {
   HOLIDAY: { fg: '#C2410C', bg: '#FFF7ED' },
@@ -54,10 +63,13 @@ function parseYmd(value: string | null | undefined): Date | null {
   }
 }
 
-function formatFriendlyDate(value: string | null | undefined): string {
+function formatFriendlyDate(
+  value: string | null | undefined,
+  language: AppLanguage
+): string {
   const date = parseYmd(value);
   if (!date) return '—';
-  return format(date, 'd MMM yyyy');
+  return formatAppDate(date, 'd MMM yyyy', language);
 }
 
 function eventCoversDay(event: ParentCalendarEvent, dayKey: string): boolean {
@@ -84,7 +96,9 @@ type Props = {
 
 export function SchoolCalendarScreen({ embedded = false }: Props) {
   const theme = useTheme() as AppTheme;
-  const { t } = useAppLanguage();
+  const { t, language } = useAppLanguage();
+  const restore = useChildHubRestore();
+  const goBack = useHubAwareBack();
   const studentId = useSelectionStore((s) => s.selectedStudentId);
 
   const [students, setStudents] = useState<ParentStudent[]>([]);
@@ -92,6 +106,9 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [events, setEvents] = useState<ParentCalendarEvent[]>([]);
   const [sessionName, setSessionName] = useState<string | null>(null);
+  const [sessionRange, setSessionRange] = useState<{ start: Date; end: Date } | null>(
+    null
+  );
   const [hasEnrollment, setHasEnrollment] = useState(true);
   const [filter, setFilter] = useState<FilterId>('ALL');
   const [error, setError] = useState<string | null>(null);
@@ -118,18 +135,32 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
           getMyStudents(),
           getStudentSchoolCalendar(studentId),
         ]);
-        if (studentsRes.status && Array.isArray(studentsRes.data)) {
-          setStudents(studentsRes.data);
-        }
+        const nextStudents =
+          studentsRes.status && Array.isArray(studentsRes.data)
+            ? studentsRes.data
+            : [];
+        if (nextStudents.length) setStudents(nextStudents);
+        const studentYear =
+          nextStudents.find((s) => s.id === studentId)?.academicYear ?? null;
         if (!calRes.status || !calRes.data) {
           setError(calRes.message || t('calendar.loadFailed'));
           setEvents([]);
+          setSessionRange(
+            resolveSessionRange({ academicYear: studentYear })
+          );
           return;
         }
         const data = calRes.data;
         setEvents(Array.isArray(data.events) ? data.events : []);
         setSessionName(data.sessionName || null);
         setHasEnrollment(data.sessionId != null);
+        setSessionRange(
+          resolveSessionRange({
+            startDate: data.startDate,
+            endDate: data.endDate,
+            academicYear: data.sessionName || studentYear,
+          })
+        );
       } catch (e: any) {
         setError(e?.message || t('calendar.loadFailed'));
         setEvents([]);
@@ -171,7 +202,25 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
     [filteredEvents, selectedDay]
   );
 
-  const monthLabel = format(cursor, 'MMMM yyyy');
+  const sessionMonths = useMemo(
+    () => sessionMonthAnchors(sessionRange, new Date(), { includeFuture: true }),
+    [sessionRange]
+  );
+
+  useEffect(() => {
+    if (!sessionMonths.length) return;
+    setCursor((current) => clampMonthToSession(current, sessionMonths));
+  }, [sessionMonths]);
+
+  const canGoPrev =
+    sessionMonths.length === 0 ||
+    monthKey(cursor) > monthKey(sessionMonths[sessionMonths.length - 1]);
+  const canGoNext =
+    sessionMonths.length === 0 ||
+    monthKey(cursor) < monthKey(sessionMonths[0]);
+
+  const monthLabel = formatAppDate(cursor, 'MMMM yyyy', language);
+  const weekdayLabels = weekdayNarrowLabelsSundayFirst(language);
 
   const monthCells = useMemo(() => {
     const start = startOfMonth(cursor);
@@ -195,15 +244,19 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
   if (studentId == null) {
     if (embedded) return null;
     return (
-      <ScreenDecor>
-        <SafeAreaView style={styles.safe} edges={['top']}>
-          <EmptyState
-            icon="gesture-tap"
-            title={t('calendar.pickStudentTitle')}
-            message={t('calendar.pickStudentMessage')}
-          />
-        </SafeAreaView>
-      </ScreenDecor>
+      <View style={styles.flex}>
+        <StudentModuleHero
+          title={t('calendar.title')}
+          subtitle={t('tabs.calendarSubtitle')}
+          heroIcon="calendar-month-outline"
+          onBack={restore ? goBack : undefined}
+        />
+        <EmptyState
+          icon="gesture-tap"
+          title={t('calendar.pickStudentTitle')}
+          message={t('calendar.pickStudentMessage')}
+        />
+      </View>
     );
   }
 
@@ -219,21 +272,20 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
         />
       }
     >
-      {!embedded ? (
-        <Text
-          variant="headlineSmall"
-          style={{ color: theme.colors.onSurface, fontWeight: '700' }}
-        >
-          {t('calendar.title')}
-        </Text>
-      ) : null}
-      {selectedStudent ? (
+      {embedded && selectedStudent ? (
         <Text
           variant="bodyMedium"
           style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}
         >
           {selectedStudent.name}
           {sessionName ? ` · ${sessionName}` : ''}
+        </Text>
+      ) : sessionName && !embedded ? (
+        <Text
+          variant="bodyMedium"
+          style={{ color: theme.colors.onSurfaceVariant }}
+        >
+          {sessionName}
         </Text>
       ) : null}
 
@@ -303,18 +355,24 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
           >
             <View style={styles.monthHeader}>
               <Pressable
-                onPress={() =>
+                onPress={() => {
+                  if (!canGoPrev) return;
                   setCursor(
                     (c) => new Date(c.getFullYear(), c.getMonth() - 1, 1)
-                  )
-                }
+                  );
+                }}
                 hitSlop={10}
-                style={styles.navBtn}
+                style={[styles.navBtn, !canGoPrev && styles.navBtnDisabled]}
+                disabled={!canGoPrev}
               >
                 <MaterialCommunityIcons
                   name="chevron-left"
                   size={26}
-                  color={theme.colors.primary}
+                  color={
+                    canGoPrev
+                      ? theme.colors.primary
+                      : theme.colors.onSurfaceDisabled
+                  }
                 />
               </Pressable>
               <Text
@@ -324,24 +382,30 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
                 {monthLabel}
               </Text>
               <Pressable
-                onPress={() =>
+                onPress={() => {
+                  if (!canGoNext) return;
                   setCursor(
                     (c) => new Date(c.getFullYear(), c.getMonth() + 1, 1)
-                  )
-                }
+                  );
+                }}
                 hitSlop={10}
-                style={styles.navBtn}
+                style={[styles.navBtn, !canGoNext && styles.navBtnDisabled]}
+                disabled={!canGoNext}
               >
                 <MaterialCommunityIcons
                   name="chevron-right"
                   size={26}
-                  color={theme.colors.primary}
+                  color={
+                    canGoNext
+                      ? theme.colors.primary
+                      : theme.colors.onSurfaceDisabled
+                  }
                 />
               </Pressable>
             </View>
 
             <View style={styles.weekdayRow}>
-              {WEEKDAYS.map((d, i) => (
+              {weekdayLabels.map((d, i) => (
                 <Text
                   key={`${d}-${i}`}
                   variant="labelSmall"
@@ -368,12 +432,17 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
                 ).toUpperCase();
                 const colors = TYPE_COLORS[primaryType];
                 const hasEvent = dayItems.length > 0;
+                const inSession = isDateInSession(day, sessionRange);
 
                 return (
                   <Pressable
                     key={key}
-                    onPress={() => setSelectedDay(key)}
-                    style={styles.cell}
+                    onPress={() => {
+                      if (!inSession) return;
+                      setSelectedDay(key);
+                    }}
+                    disabled={!inSession}
+                    style={[styles.cell, !inSession && { opacity: 0.35 }]}
                   >
                     <View
                       style={[
@@ -441,7 +510,7 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
               marginBottom: 8,
             }}
           >
-            {formatFriendlyDate(selectedDay)}
+            {formatFriendlyDate(selectedDay, language)}
           </Text>
 
           {dayEvents.length === 0 ? (
@@ -462,8 +531,8 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
                 event.startDate &&
                 event.endDate &&
                 event.startDate !== event.endDate
-                  ? `${formatFriendlyDate(event.startDate)} → ${formatFriendlyDate(event.endDate)}`
-                  : formatFriendlyDate(event.startDate);
+                  ? `${formatFriendlyDate(event.startDate, language)} → ${formatFriendlyDate(event.endDate, language)}`
+                  : formatFriendlyDate(event.startDate, language);
               return (
                 <View
                   key={event.id}
@@ -532,11 +601,16 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
   }
 
   return (
-    <ScreenDecor>
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        {body}
-      </SafeAreaView>
-    </ScreenDecor>
+    <View style={styles.flex}>
+      <StudentModuleHero
+        title={t('calendar.title')}
+        subtitle={t('tabs.calendarSubtitle')}
+        student={selectedStudent}
+        heroIcon="calendar-month-outline"
+        onBack={restore ? goBack : undefined}
+      />
+      {body}
+    </View>
   );
 }
 
@@ -563,6 +637,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   navBtn: { padding: 4 },
+  navBtnDisabled: { opacity: 0.4 },
   weekdayRow: { flexDirection: 'row', marginBottom: 6 },
   weekday: {
     width: '14.2857%',

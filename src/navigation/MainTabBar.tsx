@@ -2,22 +2,10 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, shadows } from '../theme/appTheme';
+import { shadows, useAppColors } from '../theme/appTheme';
+import { useAppLanguage } from '../common';
 
-export type MainTabKey = 'home' | 'attendance' | 'study' | 'fees' | 'more';
-
-const TABS: {
-  key: MainTabKey;
-  label: string;
-  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
-  iconActive: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
-}[] = [
-  { key: 'home', label: 'Home', icon: 'home-outline', iconActive: 'home' },
-  { key: 'attendance', label: 'Attendance', icon: 'calendar-check-outline', iconActive: 'calendar-check' },
-  { key: 'study', label: 'Study', icon: 'book-open-page-variant', iconActive: 'book-open-page-variant' },
-  { key: 'fees', label: 'Fees', icon: 'currency-inr', iconActive: 'currency-inr' },
-  { key: 'more', label: 'More', icon: 'dots-horizontal', iconActive: 'dots-horizontal' },
-];
+export type MainTabKey = 'home' | 'attendance' | 'fees' | 'calendar' | 'settings';
 
 export function MainTabBar({
   active,
@@ -27,24 +15,53 @@ export function MainTabBar({
   onChange: (key: MainTabKey) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const colors = useAppColors();
+  const { t } = useAppLanguage();
+
+  const tabs: {
+    key: MainTabKey;
+    label: string;
+    icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+    iconActive: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  }[] = [
+    { key: 'attendance', label: t('childChips.attendance'), icon: 'calendar-check-outline', iconActive: 'calendar-check' },
+    { key: 'fees', label: t('childChips.fees'), icon: 'currency-inr', iconActive: 'currency-inr' },
+    { key: 'home', label: t('nav.home'), icon: 'home-outline', iconActive: 'home' },
+    { key: 'calendar', label: t('childChips.calendar'), icon: 'calendar-month-outline', iconActive: 'calendar-month' },
+    { key: 'settings', label: t('nav.settings'), icon: 'cog-outline', iconActive: 'cog' },
+  ];
+
   return (
-    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }, shadows.tab]}>
-      {TABS.map((tab) => {
+    <View
+      style={[
+        styles.bar,
+        { paddingBottom: Math.max(insets.bottom, 8), backgroundColor: colors.surface },
+        shadows.tab,
+      ]}
+    >
+      {tabs.map((tab) => {
         const focused = active === tab.key;
-        if (tab.key === 'study') {
+        if (tab.key === 'home') {
           return (
             <Pressable
               key={tab.key}
               onPress={() => onChange(tab.key)}
               style={styles.centerWrap}
               accessibilityRole="button"
-              accessibilityLabel="Study"
+              accessibilityLabel={tab.label}
               accessibilityState={{ selected: focused }}
             >
-              <View style={[styles.centerBtn, focused && styles.centerBtnActive]}>
+              <View
+                style={[
+                  styles.centerBtn,
+                  { backgroundColor: focused ? colors.primaryDark : colors.primary, borderColor: colors.surface },
+                ]}
+              >
                 <MaterialCommunityIcons name={tab.iconActive} size={26} color={colors.headerOn} />
               </View>
-              <Text style={[styles.label, focused && styles.labelActive]}>{tab.label}</Text>
+              <Text style={[styles.label, { color: focused ? colors.primary : colors.textTertiary }]}>
+                {tab.label}
+              </Text>
             </Pressable>
           );
         }
@@ -62,7 +79,9 @@ export function MainTabBar({
               size={22}
               color={focused ? colors.primary : colors.textTertiary}
             />
-            <Text style={[styles.label, focused && styles.labelActive]}>{tab.label}</Text>
+            <Text style={[styles.label, { color: focused ? colors.primary : colors.textTertiary, fontWeight: focused ? '800' : '600' }]}>
+              {tab.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -73,7 +92,6 @@ export function MainTabBar({
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
     paddingTop: 8,
     paddingHorizontal: 8,
     alignItems: 'flex-end',
@@ -84,13 +102,9 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,
-    borderColor: colors.surface,
   },
-  centerBtnActive: { backgroundColor: colors.primaryDark },
-  label: { fontSize: 11, fontWeight: '600', color: colors.textTertiary },
-  labelActive: { color: colors.primary, fontWeight: '800' },
+  label: { fontSize: 11, fontWeight: '600' },
 });

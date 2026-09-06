@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { differenceInCalendarDays, startOfDay } from 'date-fns';
 import type { ParentHomeworkItem } from '../../../services/parent';
-import { colors, shadows } from '../../../theme/appTheme';
+import { shadows, useAppColors, type AppColors } from '../../../theme/appTheme';
 import { useAppLanguage } from '../../../common';
 import {
   parseHomeworkDate,
@@ -14,7 +14,8 @@ import {
 function dueTone(
   dueDate: string | null | undefined,
   status: HomeworkUiStatus,
-  today: Date
+  today: Date,
+  colors: AppColors
 ): { labelKey: 'homework.overdue' | 'homework.dueToday' | 'homework.dueTomorrow' | 'homework.dueInDays' | 'homework.noDue' | 'homework.doneBadge'; count?: number; bg: string; fg: string } {
   if (status === 'submitted') {
     return { labelKey: 'homework.doneBadge', bg: colors.successSoft, fg: colors.success };
@@ -24,17 +25,17 @@ function dueTone(
   }
   const due = parseHomeworkDate(dueDate);
   if (!due) {
-    return { labelKey: 'homework.noDue', bg: '#EEF0F3', fg: colors.textSecondary };
+    return { labelKey: 'homework.noDue', bg: colors.divider, fg: colors.textSecondary };
   }
   const days = differenceInCalendarDays(startOfDay(due), startOfDay(today));
   if (days <= 0) {
     return { labelKey: 'homework.dueToday', bg: colors.dangerSoft, fg: colors.danger };
   }
   if (days === 1) {
-    return { labelKey: 'homework.dueTomorrow', bg: '#FFE8DC', fg: '#EA580C' };
+    return { labelKey: 'homework.dueTomorrow', bg: colors.warningSoft, fg: colors.warning };
   }
   if (days <= 3) {
-    return { labelKey: 'homework.dueInDays', count: days, bg: '#FFF1E6', fg: '#EA580C' };
+    return { labelKey: 'homework.dueInDays', count: days, bg: colors.warningSoft, fg: colors.warning };
   }
   return { labelKey: 'homework.dueInDays', count: days, bg: colors.primarySoft, fg: colors.primary };
 }
@@ -53,8 +54,10 @@ export function HomeworkTaskCard({
   toggling?: boolean;
 }) {
   const { t } = useAppLanguage();
+  const colors = useAppColors();
+  const styles = createTaskStyles(colors);
   const visual = subjectVisual(item.subjectName);
-  const tone = dueTone(item.dueDate, status, new Date());
+  const tone = dueTone(item.dueDate, status, new Date(), colors);
   const badgeLabel =
     tone.labelKey === 'homework.dueInDays'
       ? t(tone.labelKey, { count: tone.count ?? 0 })
@@ -126,7 +129,8 @@ export function HomeworkTaskCard({
   );
 }
 
-const styles = StyleSheet.create({
+function createTaskStyles(colors: AppColors) {
+  return StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -183,4 +187,5 @@ const styles = StyleSheet.create({
   action: { color: colors.primary, fontSize: 13, fontWeight: '700' },
   actionMuted: { color: colors.textSecondary },
   actionBtn: { minWidth: 72, alignItems: 'flex-end', justifyContent: 'center', minHeight: 20 },
-});
+  });
+}

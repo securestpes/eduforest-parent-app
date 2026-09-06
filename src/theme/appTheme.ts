@@ -1,14 +1,40 @@
 /**
- * New parent-app visual system (Homework / Study shell).
+ * New parent-app visual system (Home / Attendance / Fees).
  * Previous Paper theme remains at ../theme.ts and in src-backup/.
  */
-export const colors = {
+import { useAppTheme } from '../common/contexts/ThemeContext';
+
+export type AppColors = {
+  primary: string;
+  primaryDark: string;
+  primarySoft: string;
+  primaryMuted: string;
+  background: string;
+  surface: string;
+  surfaceMuted: string;
+  text: string;
+  textSecondary: string;
+  textTertiary: string;
+  success: string;
+  successSoft: string;
+  warning: string;
+  warningSoft: string;
+  danger: string;
+  dangerSoft: string;
+  headerOn: string;
+  overlay: string;
+  border: string;
+  divider: string;
+};
+
+export const lightColors: AppColors = {
   primary: '#6B5CE7',
   primaryDark: '#4F45C8',
   primarySoft: '#EEEBFE',
   primaryMuted: '#C9C4F5',
   background: '#F8F9FB',
   surface: '#FFFFFF',
+  surfaceMuted: '#F3F4F6',
   text: '#2D3142',
   textSecondary: '#6B7280',
   textTertiary: '#9CA3AF',
@@ -20,7 +46,40 @@ export const colors = {
   dangerSoft: '#FFE4E8',
   headerOn: '#FFFFFF',
   overlay: 'rgba(255,255,255,0.18)',
-} as const;
+  border: '#E6E8EE',
+  divider: '#EEF0F3',
+};
+
+export const darkColors: AppColors = {
+  primary: '#8B7CFF',
+  primaryDark: '#6B5CE7',
+  primarySoft: '#2A2554',
+  primaryMuted: '#4A4580',
+  background: '#101018',
+  surface: '#1A1A26',
+  surfaceMuted: '#222232',
+  text: '#F4F3FA',
+  textSecondary: '#B0ABC8',
+  textTertiary: '#7E7A98',
+  success: '#4ADE80',
+  successSoft: '#163022',
+  warning: '#FBBF24',
+  warningSoft: '#3A2A12',
+  danger: '#F87171',
+  dangerSoft: '#3A1A1A',
+  headerOn: '#FFFFFF',
+  overlay: 'rgba(255,255,255,0.14)',
+  border: '#2E2E42',
+  divider: '#2A2A3C',
+};
+
+/** Light tokens kept for StyleSheet defaults; prefer `useAppColors()` in UI. */
+export const colors = lightColors;
+
+export function useAppColors(): AppColors {
+  const { isDark } = useAppTheme();
+  return isDark ? darkColors : lightColors;
+}
 
 export const spacing = {
   xs: 4,

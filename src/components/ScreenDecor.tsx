@@ -1,19 +1,23 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { EduForestColors } from '../theme/eduForestTokens';
+import { useAppColors } from '../theme/appTheme';
 
 /** App body wash used by Attendance, Fees, Profile, and stack screens. */
 export function ScreenDecor({ children }: { children: React.ReactNode }) {
+  const colors = useAppColors();
   return (
-    <View style={styles.root}>
-      <View pointerEvents="none" style={[styles.orb, styles.orbTop]} />
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <View
+        pointerEvents="none"
+        style={[styles.orb, styles.orbTop, { backgroundColor: colors.primarySoft, opacity: 0.7 }]}
+      />
       <View style={styles.foreground}>{children}</View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: EduForestColors.background },
+  root: { flex: 1 },
   foreground: { flex: 1 },
   orb: {
     position: 'absolute',
@@ -24,7 +28,5 @@ const styles = StyleSheet.create({
   orbTop: {
     top: -140,
     right: -80,
-    backgroundColor: EduForestColors.primaryLight,
-    opacity: 0.7,
   },
 });

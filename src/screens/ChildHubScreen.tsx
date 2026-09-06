@@ -29,6 +29,11 @@ import { LeaveScreen } from './LeaveScreen';
 import type { RootStackParamList } from '../navigation/Navigation';
 import { useAppLanguage, type TranslationKey } from '../common';
 import type { AppTheme } from '../theme';
+import {
+  registerChildHubOpenHandler,
+  unregisterChildHubOpenHandler,
+} from '../navigation/navigationRef';
+import { ChildHubRestoreProvider } from '../navigation/ChildHubNavContext';
 
 const ENABLED_SECTIONS: ChildChipAction[] = [
   'attendance',
@@ -72,6 +77,15 @@ export function ChildHubScreen() {
       ? route.params.section
       : 'attendance'
   );
+  const [sectionStack, setSectionStack] = useState<ChildChipAction[]>(() => {
+    const initial =
+      route.params?.section && isEnabledSection(route.params.section)
+        ? route.params.section
+        : 'attendance';
+    return route.params?.openedFromNotification && initial !== 'notifications'
+      ? ['notifications']
+      : [];
+  });
   const [attendanceHighlight, setAttendanceHighlight] = useState<{
     highlightAttendanceId?: number;
     highlightSessionDate?: string;
@@ -79,6 +93,7 @@ export function ChildHubScreen() {
     highlightAttendanceId: route.params?.highlightAttendanceId,
     highlightSessionDate: route.params?.highlightSessionDate,
   });
+  const [examsTab, setExamsTab] = useState(route.params?.examsTab);
   const [switcherOpen, setSwitcherOpen] = useState(false);
 
   const loadStudents = useCallback(async () => {
@@ -94,8 +109,20 @@ export function ChildHubScreen() {
     if (route.params?.studentId != null) {
       setSelectedStudentId(route.params.studentId);
     }
+  }, [route.params?.studentId, setSelectedStudentId]);
+
+  useEffect(() => {
     if (route.params?.section && isEnabledSection(route.params.section)) {
-      setSection(route.params.section);
+      const next = route.params.section;
+      setSectionStack(
+        route.params.openedFromNotification && next !== 'notifications'
+          ? ['notifications']
+          : []
+      );
+      setSection(next);
+    }
+    if (route.params?.examsTab) {
+      setExamsTab(route.params.examsTab);
     }
     if (
       route.params?.highlightAttendanceId != null ||
@@ -107,16 +134,55 @@ export function ChildHubScreen() {
       });
     }
   }, [
-    route.params?.studentId,
     route.params?.section,
+    route.params?.examsTab,
     route.params?.highlightAttendanceId,
     route.params?.highlightSessionDate,
-    setSelectedStudentId,
+    route.params?.openedFromNotification,
   ]);
 
   useEffect(() => {
     void loadStudents();
   }, [loadStudents]);
+
+  const leaveOrRestoreSection = useCallback(() => {
+    const prev = sectionStack[sectionStack.length - 1];
+    if (!prev) return false;
+    setSectionStack((s) => s.slice(0, -1));
+    setSection(prev);
+    return true;
+  }, [sectionStack]);
+
+  useEffect(() => {
+    registerChildHubOpenHandler((payload) => {
+      const next = payload.section;
+      setSection((current) => {
+        if (current !== next) {
+          setSectionStack((s) => [...s, current]);
+        }
+        return next;
+      });
+      if (
+        payload.highlightAttendanceId != null ||
+        payload.highlightSessionDate
+      ) {
+        setAttendanceHighlight({
+          highlightAttendanceId: payload.highlightAttendanceId,
+          highlightSessionDate: payload.highlightSessionDate,
+        });
+      }
+    });
+    return () => unregisterChildHubOpenHandler();
+  }, []);
+
+  useEffect(() => {
+    const unsub = navigation.addListener('beforeRemove', (e) => {
+      if (sectionStack.length === 0) return;
+      e.preventDefault();
+      leaveOrRestoreSection();
+    });
+    return unsub;
+  }, [navigation, leaveOrRestoreSection]);
 
   useEffect(() => {
     if (section === 'notifications') {
@@ -129,7 +195,13 @@ export function ChildHubScreen() {
     ? SECTION_TITLE[section]
     : 'childHub.title';
   const ownHeader =
-    section === 'homework' || section === 'exams' || section === 'leaves';
+    section === 'homework' ||
+    section === 'exams' ||
+    section === 'leaves' ||
+    section === 'notifications' ||
+    section === 'fees' ||
+    section === 'attendance' ||
+    section === 'calendar';
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -165,7 +237,11 @@ export function ChildHubScreen() {
     ownHeader,
   ]);
 
+  const keepNotifications =
+    section === 'notifications' || sectionStack.includes('notifications');
+
   return (
+    <ChildHubRestoreProvider restore={leaveOrRestoreSection}>
     <ScreenDecor>
       <SafeAreaView style={styles.safe} edges={['bottom']}>
         {switcherOpen && students.length > 1 ? (
@@ -216,36 +292,67 @@ export function ChildHubScreen() {
         ) : null}
 
         <View style={styles.content}>
+          {keepNotifications ? (
+            <View
+              pointerEvents={section === 'notifications' ? 'auto' : 'none'}
+              style={
+                section === 'notifications'
+                  ? styles.content
+                  : styles.hiddenNotifications
+              }
+            >
+              <NotificationsScreen embedded />
+            </View>
+          ) : null}
           {section === 'attendance' ? (
-            <AttendanceScreen embedded {...attendanceHighlight} />
+            <View style={styles.content}>
+              <AttendanceScreen {...attendanceHighlight} />
+            </View>
           ) : null}
-          {section === 'notifications' ? (
-            <NotificationsScreen
-              embedded
-              onSwitchToAttendance={(highlight) => {
-                if (highlight) setAttendanceHighlight(highlight);
-                setSection('attendance');
-              }}
-              onSwitchToFees={() => setSection('fees')}
-              onSwitchToExams={() => setSection('exams')}
-              onSwitchToLeaves={() => setSection('leaves')}
-              onSwitchToHomework={() => setSection('homework')}
-            />
+          {section === 'homework' ? (
+            <View style={styles.content}>
+              <HomeworkScreen />
+            </View>
           ) : null}
-          {section === 'homework' ? <HomeworkScreen /> : null}
-          {section === 'exams' ? <ExamResultsScreen /> : null}
-          {section === 'leaves' ? <LeaveScreen /> : null}
-          {section === 'calendar' ? <SchoolCalendarScreen embedded /> : null}
-          {section === 'fees' ? <FeesScreen embedded /> : null}
+          {section === 'exams' ? (
+            <View style={styles.content}>
+              <ExamResultsScreen
+                key={`${studentId ?? 'none'}-${examsTab ?? 'auto'}`}
+                embedded
+                initialTab={examsTab}
+              />
+            </View>
+          ) : null}
+          {section === 'leaves' ? (
+            <View style={styles.content}>
+              <LeaveScreen />
+            </View>
+          ) : null}
+          {section === 'calendar' ? (
+            <View style={styles.content}>
+              <SchoolCalendarScreen />
+            </View>
+          ) : null}
+          {section === 'fees' ? (
+            <View style={styles.content}>
+              <FeesScreen embedded />
+            </View>
+          ) : null}
         </View>
       </SafeAreaView>
     </ScreenDecor>
+    </ChildHubRestoreProvider>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   content: { flex: 1 },
+  hiddenNotifications: {
+    height: 0,
+    overflow: 'hidden',
+    opacity: 0,
+  },
   switcherPanel: {
     marginHorizontal: 16,
     marginTop: 8,

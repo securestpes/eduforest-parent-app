@@ -1,5 +1,12 @@
 import type { ParentHomeworkItem } from '../../services/parent';
 import { isBefore, parseISO, startOfDay, differenceInCalendarDays, isToday } from 'date-fns';
+import type { AppLanguage, TranslationKey } from '../../../common/contexts/parentTranslations';
+import { formatAppDate } from '../../../utils/appDateLocale';
+
+type Translate = (
+  key: TranslationKey,
+  params?: Record<string, string | number | undefined>
+) => string;
 
 export type HomeworkUiStatus = 'pending' | 'submitted' | 'overdue';
 export type HomeworkFilter = 'all' | HomeworkUiStatus;
@@ -26,20 +33,26 @@ export function resolveHomeworkStatus(
   return 'pending';
 }
 
-export function dueMeta(dueDate?: string | null, today = new Date()): { line: string; sub: string } {
+export function dueMeta(
+  dueDate: string | null | undefined,
+  t: Translate,
+  language: AppLanguage = 'en',
+  today = new Date()
+): { line: string; sub: string } {
   const due = parseHomeworkDate(dueDate);
-  if (!due) return { line: 'No due date', sub: '' };
-  const formatted = due.toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-  const line = `Due: ${formatted}`;
-  if (isToday(due)) return { line, sub: 'Today' };
+  if (!due) return { line: t('homework.noDue'), sub: '' };
+  const line = t('homework.due', { date: formatAppDate(due, 'd MMM yyyy', language) });
+  if (isToday(due)) return { line, sub: t('exams.today') };
   const days = differenceInCalendarDays(startOfDay(due), startOfDay(today));
-  if (days < 0) return { line, sub: `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago` };
-  if (days === 1) return { line, sub: '1 day left' };
-  return { line, sub: `${days} days left` };
+  if (days < 0) {
+    const ago = Math.abs(days);
+    return {
+      line,
+      sub: ago === 1 ? t('timeAgo.dayAgo') : t('timeAgo.daysAgo', { count: ago }),
+    };
+  }
+  if (days === 1) return { line, sub: t('homework.dayLeft') };
+  return { line, sub: t('homework.daysLeft', { count: days }) };
 }
 
 export function subjectVisual(subject?: string | null): {

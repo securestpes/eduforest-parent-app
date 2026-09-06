@@ -1,9 +1,10 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radius, spacing, typography } from '../../../theme/appTheme';
+import { radius, spacing, typography, useAppColors } from '../../../theme/appTheme';
 import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
+import { useAppLanguage } from '../../../common';
 import type { ParentHomeworkItem } from '../../../services/parent';
 import {
   dueMeta,
@@ -20,10 +21,17 @@ export function HomeworkListItem({
   status: HomeworkUiStatus;
   onPress: () => void;
 }) {
+  const { t, language } = useAppLanguage();
+  const colors = useAppColors();
   const visual = subjectVisual(item.subjectName);
-  const due = dueMeta(item.dueDate);
+  const due = dueMeta(item.dueDate, t, language);
   const tone = status === 'submitted' ? 'success' : status === 'overdue' ? 'danger' : 'warning';
-  const statusLabel = status === 'submitted' ? 'Submitted' : status === 'overdue' ? 'Overdue' : 'Pending';
+  const statusLabel =
+    status === 'submitted'
+      ? t('homework.submitted')
+      : status === 'overdue'
+        ? t('homework.overdue')
+        : t('homework.filterPending');
 
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={item.title}>
@@ -37,10 +45,12 @@ export function HomeworkListItem({
               {item.title}
             </Text>
             <Text style={[typography.meta, { color: colors.textSecondary, marginTop: 4 }]} numberOfLines={1}>
-              {item.subjectName || 'Homework'}
-              {item.hasAttachments ? '  •  Attachment' : ''}
+              {item.subjectName || t('homework.title')}
+              {item.hasAttachments ? `  •  ${t('homework.attachment')}` : ''}
             </Text>
-            <Text style={[typography.meta, { color: colors.primary, marginTop: 6 }]}>View Details</Text>
+            <Text style={[typography.meta, { color: colors.primary, marginTop: 6 }]}>
+              {t('homework.viewDetails')}
+            </Text>
           </View>
           <View style={styles.right}>
             <Text style={[typography.meta, { color: colors.textSecondary, textAlign: 'right' }]}>{due.line}</Text>

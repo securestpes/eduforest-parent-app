@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, typography } from '../../theme/appTheme';
+import { radius, typography, useAppColors } from '../../theme/appTheme';
 
 export function Badge({
   label,
@@ -9,6 +9,7 @@ export function Badge({
   label: string;
   tone: 'success' | 'warning' | 'danger' | 'primary';
 }) {
+  const colors = useAppColors();
   const map = {
     success: { fg: colors.success, bg: colors.successSoft },
     warning: { fg: '#D97706', bg: colors.warningSoft },
@@ -31,6 +32,7 @@ export function FilterChip({
   active: boolean;
   onPress: () => void;
 }) {
+  const colors = useAppColors();
   return (
     <Pressable
       onPress={onPress}
@@ -38,7 +40,7 @@ export function FilterChip({
         styles.chip,
         {
           backgroundColor: active ? colors.primary : colors.surface,
-          borderColor: active ? colors.primary : '#E6E4F5',
+          borderColor: active ? colors.primary : colors.border,
         },
       ]}
       accessibilityRole="button"

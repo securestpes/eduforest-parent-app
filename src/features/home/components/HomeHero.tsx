@@ -2,12 +2,27 @@ import React from "react";
 import { Animated, Dimensions, Image, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useParentTheme } from "../../../theme/useParentTheme";
+import { COMPACT_BAR_HEIGHT } from "./HomeCompactHeader";
 
-export const HOME_HERO_BG = require("../../../assets/home-hero-bg.png");
-export const HERO_ASPECT = 1024 / 512;
+export const HOME_HERO_BG = require("../../../assets/hero-bg.png");
+export const HERO_ASPECT = 1847 / 852;
+export const HOME_SHEET_OVERLAP = 16;
+const GREET_BLOCK = 62;
+const LOGO_GREET_GAP = 16;
 
-export function homeHeroHeight(width = Dimensions.get("window").width) {
-  return width / HERO_ASPECT;
+export function homeHeroHeight(
+  width = Dimensions.get("window").width,
+  topInset = 0,
+) {
+  const fromImage = width / HERO_ASPECT;
+  const fromContent =
+    topInset +
+    COMPACT_BAR_HEIGHT +
+    LOGO_GREET_GAP +
+    GREET_BLOCK +
+    HOME_SHEET_OVERLAP +
+    12;
+  return Math.max(fromImage, fromContent);
 }
 
 type Props = {
@@ -20,19 +35,23 @@ export function HomeHero({ greeting, welcome, contentOpacity }: Props) {
   const { colors, spacing, typography } = useParentTheme();
   const insets = useSafeAreaInsets();
   const width = Dimensions.get("window").width;
-  const height = homeHeroHeight(width);
+  const height = homeHeroHeight(width, insets.top);
 
   return (
     <View style={[styles.wrap, { width, height }]}>
-      <Image source={HOME_HERO_BG} style={styles.image} resizeMode="stretch" />
+      <Image source={HOME_HERO_BG} style={styles.image} resizeMode="cover" />
       <View
         style={[
           styles.overlay,
-          { paddingTop: insets.top, paddingHorizontal: spacing.lg },
+          {
+            paddingTop: insets.top,
+            paddingHorizontal: spacing.lg,
+            paddingBottom: HOME_SHEET_OVERLAP + 8,
+          },
         ]}
         pointerEvents="none"
       >
-        <View style={styles.topSpacer} />
+        <View style={{ height: COMPACT_BAR_HEIGHT }} />
         <Animated.View
           style={[styles.greetRow, contentOpacity ? { opacity: contentOpacity } : null]}
         >
@@ -73,12 +92,9 @@ const styles = StyleSheet.create({
     zIndex: 1,
     elevation: 1,
   },
-  topSpacer: {
-    height: 64,
-  },
   greetRow: {
-    marginTop: 8,
-    paddingRight: "36%",
+    marginTop: 16,
+    paddingRight: "18%",
     alignSelf: "stretch",
     alignItems: "flex-start",
   },

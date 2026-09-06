@@ -32,6 +32,8 @@ export type RootStackParamList = {
     section?: ChildChipAction;
     highlightAttendanceId?: number;
     highlightSessionDate?: string;
+    examsTab?: 'upcoming' | 'results' | 'completed';
+    openedFromNotification?: boolean;
   } | undefined;
   PrivacyPolicy: undefined;
   TermsAndConditions: undefined;

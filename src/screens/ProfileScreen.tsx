@@ -1,14 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View, Pressable } from 'react-native';
-import {
-  Button,
-  Switch,
-  Text,
-  useTheme,
-  TouchableRipple,
-  Card,
-  Icon,
-} from 'react-native-paper';
+import { Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Button } from 'react-native-paper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
@@ -22,19 +14,25 @@ import type { RootState } from '../redux/store';
 import type { RootStackParamList } from '../navigation/Navigation';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { ScreenDecor } from '../components/ScreenDecor';
+import { StudentModuleHero } from '../components/layout/StudentModuleHero';
 import { initials, avatarHue } from '../utils/attendanceVisuals';
-import type { AppTheme } from '../theme';
-import { shadows } from '../theme/appTheme';
+import { radius, shadows, spacing, typography, useAppColors } from '../theme/appTheme';
 import {
   ConfirmationPopup,
+  StatusPopup,
   useAppLanguage,
   useAppTheme,
   useNetworkError,
+  type StatusPopupVariant,
 } from '../common';
 import { NotificationPreferencesSection } from '../components/NotificationPreferencesSection';
 
-export function ProfileScreen() {
-  const theme = useTheme() as AppTheme;
+const APP_LOGO = require('../assets/logo.png');
+
+type ProfileVariant = 'all' | 'profile' | 'settings';
+
+export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant }) {
+  const colors = useAppColors();
   const { t, language, setLanguage, supportedLanguages } = useAppLanguage();
   const { isDark, toggleTheme } = useAppTheme();
   const { isConnected } = useNetworkError(null);
@@ -48,6 +46,10 @@ export function ProfileScreen() {
   const [deleteAccountModalVisible, setDeleteAccountModalVisible] =
     useState(false);
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
+  const [status, setStatus] = useState<{
+    variant: StatusPopupVariant;
+    title: string;
+  } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -99,6 +101,10 @@ export function ProfileScreen() {
   const hue = avatarHue(nameForAvatar);
   const avatarBg = `hsl(${hue} 42% 42%)`;
 
+  const showIdentity = variant !== 'settings';
+  const showSettings = variant !== 'profile';
+  const tabHero = variant === 'profile' || variant === 'settings';
+
   const openLegalScreen = (
     screen: keyof Pick<
       RootStackParamList,
@@ -113,14 +119,14 @@ export function ProfileScreen() {
   const handleConfirmDeleteAccount = () => {
     void (async () => {
       if (isConnected === false) {
-        Alert.alert('', t('settings.deleteAccount.offline'));
+        setStatus({ variant: 'error', title: t('settings.deleteAccount.offline') });
         return;
       }
       setDeleteAccountLoading(true);
       try {
         const res = await ParentProfileService.deleteMyAccount();
         if (!res?.status) {
-          Alert.alert('', res?.message || t('settings.deleteAccount.failed'));
+          setStatus({ variant: 'error', title: res?.message || t('settings.deleteAccount.failed') });
           return;
         }
         setDeleteAccountModalVisible(false);
@@ -130,12 +136,10 @@ export function ProfileScreen() {
         dispatch(logout());
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        Alert.alert(
-          '',
-          msg.includes('Delete account')
-            ? msg
-            : t('settings.deleteAccount.failed')
-        );
+        setStatus({
+          variant: 'error',
+          title: msg.includes('Delete account') ? msg : t('settings.deleteAccount.failed'),
+        });
       } finally {
         setDeleteAccountLoading(false);
       }
@@ -144,510 +148,262 @@ export function ProfileScreen() {
 
   return (
     <ScreenDecor>
+      {tabHero ? (
+        <StudentModuleHero
+          title={variant === 'settings' ? t('nav.settings') : t('nav.profile')}
+          subtitle={
+            variant === 'settings'
+              ? t('tabs.settingsSubtitle')
+              : t('tabs.profileSubtitle')
+          }
+          heroIcon={variant === 'settings' ? 'cog-outline' : 'account-outline'}
+        />
+      ) : null}
       <ScrollView
         contentContainerStyle={styles.root}
         showsVerticalScrollIndicator={false}
       >
+        {showIdentity ? (
+        <>
         <View
           style={[
             styles.heroCard,
             shadows.card,
-            {
-              backgroundColor: theme.colors.surface,
-            },
+            { backgroundColor: colors.surface },
           ]}
         >
           <View style={[styles.avatar, { backgroundColor: avatarBg }]}>
             <Text style={styles.avatarLetters}>{initials(nameForAvatar)}</Text>
           </View>
-          <Text
-            variant="headlineSmall"
-            style={{
-              color: theme.colors.onSurface,
-              fontWeight: '700',
-              marginTop: 12,
-            }}
-          >
+          <Text style={[styles.identityName, { color: colors.text }]}>
             {displayName || user?.name || t('common.parent')}
           </Text>
-          <View
-            style={[
-              styles.mobileRow,
-              { backgroundColor: theme.colors.surfaceVariant },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name="cellphone"
-              size={18}
-              color={theme.colors.primary}
-            />
-            <Text
-              variant="bodyLarge"
-              style={{
-                color: theme.colors.onSurface,
-                marginLeft: 8,
-                fontWeight: '600',
-              }}
-            >
+          <View style={[styles.mobileRow, { backgroundColor: colors.surfaceMuted }]}>
+            <MaterialCommunityIcons name="cellphone" size={18} color={colors.primary} />
+            <Text style={[styles.mobileText, { color: colors.text }]}>
               {mobile || user?.mobile || '—'}
             </Text>
           </View>
         </View>
-
-        <Text
-          variant="titleMedium"
-          style={{
-            color: theme.colors.onBackground,
-            fontWeight: '700',
-            marginTop: 8,
-          }}
-        >
-          {t('profile.sectionNotifications')}
-        </Text>
         <View
           style={[
             styles.infoCard,
             shadows.card,
-            {
-              backgroundColor: theme.colors.surface,
-            },
+            { backgroundColor: colors.surface },
           ]}
         >
-          <View
-            style={[
-              styles.infoIcon,
-              { backgroundColor: theme.colors.primaryContainer },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name="bell-ring-outline"
-              size={24}
-              color={theme.colors.primary}
-            />
+          <View style={[styles.infoIcon, { backgroundColor: colors.successSoft }]}>
+            <MaterialCommunityIcons name="shield-check-outline" size={22} color={colors.success} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text
-              variant="titleSmall"
-              style={{ color: theme.colors.onSurface, fontWeight: '700' }}
-            >
-              {t('profile.attendanceAlertsTitle')}
-            </Text>
-            <Text
-              variant="bodySmall"
-              style={{
-                color: theme.colors.onSurfaceVariant,
-                marginTop: 4,
-                lineHeight: 20,
-              }}
-            >
-              {t('profile.attendanceAlertsBody')}
-            </Text>
-          </View>
-        </View>
-
-        <NotificationPreferencesSection />
-
-        <View
-          style={[
-            styles.infoCard,
-            shadows.card,
-            {
-              backgroundColor: theme.colors.surface,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.infoIcon,
-              { backgroundColor: theme.colors.tertiaryContainer },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name="volume-high"
-              size={24}
-              color={theme.colors.tertiary}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text
-              variant="titleSmall"
-              style={{ color: theme.colors.onSurface, fontWeight: '700' }}
-            >
-              {t('profile.voiceAnnouncementsTitle')}
-            </Text>
-            <Text
-              variant="bodySmall"
-              style={{
-                color: theme.colors.onSurfaceVariant,
-                marginTop: 4,
-                lineHeight: 20,
-              }}
-            >
-              {t('profile.voiceAnnouncementsBody')}
-            </Text>
-          </View>
-          <Switch
-            value={voiceAnnouncementsEnabled}
-            onValueChange={(value) => void onToggleVoiceAnnouncements(value)}
-          />
-        </View>
-
-        <View
-          style={[
-            styles.infoCard,
-            shadows.card,
-            {
-              backgroundColor: theme.colors.surface,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.infoIcon,
-              { backgroundColor: theme.colors.secondaryContainer },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name="theme-light-dark"
-              size={24}
-              color={theme.colors.secondary}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text
-              variant="titleSmall"
-              style={{ color: theme.colors.onSurface, fontWeight: '700' }}
-            >
-              {t('settings.darkMode')}
-            </Text>
-          </View>
-          <Switch value={isDark} onValueChange={() => toggleTheme()} />
-        </View>
-
-        <View
-          style={[
-            styles.infoCard,
-            shadows.card,
-            {
-              backgroundColor: theme.colors.surface,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.infoIcon,
-              { backgroundColor: theme.colors.secondaryContainer },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name="shield-check-outline"
-              size={24}
-              color={theme.colors.secondary}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text
-              variant="titleSmall"
-              style={{ color: theme.colors.onSurface, fontWeight: '700' }}
-            >
+            <Text style={[styles.rowTitle, { color: colors.text }]}>
               {t('profile.signedInTitle')}
             </Text>
-            <Text
-              variant="bodySmall"
-              style={{
-                color: theme.colors.onSurfaceVariant,
-                marginTop: 4,
-                lineHeight: 20,
-              }}
-            >
+            <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
               {t('profile.signedInBody')}
             </Text>
           </View>
         </View>
+        </>
+        ) : null}
 
-        <Card
+        {showSettings ? (
+        <>
+        <View
           style={[
-            styles.languageCard,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outlineVariant,
-            },
+            styles.groupCard,
+            shadows.card,
+            styles.accountCard,
+            { backgroundColor: colors.surface },
           ]}
-          elevation={1}
         >
-          <Card.Content>
-            <Text
-              variant="titleMedium"
-              style={[styles.languageTitle, { color: theme.colors.onSurface }]}
-            >
+          <View style={[styles.infoIcon, { backgroundColor: colors.primarySoft }]}>
+            <MaterialCommunityIcons name="cellphone" size={22} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={1}>
+              {displayName || user?.name || t('common.parent')}
+            </Text>
+            <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
+              {t('profile.mobileLabel')}: {mobile || user?.mobile || '—'}
+            </Text>
+            <Text style={[styles.accountHint, { color: colors.textTertiary }]}>
+              {t('profile.mobileChangeHint')}
+            </Text>
+          </View>
+        </View>
+
+        <Text
+          style={[
+            styles.sectionLabel,
+            { color: colors.text },
+          ]}
+        >
+          {t('profile.sectionNotifications')}
+        </Text>
+        <View style={[styles.groupCard, shadows.card, { backgroundColor: colors.surface }]}>
+          <View style={styles.introRow}>
+            <View style={[styles.infoIcon, { backgroundColor: colors.primarySoft }]}>
+              <MaterialCommunityIcons name="bell-ring-outline" size={22} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>
+                {t('profile.attendanceAlertsTitle')}
+              </Text>
+              <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
+                {t('profile.attendanceAlertsBody')}
+              </Text>
+            </View>
+          </View>
+          <NotificationPreferencesSection />
+        </View>
+
+        <Text style={[styles.sectionLabel, { color: colors.text }]}>
+          {t('settings.sectionApp')}
+        </Text>
+        <View style={[styles.groupCard, shadows.card, { backgroundColor: colors.surface }]}>
+          <SettingToggle
+            icon="volume-high"
+            iconBg={colors.primarySoft}
+            iconFg={colors.primary}
+            title={t('profile.voiceAnnouncementsTitle')}
+            subtitle={t('profile.voiceAnnouncementsBody')}
+            value={voiceAnnouncementsEnabled}
+            onValueChange={(value) => void onToggleVoiceAnnouncements(value)}
+            colors={colors}
+          />
+          <SettingToggle
+            icon="theme-light-dark"
+            iconBg={colors.warningSoft}
+            iconFg={colors.warning}
+            title={t('settings.darkMode')}
+            subtitle={t('settings.darkModeBody')}
+            value={isDark}
+            onValueChange={() => toggleTheme()}
+            colors={colors}
+          />
+          <View style={[styles.languageBlock, { borderTopColor: colors.divider }]}>
+            <Text style={[styles.rowTitle, { color: colors.text }]}>
               {t('settings.language.title')}
             </Text>
-            <Text
-              variant="bodyMedium"
-              style={[
-                styles.languageSubtitle,
-                { color: theme.colors.onSurfaceVariant },
-              ]}
-            >
+            <Text style={[styles.rowSub, { color: colors.textSecondary, marginBottom: 12 }]}>
               {t('settings.language.subtitle')}
             </Text>
-            <View style={styles.languageOptionsRow}>
+            <View style={styles.languageGrid}>
               {supportedLanguages.map((option) => {
                 const isSelected = option.code === language;
                 return (
-                  <TouchableRipple
+                  <Pressable
                     key={option.code}
-                    onPress={() => {
-                      console.log('Selected language:', option.code);
-                      void setLanguage(option.code);
-                    }}
+                    onPress={() => void setLanguage(option.code)}
                     style={[
-                      styles.languageOption,
-                      { borderColor: theme.colors.outlineVariant },
-                      isSelected && {
-                        backgroundColor: `${theme.colors.primary}15`,
-                        borderColor: theme.colors.primary,
+                      styles.languageChip,
+                      {
+                        borderColor: isSelected ? colors.primary : colors.border,
+                        backgroundColor: isSelected ? colors.primarySoft : colors.surfaceMuted,
                       },
                     ]}
-                    borderless={false}
                   >
                     <Text
                       style={[
-                        styles.languageOptionText,
-                        { color: theme.colors.onSurface },
-                        isSelected && { color: theme.colors.primary },
+                        styles.languageChipText,
+                        { color: isSelected ? colors.primary : colors.text },
                       ]}
                     >
                       {t(option.labelKey)}
                     </Text>
-                  </TouchableRipple>
+                  </Pressable>
                 );
               })}
             </View>
-          </Card.Content>
-        </Card>
+          </View>
+        </View>
 
-        <Text
-          variant="titleMedium"
-          style={{
-            color: theme.colors.onBackground,
-            fontWeight: '700',
-            marginTop: 8,
-          }}
-        >
+        <Text style={[styles.sectionLabel, { color: colors.text }]}>
           {t('profile.legalHelpSection')}
         </Text>
-
-        <Pressable onPress={() => openLegalScreen('PrivacyPolicy')}>
-          <View
-            style={[
-              styles.infoCard,
-              shadows.card,
-              {
-                backgroundColor: theme.colors.surface,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.infoIcon,
-                { backgroundColor: theme.colors.primaryContainer },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="shield-lock-outline"
-                size={22}
-                color={theme.colors.primary}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                variant="titleSmall"
-                style={{ color: theme.colors.onSurface, fontWeight: '700' }}
-              >
-                {t('profile.privacyTitle')}
-              </Text>
-              <Text
-                variant="bodySmall"
-                style={{
-                  color: theme.colors.onSurfaceVariant,
-                  marginTop: 4,
-                  lineHeight: 20,
-                }}
-              >
-                {t('profile.privacySubtitle')}
-              </Text>
-            </View>
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={22}
-              color={theme.colors.onSurfaceVariant}
-            />
-          </View>
-        </Pressable>
-
-        <Pressable onPress={() => openLegalScreen('TermsAndConditions')}>
-          <View
-            style={[
-              styles.infoCard,
-              shadows.card,
-              {
-                backgroundColor: theme.colors.surface,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.infoIcon,
-                { backgroundColor: theme.colors.secondaryContainer },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="file-document-outline"
-                size={22}
-                color={theme.colors.secondary}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                variant="titleSmall"
-                style={{ color: theme.colors.onSurface, fontWeight: '700' }}
-              >
-                {t('profile.termsTitle')}
-              </Text>
-              <Text
-                variant="bodySmall"
-                style={{
-                  color: theme.colors.onSurfaceVariant,
-                  marginTop: 4,
-                  lineHeight: 20,
-                }}
-              >
-                {t('profile.termsSubtitle')}
-              </Text>
-            </View>
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={22}
-              color={theme.colors.onSurfaceVariant}
-            />
-          </View>
-        </Pressable>
-
-        <Pressable onPress={() => openLegalScreen('HelpAndSupport')}>
-          <View
-            style={[
-              styles.infoCard,
-              shadows.card,
-              {
-                backgroundColor: theme.colors.surface,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.infoIcon,
-                { backgroundColor: theme.colors.tertiaryContainer },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="help-circle-outline"
-                size={22}
-                color={theme.colors.tertiary}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                variant="titleSmall"
-                style={{ color: theme.colors.onSurface, fontWeight: '700' }}
-              >
-                {t('profile.helpTitle')}
-              </Text>
-              <Text
-                variant="bodySmall"
-                style={{
-                  color: theme.colors.onSurfaceVariant,
-                  marginTop: 4,
-                  lineHeight: 20,
-                }}
-              >
-                {t('profile.helpSubtitle')}
-              </Text>
-            </View>
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={22}
-              color={theme.colors.onSurfaceVariant}
-            />
-          </View>
-        </Pressable>
-
-        <View style={styles.deleteAccountSection}>
-          <TouchableRipple
-            onPress={() => {
-              if (isConnected === false) {
-                Alert.alert('', t('settings.deleteAccount.offline'));
-                return;
-              }
-              setDeleteAccountModalVisible(true);
-            }}
-            style={styles.deleteAccountButton}
-            rippleColor="rgba(0, 0, 0, 0.08)"
-          >
-            <Card
-              style={[
-                styles.deleteAccountCard,
-                {
-                  borderColor: theme.colors.outlineVariant,
-                  backgroundColor: theme.colors.surface,
-                },
-              ]}
-              elevation={1}
-            >
-              <Card.Content style={styles.deleteAccountContent}>
-                <View
-                  style={[
-                    styles.deleteAccountIconContainer,
-                    { backgroundColor: `${theme.colors.error}12` },
-                  ]}
-                >
-                  <Icon
-                    source="account-remove-outline"
-                    size={20}
-                    color={theme.colors.error}
-                  />
-                </View>
-                <View style={styles.deleteAccountTextContainer}>
-                  <Text
-                    variant="titleMedium"
-                    style={[
-                      styles.deleteAccountTitle,
-                      { color: theme.colors.error },
-                    ]}
-                  >
-                    {t('settings.deleteAccount.title')}
-                  </Text>
-                  <Text
-                    variant="bodyMedium"
-                    style={[
-                      styles.deleteAccountSubtitle,
-                      { color: theme.colors.onSurfaceVariant },
-                    ]}
-                  >
-                    {t('settings.deleteAccount.subtitle')}
-                  </Text>
-                </View>
-              </Card.Content>
-            </Card>
-          </TouchableRipple>
+        <View style={[styles.groupCard, shadows.card, { backgroundColor: colors.surface }]}>
+          <NavRow
+            icon="shield-lock-outline"
+            iconBg={colors.primarySoft}
+            iconFg={colors.primary}
+            title={t('profile.privacyTitle')}
+            subtitle={t('profile.privacySubtitle')}
+            onPress={() => openLegalScreen('PrivacyPolicy')}
+            colors={colors}
+          />
+          <NavRow
+            icon="file-document-outline"
+            iconBg={colors.warningSoft}
+            iconFg={colors.warning}
+            title={t('profile.termsTitle')}
+            subtitle={t('profile.termsSubtitle')}
+            onPress={() => openLegalScreen('TermsAndConditions')}
+            colors={colors}
+          />
+          <NavRow
+            icon="help-circle-outline"
+            iconBg={colors.primarySoft}
+            iconFg={colors.primary}
+            title={t('profile.helpTitle')}
+            subtitle={t('profile.helpSubtitle')}
+            onPress={() => openLegalScreen('HelpAndSupport')}
+            colors={colors}
+            last
+          />
         </View>
+
+        <Pressable
+          onPress={() => {
+            if (isConnected === false) {
+              setStatus({ variant: 'error', title: t('settings.deleteAccount.offline') });
+              return;
+            }
+            setDeleteAccountModalVisible(true);
+          }}
+          style={[styles.groupCard, shadows.card, { backgroundColor: colors.surface, marginTop: spacing.lg }]}
+        >
+          <View style={styles.navRow}>
+            <View style={[styles.infoIcon, { backgroundColor: colors.dangerSoft }]}>
+              <MaterialCommunityIcons name="account-remove-outline" size={22} color={colors.danger} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: colors.danger }]}>
+                {t('settings.deleteAccount.title')}
+              </Text>
+              <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
+                {t('settings.deleteAccount.subtitle')}
+              </Text>
+            </View>
+          </View>
+        </Pressable>
+
+        <Pressable
+          onPress={() => void onLogout()}
+          style={[styles.signOut, { backgroundColor: colors.primarySoft }]}
+        >
+          <MaterialCommunityIcons name="logout" size={20} color={colors.primaryDark} />
+          <Text style={[styles.signOutText, { color: colors.primaryDark }]}>
+            {t('profile.signOut')}
+          </Text>
+        </Pressable>
+
+        <View style={styles.brandFooter}>
+          <Image source={APP_LOGO} style={styles.footerLogo} resizeMode="contain" />
+          <Text style={[styles.footerTitle, { color: colors.text }]}>{t('branding.appTitle')}</Text>
+          <Text style={[styles.footerTag, { color: colors.textTertiary }]}>
+            {t('branding.tagline')}
+          </Text>
+        </View>
+        </>
+        ) : null}
 
         <ConfirmationPopup
           isVisible={deleteAccountModalVisible}
           title={t('settings.deleteAccount.confirmTitle')}
           message={t('settings.deleteAccount.confirmMessage')}
           confirmText={t('settings.deleteAccount.confirmButton')}
-          confirmButtonColor={theme.colors.error}
+          confirmButtonColor={colors.danger}
           confirmLoading={deleteAccountLoading}
           onCancel={() => {
             setDeleteAccountModalVisible(false);
@@ -656,34 +412,120 @@ export function ProfileScreen() {
           onConfirm={handleConfirmDeleteAccount}
         />
 
+        <StatusPopup
+          visible={status != null}
+          variant={status?.variant}
+          title={status?.title ?? ''}
+          onDismiss={() => setStatus(null)}
+        />
+
+        {showIdentity ? (
         <Button
           mode="outlined"
           onPress={() => void onLogout()}
-          style={[styles.logout, { borderColor: theme.colors.error }]}
-          labelStyle={{ color: theme.colors.error, fontWeight: '700' }}
-          textColor={theme.colors.error}
+          style={[styles.logout, { borderColor: colors.danger }]}
+          labelStyle={{ color: colors.danger, fontWeight: '700' }}
+          textColor={colors.danger}
           icon="logout"
         >
           {t('profile.logout')}
         </Button>
+        ) : null}
       </ScrollView>
     </ScreenDecor>
   );
 }
 
+function SettingToggle({
+  icon,
+  iconBg,
+  iconFg,
+  title,
+  subtitle,
+  value,
+  onValueChange,
+  colors,
+}: {
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  iconBg: string;
+  iconFg: string;
+  title: string;
+  subtitle: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+  colors: ReturnType<typeof useAppColors>;
+}) {
+  return (
+    <View style={[styles.navRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider }]}>
+      <View style={[styles.infoIcon, { backgroundColor: iconBg }]}>
+        <MaterialCommunityIcons name={icon} size={22} color={iconFg} />
+      </View>
+      <View style={{ flex: 1, paddingRight: 8 }}>
+        <Text style={[styles.rowTitle, { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.rowSub, { color: colors.textSecondary }]}>{subtitle}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{ false: colors.border, true: colors.primaryMuted }}
+        thumbColor={value ? colors.primary : colors.surface}
+        ios_backgroundColor={colors.border}
+      />
+    </View>
+  );
+}
+
+function NavRow({
+  icon,
+  iconBg,
+  iconFg,
+  title,
+  subtitle,
+  onPress,
+  colors,
+  last,
+}: {
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  iconBg: string;
+  iconFg: string;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  colors: ReturnType<typeof useAppColors>;
+  last?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.navRow,
+        !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
+      ]}
+    >
+      <View style={[styles.infoIcon, { backgroundColor: iconBg }]}>
+        <MaterialCommunityIcons name={icon} size={22} color={iconFg} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.rowTitle, { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.rowSub, { color: colors.textSecondary }]}>{subtitle}</Text>
+      </View>
+      <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textTertiary} />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  root: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 110 },
+  root: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 128,
+  },
   heroCard: {
     alignItems: 'center',
-    borderRadius: 24,
+    borderRadius: radius.xl,
     paddingVertical: 28,
-    paddingHorizontal: 20,
-    marginBottom: 24,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.07,
-    shadowRadius: 20,
-    elevation: 4,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
   },
   avatar: {
     width: 88,
@@ -693,6 +535,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarLetters: { color: '#fff', fontSize: 32, fontWeight: '800' },
+  identityName: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginTop: 12,
+  },
   mobileRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -701,82 +548,108 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 14,
   },
+  mobileText: {
+    marginLeft: 8,
+    fontWeight: '600',
+    fontSize: 16,
+  },
   infoCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 14,
-    borderRadius: 20,
-    padding: 16,
-    marginTop: 12,
+    borderRadius: radius.lg,
+    padding: spacing.base,
+    marginTop: spacing.md,
+  },
+  sectionLabel: {
+    ...typography.section,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  sectionLabelFirst: {
+    marginTop: spacing.sm,
+  },
+  groupCard: {
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+  },
+  accountCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: spacing.base,
+    marginBottom: spacing.sm,
+  },
+  accountHint: {
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 6,
+  },
+  introRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: spacing.base,
+  },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: spacing.base,
+    paddingVertical: 13,
   },
   infoIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  languageCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    marginTop: 8,
-  },
-  languageTitle: {
+  rowTitle: {
+    fontSize: 15,
     fontWeight: '700',
-    marginBottom: 4,
   },
-  languageSubtitle: {
-    marginBottom: 14,
-    lineHeight: 20,
+  rowSub: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 3,
   },
-  languageOptionsRow: {
+  languageBlock: {
+    padding: spacing.base,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  languageGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  languageOption: {
+  languageChip: {
+    flexGrow: 1,
+    flexBasis: '46%',
+    minWidth: '46%',
     borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  languageOptionText: {
-    fontWeight: '600',
-  },
-  logout: { marginTop: 28, borderRadius: 14 },
-  deleteAccountSection: {
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  deleteAccountButton: {
-    borderRadius: 16,
-  },
-  deleteAccountCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  deleteAccountContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  deleteAccountIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    borderWidth: 1.5,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
   },
-  deleteAccountTextContainer: {
-    flex: 1,
+  languageChipText: {
+    fontWeight: '700',
+    fontSize: 14,
   },
-  deleteAccountTitle: {
-    fontWeight: '600',
-    marginBottom: 2,
+  logout: { marginTop: 28, borderRadius: 14 },
+  signOut: {
+    marginTop: 20,
+    borderRadius: 16,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
-  deleteAccountSubtitle: {
-    fontSize: 13,
-    lineHeight: 20,
-  },
+  signOutText: { fontSize: 16, fontWeight: '700' },
+  brandFooter: { alignItems: 'center', marginTop: 28, gap: 4 },
+  footerLogo: { width: 48, height: 48, marginBottom: 4 },
+  footerTitle: { fontSize: 14, fontWeight: '800' },
+  footerTag: { fontSize: 12 },
 });

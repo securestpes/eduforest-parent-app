@@ -14,7 +14,7 @@ import type { AppTheme } from '../theme';
 import { useAppLanguage } from '../common';
 import { localStorageKeys } from '../common/constants';
 import { MainTabs } from './MainTabs';
-import { ProfileScreen } from '@/screens/ProfileScreen';
+import { ParentProfileScreen } from '../screens/ParentProfileScreen';
 import { BusTrackingScreen } from '../screens/BusTrackingScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -52,13 +52,9 @@ export const AppNavigation: React.FC = () => {
         />
         <Stack.Screen
           name="Profile"
-          component={ProfileScreen}
+          component={ParentProfileScreen}
           options={{
-            headerShown: true,
-            title: t('nav.profile'),
-            headerStyle,
-            headerTintColor: headerTint,
-            headerTitleStyle: { fontWeight: '700' },
+            headerShown: false,
           }}
         />
         <Stack.Screen

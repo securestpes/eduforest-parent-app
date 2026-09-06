@@ -1,17 +1,18 @@
 import React, { createContext, useCallback, useContext, useMemo } from 'react';
 
-export type MainTabName = 'Home' | 'Attendance' | 'Study' | 'Fees' | 'More' | 'Profile';
+export type MainTabName = 'Home' | 'Attendance' | 'Calendar' | 'Fees' | 'Settings' | 'More' | 'Profile';
 
 const TAB_TO_INDEX: Record<MainTabName, number> = {
-  Home: 0,
-  Attendance: 1,
-  Study: 2,
-  Fees: 3,
+  Attendance: 0,
+  Fees: 1,
+  Home: 2,
+  Calendar: 3,
+  Settings: 4,
   More: 4,
   Profile: 4,
 };
 
-const INDEX_TO_TAB: MainTabName[] = ['Home', 'Attendance', 'Study', 'Fees', 'More'];
+const INDEX_TO_TAB: MainTabName[] = ['Attendance', 'Fees', 'Home', 'Calendar', 'Settings'];
 
 type TabNavigationContextValue = {
   index: number;

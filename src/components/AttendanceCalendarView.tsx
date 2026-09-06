@@ -12,9 +12,11 @@ import {
 } from 'date-fns';
 import type { ParentAttendanceRow } from '../services/parent';
 import { kindFromStatus, parseRowDate } from '../utils/dashboardHome';
+import { isDateInSession } from '../utils/academicSession';
 import type { AppTheme } from '../theme';
 import { EduForestColors } from '../theme/eduForestTokens';
 import { useAppLanguage } from '../common';
+import { formatAppDate, weekdayNarrowLabelsMondayFirst } from '../utils/appDateLocale';
 
 type Props = {
   monthAnchor: Date;
@@ -22,9 +24,8 @@ type Props = {
   onSelectDay?: (date: Date) => void;
   selectedDay?: Date | null;
   onPressMonth?: () => void;
+  sessionRange?: { start: Date; end: Date } | null;
 };
-
-const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 type StatusKind = ReturnType<typeof kindFromStatus>;
 
@@ -64,9 +65,11 @@ export function AttendanceCalendarView({
   onSelectDay,
   selectedDay,
   onPressMonth,
+  sessionRange = null,
 }: Props) {
   const theme = useTheme() as AppTheme;
-  const { t } = useAppLanguage();
+  const { t, language } = useAppLanguage();
+  const weekdayLabels = weekdayNarrowLabelsMondayFirst(language);
 
   const statusByDay = useMemo(() => {
     const map = new Map<string, StatusKind>();
@@ -116,14 +119,14 @@ export function AttendanceCalendarView({
         accessibilityRole={onPressMonth ? 'button' : undefined}
       >
         <Text variant="titleSmall" style={[styles.monthTitle, { color: theme.colors.onSurface }]}>
-          {format(monthAnchor, 'MMMM yyyy')}
+          {formatAppDate(monthAnchor, 'MMMM yyyy', language)}
         </Text>
         {onPressMonth ? (
           <MaterialCommunityIcons name="chevron-down" size={20} color={theme.colors.primary} />
         ) : null}
       </Pressable>
       <View style={styles.weekRow}>
-        {WEEKDAY_LABELS.map((label, i) => (
+        {weekdayLabels.map((label, i) => (
           <Text
             key={`${label}-${i}`}
             variant="labelSmall"
@@ -144,13 +147,18 @@ export function AttendanceCalendarView({
           const isToday = isSameDay(day, new Date());
           const isSelected = selectedDay ? isSameDay(day, selectedDay) : false;
           const hasStatus = kind !== 'unknown';
+          const inSession = isDateInSession(day, sessionRange);
           return (
             <Pressable
               key={key}
-              style={styles.cell}
-              onPress={() => onSelectDay?.(day)}
+              style={[styles.cell, !inSession && { opacity: 0.35 }]}
+              onPress={() => {
+                if (!inSession) return;
+                onSelectDay?.(day);
+              }}
+              disabled={!inSession}
               accessibilityRole="button"
-              accessibilityLabel={format(day, 'MMMM d')}
+              accessibilityLabel={formatAppDate(day, 'MMMM d', language)}
             >
                 <View
                   style={[

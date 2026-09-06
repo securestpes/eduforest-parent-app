@@ -7,7 +7,6 @@ import React, {
 } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Linking,
   Platform,
   Pressable,
@@ -36,7 +35,7 @@ import {
   type RouteProp,
 } from '@react-navigation/native';
 import type { AppTheme } from '../theme';
-import { useAppLanguage } from '../common';
+import { useAppLanguage, StatusPopup, type StatusPopupVariant } from '../common';
 import type { RootStackParamList } from '../navigation/Navigation';
 import { useSelectionStore } from '../store/selectionStore';
 import {
@@ -105,6 +104,10 @@ export function BusTrackingScreen() {
   const stoppedSinceRef = useRef<number | null>(null);
 
   const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<{
+    variant: StatusPopupVariant;
+    title: string;
+  } | null>(null);
   /** One child at a time — never show sibling switcher on this map. */
   const [activeChild, setActiveChild] = useState<ParentChildBus | null>(null);
   const [live, setLive] = useState<LiveBusLocation | null>(null);
@@ -517,7 +520,7 @@ export function BusTrackingScreen() {
   const callDriver = () => {
     const m = live?.driverMobile ?? activeChild?.driverMobile;
     if (!m) {
-      Alert.alert(t('busTracking.noDriverContact'));
+      setStatus({ variant: 'error', title: t('busTracking.noDriverContact') });
       return;
     }
     void Linking.openURL(`tel:${m}`);
@@ -525,7 +528,7 @@ export function BusTrackingScreen() {
 
   const callAssistant = () => {
     if (!activeChild?.assistantMobile) {
-      Alert.alert(t('busTracking.noAssistantContact'));
+      setStatus({ variant: 'error', title: t('busTracking.noAssistantContact') });
       return;
     }
     void Linking.openURL(`tel:${activeChild.assistantMobile}`);
@@ -991,6 +994,12 @@ export function BusTrackingScreen() {
           )}
         </View>
       ) : null}
+      <StatusPopup
+        visible={status != null}
+        variant={status?.variant}
+        title={status?.title ?? ''}
+        onDismiss={() => setStatus(null)}
+      />
     </SafeAreaView>
   );
 }

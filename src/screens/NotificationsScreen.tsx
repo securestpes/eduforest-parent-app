@@ -8,7 +8,6 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -24,7 +23,6 @@ import {
   ParentStudent,
 } from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
-import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import {
   applyUnreadFlags,
@@ -38,7 +36,9 @@ import {
   type WeeklySummaryBlock,
 } from '../utils/notificationCenter';
 import type { AppTheme } from '../theme';
-import { shadows } from '../theme/appTheme';
+import { shadows, useAppColors } from '../theme/appTheme';
+import { StudentModuleHero } from '../components/layout/StudentModuleHero';
+import { navigateToChildScreen, navigateToTab } from '../navigation/navigationRef';
 import type { RootStackParamList } from '../navigation/Navigation';
 import { APP_NOTIFICATION_RECEIVED_EVENT } from '../constants/notifications';
 import { useAppLanguage } from '../common';
@@ -275,23 +275,11 @@ function hasMoreAttendancePages(
 
 export function NotificationsScreen({
   embedded,
-  onSwitchToAttendance,
-  onSwitchToFees,
-  onSwitchToExams,
-  onSwitchToLeaves,
-  onSwitchToHomework,
 }: {
   embedded?: boolean;
-  onSwitchToAttendance?: (highlight?: {
-    highlightAttendanceId?: number;
-    highlightSessionDate?: string;
-  }) => void;
-  onSwitchToFees?: () => void;
-  onSwitchToExams?: () => void;
-  onSwitchToLeaves?: () => void;
-  onSwitchToHomework?: () => void;
 } = {}) {
   const theme = useTheme() as AppTheme;
+  const colors = useAppColors();
   const { t } = useAppLanguage();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const selectedStudentId = useSelectionStore((s) => s.selectedStudentId);
@@ -522,11 +510,7 @@ export function NotificationsScreen({
   }, [lastUpdatedAt, t]);
 
   const goToAttendance = () => {
-    if (embedded && onSwitchToAttendance) {
-      onSwitchToAttendance();
-      return;
-    }
-    navigation.navigate('ChildHub', {
+    navigateToChildScreen({
       section: 'attendance',
       studentId: selectedStudentId ?? undefined,
     });
@@ -539,11 +523,7 @@ export function NotificationsScreen({
     if (student) setSelectedStudentId(student.id);
 
     if (item.kind === 'fee_payment' || item.kind === 'fee_reminder') {
-      if (embedded && onSwitchToFees) {
-        onSwitchToFees();
-        return;
-      }
-      navigation.navigate('ChildHub', {
+      navigateToChildScreen({
         section: 'fees',
         studentId: student?.id,
       });
@@ -551,11 +531,7 @@ export function NotificationsScreen({
     }
 
     if (item.kind === 'exam_results') {
-      if (embedded && onSwitchToExams) {
-        onSwitchToExams();
-        return;
-      }
-      navigation.navigate('ChildHub', {
+      navigateToChildScreen({
         section: 'exams',
         studentId: student?.id,
       });
@@ -563,11 +539,7 @@ export function NotificationsScreen({
     }
 
     if (item.kind === 'leave_status') {
-      if (embedded && onSwitchToLeaves) {
-        onSwitchToLeaves();
-        return;
-      }
-      navigation.navigate('ChildHub', {
+      navigateToChildScreen({
         section: 'leaves',
         studentId: student?.id,
       });
@@ -575,11 +547,7 @@ export function NotificationsScreen({
     }
 
     if (item.kind === 'homework') {
-      if (embedded && onSwitchToHomework) {
-        onSwitchToHomework();
-        return;
-      }
-      navigation.navigate('ChildHub', {
+      navigateToChildScreen({
         section: 'homework',
         studentId: student?.id,
       });
@@ -587,20 +555,33 @@ export function NotificationsScreen({
     }
 
     if (!item.row) return;
-    const highlight = {
-      highlightAttendanceId: item.row.attendanceId,
-      highlightSessionDate: item.row.sessionDate.slice(0, 10),
-    };
-    if (embedded && onSwitchToAttendance) {
-      onSwitchToAttendance(highlight);
-      return;
-    }
-    navigation.navigate('ChildHub', {
+    navigateToChildScreen({
       section: 'attendance',
       studentId: student?.id,
-      ...highlight,
+      highlightAttendanceId: item.row.attendanceId,
+      highlightSessionDate: item.row.sessionDate.slice(0, 10),
     });
   };
+
+  const goBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigateToTab({ tab: 'Home' });
+  };
+
+  const hero = (
+    <StudentModuleHero
+      title={t('notifications.title')}
+      subtitle={t('notifications.subtitle')}
+      student={selectedStudent}
+      onBack={goBack}
+      backAccessibilityLabel={t('attendance.backHome')}
+      heroIcon="bell-outline"
+      showNotifications={false}
+    />
+  );
 
   if (loading) {
     const loader = (
@@ -614,13 +595,11 @@ export function NotificationsScreen({
         </Text>
       </View>
     );
-    if (embedded) return <View style={styles.embedded}>{loader}</View>;
     return (
-      <ScreenDecor>
-        <SafeAreaView style={styles.safe} edges={['top']}>
-          {loader}
-        </SafeAreaView>
-      </ScreenDecor>
+      <View style={[styles.standalone, { backgroundColor: colors.background }]}>
+        {hero}
+        {loader}
+      </View>
     );
   }
 
@@ -783,21 +762,17 @@ export function NotificationsScreen({
     </>
   );
 
-  if (embedded) {
-    return <View style={styles.embedded}>{body}</View>;
-  }
-
   return (
-    <ScreenDecor>
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        {body}
-      </SafeAreaView>
-    </ScreenDecor>
+    <View style={[styles.standalone, { backgroundColor: colors.background }]}>
+      {hero}
+      {body}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  standalone: { flex: 1 },
   embedded: { flex: 1 },
   center: {
     flex: 1,

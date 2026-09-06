@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Modal,
   Pressable,
@@ -10,10 +9,12 @@ import {
   View,
 } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { format, parseISO } from 'date-fns';
+import { parseISO } from 'date-fns';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../../../theme/appTheme';
-import { useAppLanguage } from '../../../common';
+import { useAppColors, type AppColors } from '../../../theme/appTheme';
+import { StatusPopup, useAppLanguage, type StatusPopupVariant } from '../../../common';
+import type { AppLanguage } from '../../../common/contexts/parentTranslations';
+import { formatAppDate } from '../../../utils/appDateLocale';
 import { normalizeUploadUrl } from '../../../common/helpers/normalizeUploadUrl';
 import { saveRemoteFileToDevice } from '../../../utils/saveRemoteFileToDevice';
 
@@ -42,19 +43,21 @@ function extensionFromUrl(url: string, kind: Kind): string {
   return '';
 }
 
-function stampFromDate(value?: string | null): string {
+function stampFromDate(value: string | null | undefined, language: AppLanguage): string {
   if (value) {
     try {
       const iso = value.length <= 10 ? `${value}T00:00:00` : value;
       const date = parseISO(iso);
       if (!Number.isNaN(date.getTime())) {
-        return value.length <= 10 ? format(date, 'd MMM yyyy') : format(date, 'd MMM yyyy, h:mm a');
+        return value.length <= 10
+          ? formatAppDate(date, 'd MMM yyyy', language)
+          : formatAppDate(date, 'd MMM yyyy, h:mm a', language);
       }
     } catch {
       // fall through
     }
   }
-  return format(new Date(), 'd MMM yyyy, h:mm a');
+  return formatAppDate(new Date(), 'd MMM yyyy, h:mm a', language);
 }
 
 function mimeFor(kind: Kind, name: string): string {
@@ -77,13 +80,19 @@ export function HomeworkAttachments({
   title: string;
   assignedDate?: string | null;
 }) {
-  const { t } = useAppLanguage();
+  const { t, language } = useAppLanguage();
+  const colors = useAppColors();
+  const styles = useMemo(() => createAttachStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
+  const [status, setStatus] = useState<{
+    variant: StatusPopupVariant;
+    title: string;
+  } | null>(null);
 
   const items = useMemo(() => {
-    const stamp = stampFromDate(assignedDate);
+    const stamp = stampFromDate(assignedDate, language);
     const base = (title || t('homework.title')).trim();
     return urls.map((raw, index) => {
       const url = normalizeUploadUrl(raw);
@@ -93,7 +102,7 @@ export function HomeworkAttachments({
       const fileName = `${base} ${stamp}${suffix}${ext}`;
       return { key: `${raw}-${index}`, url, kind, fileName };
     });
-  }, [urls, title, assignedDate, t]);
+  }, [urls, title, assignedDate, t, language]);
 
   const download = async (item: (typeof items)[number]) => {
     if (!item.url || downloadingKey) return;
@@ -105,15 +114,15 @@ export function HomeworkAttachments({
         mimeType: mimeFor(item.kind, item.fileName),
       });
       if (result === 'cancelled') return;
-      Alert.alert(
-        '',
-        result === 'shared' ? t('homework.fileShared') : t('homework.fileSaved')
-      );
+      setStatus({
+        variant: 'success',
+        title: result === 'shared' ? t('homework.fileShared') : t('homework.fileSaved'),
+      });
     } catch (e: unknown) {
-      Alert.alert(
-        '',
-        e instanceof Error ? e.message : t('homework.downloadFailed')
-      );
+      setStatus({
+        variant: 'error',
+        title: e instanceof Error ? e.message : t('homework.downloadFailed'),
+      });
     } finally {
       setDownloadingKey(null);
     }
@@ -239,11 +248,18 @@ export function HomeworkAttachments({
           ) : null}
         </View>
       </Modal>
+      <StatusPopup
+        visible={status != null}
+        variant={status?.variant}
+        title={status?.title ?? ''}
+        onDismiss={() => setStatus(null)}
+      />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+function createAttachStyles(colors: AppColors) {
+  return StyleSheet.create({
   wrap: { marginTop: 16, gap: 10 },
   section: {
     color: colors.text,
@@ -263,14 +279,14 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   thumb: { width: '100%', height: '100%' },
   docIcon: {
     width: 64,
     height: 64,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -302,4 +318,5 @@ const styles = StyleSheet.create({
   },
   previewActionText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
   previewImage: { flex: 1, width: '100%' },
-});
+  });
+}

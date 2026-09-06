@@ -1,11 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, Animated, Easing, Vibration } from 'react-native';
-import { Portal, Modal, Text } from 'react-native-paper';
+import {
+  Animated,
+  Easing,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Vibration,
+  View,
+} from 'react-native';
+import { Text } from 'react-native-paper';
 import { StyledButton } from './form-elements';
 import { useAppLanguage, useAppTheme } from '../contexts';
 import type { AppTheme } from '../../theme';
 
-interface ConfirmationPopupProps {
+export type ConfirmationPopupProps = {
   isVisible: boolean;
   title: string;
   message: string;
@@ -15,9 +23,9 @@ interface ConfirmationPopupProps {
   onCancel: () => void;
   confirmButtonColor?: string;
   confirmLoading?: boolean;
-}
+};
 
-export const ConfirmationPopup = ({
+export function ConfirmationPopup({
   isVisible,
   title,
   message,
@@ -27,7 +35,7 @@ export const ConfirmationPopup = ({
   onCancel,
   confirmButtonColor = '#EF4444',
   confirmLoading = false,
-}: ConfirmationPopupProps) => {
+}: ConfirmationPopupProps) {
   const { t } = useAppLanguage();
   const { theme } = useAppTheme();
   const styles = createStyles(theme);
@@ -54,8 +62,8 @@ export const ConfirmationPopup = ({
     }
   }, [isVisible, anim, isClosing]);
 
-  const requestClose = (after?: () => void) => {
-    if (isClosing) return;
+  const requestClose = () => {
+    if (isClosing || confirmLoading) return;
     setIsClosing(true);
     Animated.timing(anim, {
       toValue: 0,
@@ -63,46 +71,36 @@ export const ConfirmationPopup = ({
       easing: Easing.in(Easing.ease),
       useNativeDriver: true,
     }).start(() => {
-      try {
-        after?.();
-      } finally {
-        onCancel();
-        setIsClosing(false);
-      }
+      onCancel();
+      setIsClosing(false);
     });
-  };
-
-  const handleConfirm = () => {
-    onConfirm();
   };
 
   const scale = anim.interpolate({
     inputRange: [0, 1],
     outputRange: [0.92, 1],
   });
-  const opacity = anim;
 
   return (
-    <Portal>
-      <Modal
-        visible={isVisible}
-        onDismiss={() => requestClose()}
-        contentContainerStyle={[styles.modalRoot, { opacity: anim }]}
-      >
+    <Modal
+      visible={isVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={requestClose}
+    >
+      <View style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={requestClose} />
         <Animated.View
           style={[
             styles.container,
             {
               backgroundColor: theme.colors.card,
               transform: [{ scale }],
-              opacity,
+              opacity: anim,
             },
           ]}
         >
-          <Text
-            variant="titleMedium"
-            style={[styles.title, { color: theme.colors.text }]}
-          >
+          <Text variant="titleMedium" style={[styles.title, { color: theme.colors.text }]}>
             {title}
           </Text>
           <Text
@@ -114,7 +112,7 @@ export const ConfirmationPopup = ({
 
           <View style={styles.actions}>
             <StyledButton
-              onPress={() => requestClose()}
+              onPress={requestClose}
               mode="outlined"
               disabled={confirmLoading}
               style={styles.actionBtn}
@@ -122,7 +120,7 @@ export const ConfirmationPopup = ({
               {cancelText ?? t('common.cancel')}
             </StyledButton>
             <StyledButton
-              onPress={handleConfirm}
+              onPress={onConfirm}
               mode="contained"
               buttonColor={confirmButtonColor}
               disabled={confirmLoading}
@@ -133,22 +131,25 @@ export const ConfirmationPopup = ({
             </StyledButton>
           </View>
         </Animated.View>
-      </Modal>
-    </Portal>
+      </View>
+    </Modal>
   );
-};
+}
 
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
-    modalRoot: {
-      marginHorizontal: 24,
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(15,23,42,0.45)',
+      justifyContent: 'center',
+      paddingHorizontal: 24,
     },
     container: {
       borderRadius: 16,
       padding: 24,
       elevation: 8,
-      position: 'relative',
       maxWidth: 400,
+      width: '100%',
       alignSelf: 'center',
       shadowColor: '#000',
       shadowOpacity: 0.12,
@@ -174,5 +175,6 @@ const createStyles = (theme: AppTheme) =>
     },
     actionBtn: {
       minWidth: 90,
+      flex: 1,
     },
   });

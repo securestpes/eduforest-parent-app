@@ -1,6 +1,5 @@
 import {
   addMonths,
-  differenceInCalendarDays,
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
@@ -30,33 +29,54 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
   applyStudentLeave,
+  getStudentSchoolCalendar,
   type ParentStudent,
 } from '../../services/parent';
 import { useAppLanguage, StatusPopup, type StatusPopupVariant } from '../../common';
+import { formatAppDate, weekdayShortLabelsMondayFirst } from '../../utils/appDateLocale';
 import { normalizeUploadUrl } from '../../common/helpers/normalizeUploadUrl';
 import { initials, avatarHue } from '../../utils/attendanceVisuals';
-import { colors, shadows, spacing } from '../../theme/appTheme';
+import { shadows, spacing, useAppColors, type AppColors } from '../../theme/appTheme';
+import {
+  DEFAULT_SCHOOL_WORKING_DAYS,
+  WEEKDAY_HEADER_KEYS,
+  isSchoolOpenDay,
+  nextSchoolOpenDayInSession,
+  normalizeWorkingDays,
+} from '../../utils/schoolWorkingDays';
+import {
+  isDateInSession,
+  monthKey,
+  resolveSessionRange,
+} from '../../utils/academicSession';
 
 const HERO_BG = require('../../assets/hero-bg.png');
 const REASON_MAX = 300;
 const LEAVE_TYPES = ['SICK', 'CASUAL', 'EMERGENCY', 'OTHER'] as const;
-const DAY_SESSIONS = ['FULL', 'FIRST_HALF', 'SECOND_HALF'] as const;
 
 type LeaveType = (typeof LEAVE_TYPES)[number];
-type DaySession = (typeof DAY_SESSIONS)[number];
 
-const TYPE_META: Record<
+function typeMeta(colors: AppColors): Record<
   LeaveType,
   { icon: React.ComponentProps<typeof MaterialCommunityIcons>['name']; tint: string }
-> = {
-  SICK: { icon: 'thermometer', tint: colors.primary },
-  CASUAL: { icon: 'account-outline', tint: '#F59E0B' },
-  EMERGENCY: { icon: 'account-group-outline', tint: colors.success },
-  OTHER: { icon: 'dots-horizontal', tint: '#64748B' },
-};
+> {
+  return {
+    SICK: { icon: 'thermometer', tint: colors.primary },
+    CASUAL: { icon: 'account-outline', tint: colors.warning },
+    EMERGENCY: { icon: 'account-group-outline', tint: colors.success },
+    OTHER: { icon: 'dots-horizontal', tint: colors.textSecondary },
+  };
+}
 
 function isoDay(date: Date): string {
   return format(date, 'yyyy-MM-dd');
+}
+
+function openDayCount(from: Date, to: Date, workingDays: string[]): number {
+  if (to.getTime() < from.getTime()) return 0;
+  return eachDayOfInterval({ start: from, end: to }).filter((day) =>
+    isSchoolOpenDay(day, workingDays)
+  ).length;
 }
 
 function parseDay(value?: string | null): Date | null {
@@ -78,21 +98,37 @@ function CalendarModal({
   visible,
   value,
   title,
+  workingDays,
+  sessionRange,
   onClose,
   onSelect,
 }: {
   visible: boolean;
   value: string;
   title: string;
+  workingDays: string[];
+  sessionRange: { start: Date; end: Date } | null;
   onClose: () => void;
   onSelect: (iso: string) => void;
 }) {
+  const { language } = useAppLanguage();
+  const colors = useAppColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const selected = parseDay(value) ?? new Date();
   const [month, setMonth] = useState(startOfMonth(selected));
 
   useEffect(() => {
-    if (visible) setMonth(startOfMonth(parseDay(value) ?? new Date()));
-  }, [visible, value]);
+    if (!visible) return;
+    const anchor = parseDay(value) ?? new Date();
+    let next = startOfMonth(anchor);
+    if (sessionRange) {
+      const startM = startOfMonth(sessionRange.start);
+      const endM = startOfMonth(sessionRange.end);
+      if (monthKey(next) < monthKey(startM)) next = startM;
+      if (monthKey(next) > monthKey(endM)) next = endM;
+    }
+    setMonth(next);
+  }, [visible, value, sessionRange]);
 
   const days = useMemo(() => {
     const start = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
@@ -100,7 +136,12 @@ function CalendarModal({
     return eachDayOfInterval({ start, end });
   }, [month]);
 
-  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const canGoPrev =
+    !sessionRange || monthKey(month) > monthKey(startOfMonth(sessionRange.start));
+  const canGoNext =
+    !sessionRange || monthKey(month) < monthKey(startOfMonth(sessionRange.end));
+
+  const weekdays = weekdayShortLabelsMondayFirst(language);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -108,36 +149,83 @@ function CalendarModal({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.calCard}>
           <View style={styles.calNav}>
-            <Pressable onPress={() => setMonth((m) => addMonths(m, -1))} hitSlop={8} style={styles.calNavBtn}>
-              <MaterialCommunityIcons name="chevron-left" size={22} color={colors.text} />
+            <Pressable
+              onPress={() => {
+                if (!canGoPrev) return;
+                setMonth((m) => addMonths(m, -1));
+              }}
+              disabled={!canGoPrev}
+              hitSlop={8}
+              style={[styles.calNavBtn, !canGoPrev && { opacity: 0.35 }]}
+            >
+              <MaterialCommunityIcons
+                name="chevron-left"
+                size={22}
+                color={canGoPrev ? colors.text : colors.textTertiary}
+              />
             </Pressable>
             <Text style={styles.calTitle}>{title}</Text>
-            <Pressable onPress={() => setMonth((m) => addMonths(m, 1))} hitSlop={8} style={styles.calNavBtn}>
-              <MaterialCommunityIcons name="chevron-right" size={22} color={colors.text} />
+            <Pressable
+              onPress={() => {
+                if (!canGoNext) return;
+                setMonth((m) => addMonths(m, 1));
+              }}
+              disabled={!canGoNext}
+              hitSlop={8}
+              style={[styles.calNavBtn, !canGoNext && { opacity: 0.35 }]}
+            >
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={22}
+                color={canGoNext ? colors.text : colors.textTertiary}
+              />
             </Pressable>
           </View>
-          <Text style={styles.calMonth}>{format(month, 'MMMM yyyy')}</Text>
+          <Text style={styles.calMonth}>{formatAppDate(month, 'MMMM yyyy', language)}</Text>
           <View style={styles.calWeekRow}>
-            {weekdays.map((d) => (
-              <Text key={d} style={styles.calWeekday}>
-                {d}
-              </Text>
-            ))}
+            {weekdays.map((d, index) => {
+              const closed = !workingDays.includes(WEEKDAY_HEADER_KEYS[index]);
+              return (
+                <Text
+                  key={d}
+                  style={[styles.calWeekday, closed && styles.calWeekdayWeekend]}
+                >
+                  {d}
+                </Text>
+              );
+            })}
           </View>
           <View style={styles.calGrid}>
             {days.map((day) => {
               const inMonth = isSameMonth(day, month);
-              const active = isSameDay(day, selected);
+              const outOfSession = !isDateInSession(day, sessionRange);
+              const closed = !isSchoolOpenDay(day, workingDays) || outOfSession;
+              const active = !closed && isSameDay(day, selected);
               return (
                 <Pressable
                   key={isoDay(day)}
+                  disabled={closed}
                   onPress={() => {
+                    if (closed) return;
                     onSelect(isoDay(day));
                     onClose();
                   }}
-                  style={[styles.calDay, active && styles.calDayActive, !inMonth && { opacity: 0.35 }]}
+                  style={[
+                    styles.calDay,
+                    active && styles.calDayActive,
+                    (!inMonth || closed) && { opacity: 0.35 },
+                    closed && styles.calDayDisabled,
+                  ]}
                 >
-                  <Text style={[styles.calDayText, active && styles.calDayTextActive]}>{format(day, 'd')}</Text>
+                  <Text
+                    style={[
+                      styles.calDayText,
+                      active && styles.calDayTextActive,
+                      closed && styles.calDayTextDisabled,
+                    ]}
+                  >
+                    {format(day, 'd')}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -159,14 +247,23 @@ export function ApplyLeaveScreen({
   onClose: () => void;
   onApplied: () => void;
 }) {
-  const { t } = useAppLanguage();
+  const { t, language } = useAppLanguage();
+  const colors = useAppColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
-  const today = isoDay(new Date());
+  const [workingDays, setWorkingDays] = useState<string[]>(() => [
+    ...DEFAULT_SCHOOL_WORKING_DAYS,
+  ]);
+  const [sessionRange, setSessionRange] = useState<{ start: Date; end: Date } | null>(
+    null
+  );
+  const defaultIso = isoDay(
+    nextSchoolOpenDayInSession(new Date(), workingDays, sessionRange)
+  );
 
   const [leaveType, setLeaveType] = useState<LeaveType>('SICK');
-  const [fromDate, setFromDate] = useState(today);
-  const [toDate, setToDate] = useState(today);
-  const [dayPart, setDayPart] = useState<DaySession>('FULL');
+  const [fromDate, setFromDate] = useState(defaultIso);
+  const [toDate, setToDate] = useState(defaultIso);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [picker, setPicker] = useState<'from' | 'to' | null>(null);
@@ -177,6 +274,53 @@ export function ApplyLeaveScreen({
     message?: string;
     closeAfter?: boolean;
   } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getStudentSchoolCalendar(studentId)
+      .then((res) => {
+        if (cancelled || !res.status) return;
+        setWorkingDays(normalizeWorkingDays(res.data?.workingDays));
+        setSessionRange(
+          resolveSessionRange({
+            startDate: res.data?.startDate,
+            endDate: res.data?.endDate,
+            academicYear: res.data?.sessionName || student?.academicYear,
+          })
+        );
+      })
+      .catch(() => {
+        setSessionRange(
+          resolveSessionRange({ academicYear: student?.academicYear })
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [studentId, student?.academicYear]);
+
+  useEffect(() => {
+    setFromDate((from) => {
+      const nextFrom = isoDay(
+        nextSchoolOpenDayInSession(
+          parseDay(from) ?? new Date(),
+          workingDays,
+          sessionRange
+        )
+      );
+      setToDate((to) => {
+        const nextTo = isoDay(
+          nextSchoolOpenDayInSession(
+            parseDay(to) ?? new Date(),
+            workingDays,
+            sessionRange
+          )
+        );
+        return nextTo < nextFrom ? nextFrom : nextTo;
+      });
+      return nextFrom;
+    });
+  }, [workingDays, sessionRange]);
 
   const name = student?.name || t('common.student');
   const hue = avatarHue(name);
@@ -193,27 +337,64 @@ export function ApplyLeaveScreen({
   const dayCount = useMemo(() => {
     const from = parseDay(fromDate);
     const to = parseDay(toDate);
-    if (!from || !to) return 1;
-    return Math.max(1, differenceInCalendarDays(to, from) + 1);
-  }, [fromDate, toDate]);
+    if (!from || !to) return 0;
+    return openDayCount(from, to, workingDays);
+  }, [fromDate, toDate, workingDays]);
 
   const dayCountLabel =
-    fromDate === toDate && dayPart !== 'FULL'
-      ? t(dayPart === 'FIRST_HALF' ? 'leaves.sessionFirstHalf' : 'leaves.sessionSecondHalf')
-      : dayCount === 1
-        ? t('leaves.daysOne')
-        : t('leaves.daysCount', { count: dayCount });
+    dayCount === 1 ? t('leaves.daysOne') : t('leaves.daysCount', { count: dayCount });
 
   const setFrom = (iso: string) => {
+    const date = parseDay(iso);
+    if (
+      !date ||
+      !isSchoolOpenDay(date, workingDays) ||
+      !isDateInSession(date, sessionRange)
+    ) {
+      return;
+    }
     setFromDate(iso);
     if (toDate && iso > toDate) setToDate(iso);
   };
 
   const setTo = (iso: string) => {
+    const date = parseDay(iso);
+    if (
+      !date ||
+      !isSchoolOpenDay(date, workingDays) ||
+      !isDateInSession(date, sessionRange)
+    ) {
+      return;
+    }
     setToDate(fromDate && iso < fromDate ? fromDate : iso);
   };
 
   const submit = async () => {
+    const from = parseDay(fromDate);
+    const to = parseDay(toDate);
+    if (
+      !from ||
+      !to ||
+      !isDateInSession(from, sessionRange) ||
+      !isDateInSession(to, sessionRange)
+    ) {
+      setStatus({
+        variant: 'error',
+        title: t('leaves.sessionBlocked'),
+      });
+      return;
+    }
+    if (
+      !isSchoolOpenDay(from, workingDays) ||
+      !isSchoolOpenDay(to, workingDays) ||
+      openDayCount(from, to, workingDays) < 1
+    ) {
+      setStatus({
+        variant: 'error',
+        title: t('leaves.weekendBlocked'),
+      });
+      return;
+    }
     if (!reason.trim()) {
       setStatus({
         variant: 'error',
@@ -223,12 +404,11 @@ export function ApplyLeaveScreen({
     }
     setSubmitting(true);
     try {
-      const halfDay = fromDate === toDate ? dayPart : 'FULL';
       const res = await applyStudentLeave(studentId, {
         fromDate,
         toDate,
-        fromSession: halfDay,
-        toSession: halfDay,
+        fromSession: 'FULL',
+        toSession: 'FULL',
         leaveType,
         reason: reason.trim(),
       });
@@ -261,8 +441,8 @@ export function ApplyLeaveScreen({
         <Pressable onPress={() => setPicker(which)} style={styles.dateField}>
           <MaterialCommunityIcons name="calendar-month-outline" size={20} color={colors.primary} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.dateValue}>{date ? format(date, 'd MMM yyyy') : '—'}</Text>
-            <Text style={styles.dateWeek}>{date ? format(date, 'EEEE') : ''}</Text>
+            <Text style={styles.dateValue}>{date ? formatAppDate(date, 'd MMM yyyy', language) : '—'}</Text>
+            <Text style={styles.dateWeek}>{date ? formatAppDate(date, 'EEEE', language) : ''}</Text>
           </View>
           <MaterialCommunityIcons name="chevron-down" size={18} color={colors.textTertiary} />
         </Pressable>
@@ -273,11 +453,7 @@ export function ApplyLeaveScreen({
   return (
     <View style={styles.root}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          style={styles.flex}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: 24 }}
-        >
+        <View style={styles.header}>
           <View style={styles.hero}>
             <Image source={HERO_BG} style={[styles.heroBg, { width: screenW }]} resizeMode="cover" />
             <View style={{ paddingTop: insets.top + 4, paddingHorizontal: spacing.lg, paddingBottom: 48 }}>
@@ -316,7 +492,13 @@ export function ApplyLeaveScreen({
               ) : null}
             </View>
           </View>
+        </View>
 
+        <ScrollView
+          style={styles.flex}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 24 }}
+        >
           <View style={styles.form}>
             <Text style={styles.label}>
               {t('leaves.typeLabel')} <Text style={styles.req}>*</Text>
@@ -324,7 +506,7 @@ export function ApplyLeaveScreen({
             <View style={styles.typeGrid}>
               {LEAVE_TYPES.map((type) => {
                 const active = leaveType === type;
-                const meta = TYPE_META[type];
+                const meta = typeMeta(colors)[type];
                 return (
                   <Pressable
                     key={type}
@@ -351,34 +533,7 @@ export function ApplyLeaveScreen({
               {renderDateField('from', fromDate, t('leaves.fromDate'))}
               {renderDateField('to', toDate, t('leaves.toDate'))}
             </View>
-
-            {fromDate === toDate ? (
-              <>
-                <Text style={styles.label}>{t('leaves.dayPart')}</Text>
-                <View style={styles.sessionRow}>
-                  {DAY_SESSIONS.map((session) => {
-                    const active = dayPart === session;
-                    return (
-                      <Pressable
-                        key={session}
-                        onPress={() => setDayPart(session)}
-                        style={[styles.sessionChip, active && styles.sessionChipActive]}
-                      >
-                        <Text style={[styles.sessionText, active && styles.sessionTextActive]}>
-                          {t(
-                            session === 'FULL'
-                              ? 'leaves.sessionFull'
-                              : session === 'FIRST_HALF'
-                                ? 'leaves.sessionFirstHalf'
-                                : 'leaves.sessionSecondHalf'
-                          )}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </>
-            ) : null}
+            <Text style={styles.weekendHint}>{t('leaves.sessionHint')}</Text>
 
             <Text style={styles.label}>{t('leaves.numberOfDays')}</Text>
             <View style={styles.readonly}>
@@ -414,8 +569,8 @@ export function ApplyLeaveScreen({
           </View>
           <Pressable
             onPress={() => void submit()}
-            disabled={submitting}
-            style={[styles.submit, { opacity: submitting ? 0.7 : 1 }]}
+            disabled={submitting || dayCount < 1}
+            style={[styles.submit, { opacity: submitting || dayCount < 1 ? 0.7 : 1 }]}
           >
             {submitting ? (
               <ActivityIndicator color={colors.headerOn} />
@@ -430,6 +585,8 @@ export function ApplyLeaveScreen({
         visible={picker != null}
         value={picker === 'to' ? toDate : fromDate}
         title={picker === 'to' ? t('leaves.toDate') : t('leaves.fromDate')}
+        workingDays={workingDays}
+        sessionRange={sessionRange}
         onClose={() => setPicker(null)}
         onSelect={(iso) => (picker === 'to' ? setTo(iso) : setFrom(iso))}
       />
@@ -448,9 +605,11 @@ export function ApplyLeaveScreen({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   flex: { flex: 1 },
   root: { flex: 1, backgroundColor: colors.background },
+  header: { backgroundColor: colors.background, paddingBottom: 4, zIndex: 2 },
   hero: { backgroundColor: colors.primary, overflow: 'hidden' },
   heroBg: { ...StyleSheet.absoluteFillObject, height: '100%' },
   nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -505,7 +664,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#E6E8EE',
+    borderColor: colors.border,
     padding: 12,
     minHeight: 96,
   },
@@ -532,6 +691,13 @@ const styles = StyleSheet.create({
   typeText: { color: colors.text, fontSize: 13, fontWeight: '700' },
   typeTextActive: { color: colors.primary },
   dateRow: { flexDirection: 'row', gap: 10 },
+  weekendHint: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 8,
+    marginBottom: 4,
+  },
   dateCol: { flex: 1 },
   dateField: {
     flexDirection: 'row',
@@ -540,26 +706,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E6E8EE',
+    borderColor: colors.border,
     paddingHorizontal: 10,
     paddingVertical: 10,
   },
   dateValue: { color: colors.text, fontSize: 14, fontWeight: '700' },
   dateWeek: { color: colors.textTertiary, fontSize: 11, fontWeight: '500', marginTop: 1 },
-  sessionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  sessionChip: {
-    borderWidth: 1,
-    borderColor: '#E6E8EE',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    backgroundColor: colors.surface,
-  },
-  sessionChipActive: { backgroundColor: colors.primarySoft, borderColor: colors.primaryMuted },
-  sessionText: { color: colors.text, fontSize: 13, fontWeight: '600' },
-  sessionTextActive: { color: colors.primary },
   readonly: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 14,
@@ -569,7 +723,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E6E8EE',
+    borderColor: colors.border,
     minHeight: 110,
   },
   reasonInput: {
@@ -594,7 +748,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     backgroundColor: colors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E6E8EE',
+    borderTopColor: colors.border,
   },
   note: {
     flexDirection: 'row',
@@ -627,9 +781,13 @@ const styles = StyleSheet.create({
   calMonth: { textAlign: 'center', color: colors.textSecondary, fontWeight: '600', marginBottom: 8 },
   calWeekRow: { flexDirection: 'row', marginBottom: 4 },
   calWeekday: { flex: 1, textAlign: 'center', color: colors.textTertiary, fontSize: 11, fontWeight: '700' },
+  calWeekdayWeekend: { color: colors.danger, opacity: 0.7 },
   calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   calDay: { width: '14.28%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
   calDayActive: { backgroundColor: colors.primary, borderRadius: 999 },
+  calDayDisabled: { opacity: 0.35 },
   calDayText: { color: colors.text, fontSize: 14, fontWeight: '600' },
   calDayTextActive: { color: colors.headerOn },
-});
+  calDayTextDisabled: { color: colors.textTertiary, textDecorationLine: 'line-through' },
+  });
+}

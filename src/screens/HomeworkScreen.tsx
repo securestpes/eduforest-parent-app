@@ -1,8 +1,6 @@
-import { format } from 'date-fns';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   RefreshControl,
@@ -13,7 +11,6 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
 import {
   getMyStudents,
   getStudentHomework,
@@ -28,9 +25,11 @@ import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import { StudentModuleHero } from '../components/layout/StudentModuleHero';
-import { colors, shadows, spacing } from '../theme/appTheme';
-import { useAppLanguage } from '../common';
-import { navigateToTab } from '../navigation/navigationRef';
+import { shadows, spacing, useAppColors, type AppColors } from '../theme/appTheme';
+import { StatusPopup, useAppLanguage, type StatusPopupVariant } from '../common';
+import type { AppLanguage } from '../common/contexts/parentTranslations';
+import { formatAppDate } from '../utils/appDateLocale';
+import { useHubAwareBack } from '../navigation/ChildHubNavContext';
 import { HomeworkTaskCard } from '../features/homework/components/HomeworkTaskCard';
 import { HomeworkAttachments } from '../features/homework/components/HomeworkAttachments';
 import {
@@ -42,10 +41,13 @@ import {
 type Props = { embedded?: boolean };
 type HomeworkTab = 'pending' | 'completed';
 
-function formatShortDate(value: string | null | undefined): string {
+function formatShortDate(
+  value: string | null | undefined,
+  language: AppLanguage
+): string {
   const date = parseHomeworkDate(value);
   if (!date) return '—';
-  return format(date, 'd MMM yyyy');
+  return formatAppDate(date, 'd MMM yyyy', language);
 }
 
 function dueSortKey(item: ParentHomeworkItem): number {
@@ -63,6 +65,8 @@ function HomeworkSummaryCard({
   overdue: number;
 }) {
   const { t } = useAppLanguage();
+  const colors = useAppColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const total = pending + done;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
@@ -84,9 +88,10 @@ function HomeworkSummaryCard({
 }
 
 export function HomeworkScreen({ embedded = false }: Props) {
-  const { t } = useAppLanguage();
+  const { t, language } = useAppLanguage();
+  const colors = useAppColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
   const studentId = useSelectionStore((s) => s.selectedStudentId);
 
   const [students, setStudents] = useState<ParentStudent[]>([]);
@@ -100,6 +105,10 @@ export function HomeworkScreen({ embedded = false }: Props) {
   const [detailLoading, setDetailLoading] = useState(false);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<{
+    variant: StatusPopupVariant;
+    title: string;
+  } | null>(null);
 
   const selectedStudent = students.find((s) => s.id === studentId) ?? null;
   const today = useMemo(() => new Date(), [items.length]);
@@ -215,12 +224,12 @@ export function HomeworkScreen({ embedded = false }: Props) {
         ? await markStudentHomeworkDone(studentId, item.id)
         : await unmarkStudentHomeworkDone(studentId, item.id);
       if (!res.status || !res.data) {
-        Alert.alert('', res.message || t('homework.markDoneFailed'));
+        setStatus({ variant: 'error', title: res.message || t('homework.markDoneFailed') });
         return;
       }
       applyHomework(res.data);
     } catch (e: any) {
-      Alert.alert('', e?.message || t('homework.markDoneFailed'));
+      setStatus({ variant: 'error', title: e?.message || t('homework.markDoneFailed') });
     } finally {
       setTogglingId(null);
     }
@@ -243,13 +252,7 @@ export function HomeworkScreen({ embedded = false }: Props) {
     }
   };
 
-  const goBack = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    navigateToTab({ tab: 'Home' });
-  };
+  const goBack = useHubAwareBack();
 
   const detailSheet = (
     <Modal
@@ -282,7 +285,7 @@ export function HomeworkScreen({ embedded = false }: Props) {
               </Text>
               <Text style={styles.modalMeta}>
                 {detail.dueDate
-                  ? t('homework.due', { date: formatShortDate(detail.dueDate) })
+                  ? t('homework.due', { date: formatShortDate(detail.dueDate, language) })
                   : t('homework.noDue')}
                 {detail.assignedBy
                   ? ` · ${t('homework.byTeacher', { name: detail.assignedBy })}`
@@ -454,17 +457,33 @@ export function HomeworkScreen({ embedded = false }: Props) {
     </ScrollView>
   );
 
+  const popup = (
+    <StatusPopup
+      visible={status != null}
+      variant={status?.variant}
+      title={status?.title ?? ''}
+      onDismiss={() => setStatus(null)}
+    />
+  );
+
   if (embedded) {
-    return <View style={styles.flex}>{body}</View>;
+    return (
+      <View style={styles.flex}>
+        {body}
+        {popup}
+      </View>
+    );
   }
 
   return (
     <View style={styles.standalone}>
       <StudentModuleHero
         title={t('homework.title')}
+        subtitle={t('homework.subtitle')}
         student={selectedStudent}
         onBack={goBack}
         backAccessibilityLabel={t('homework.backHome')}
+        heroIcon="book-open-page-variant-outline"
       >
         <HomeworkSummaryCard
           pending={counts.pending}
@@ -473,17 +492,19 @@ export function HomeworkScreen({ embedded = false }: Props) {
         />
       </StudentModuleHero>
       {body}
+      {popup}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   flex: { flex: 1 },
   standalone: { flex: 1, backgroundColor: colors.background },
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 40 },
   center: { paddingVertical: 48, alignItems: 'center' },
   summaryCard: {
-    marginTop: -22,
+    marginTop: 12,
     marginHorizontal: spacing.base,
     backgroundColor: colors.surface,
     borderRadius: 20,
@@ -500,7 +521,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     height: 8,
     borderRadius: 999,
-    backgroundColor: '#EEF0F3',
+    backgroundColor: colors.divider,
     overflow: 'hidden',
   },
   progressFill: {
@@ -557,7 +578,7 @@ const styles = StyleSheet.create({
   chipIdle: {
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E6E8EE',
+    borderColor: colors.border,
   },
   chipText: {
     color: colors.text,
@@ -598,7 +619,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surfaceMuted,
   },
   modalTitle: {
     color: colors.text,
@@ -637,4 +658,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 15,
   },
-});
+  });
+}

@@ -1,4 +1,10 @@
-import type { ParentFeeInstallment, ParentFeeLedger } from '../services/parent';
+import type {
+  ParentFeeInstallment,
+  ParentFeeLedger,
+  ParentFeePayment,
+} from '../services/parent';
+import type { AppLanguage } from '../common/contexts/parentTranslations';
+import { appBcp47Locale } from './appDateLocale';
 
 export type FeeDueBreakdownLine = {
   feeHeadId?: number;
@@ -82,6 +88,7 @@ export type HistoryFeeItem = {
   title: string;
   amount: number;
   paidOn: string | null;
+  receiptId?: number;
 };
 
 export type HistoryMonthGroup = {
@@ -90,6 +97,7 @@ export type HistoryMonthGroup = {
   sortKey: number;
   status: 'paid' | 'overdue' | 'due';
   totalPaid: number;
+  receiptId?: number;
   items: HistoryFeeItem[];
 };
 
@@ -171,6 +179,60 @@ export function payableFeeSummary(
   };
 }
 
+function parsePaymentDate(value?: string | null): Date | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function receiptIdForInstallment(
+  inst: ParentFeeInstallment,
+  payments: ParentFeePayment[]
+): number | undefined {
+  if (!payments.length) return undefined;
+  const receiptNo = inst.lastReceiptNo?.trim();
+  if (receiptNo) {
+    const byNumber = payments.find(
+      (payment) =>
+        payment.receiptId != null && (payment.receiptNo || '').trim() === receiptNo
+    );
+    if (byNumber?.receiptId != null) return byNumber.receiptId;
+  }
+
+  const collected = parsePaymentDate(inst.collectedDate || inst.collectedAt);
+  if (collected) {
+    const sameDay = payments.filter((payment) => {
+      const paidAt = parsePaymentDate(payment.paidAt);
+      return (
+        payment.receiptId != null &&
+        paidAt != null &&
+        paidAt.getFullYear() === collected.getFullYear() &&
+        paidAt.getMonth() === collected.getMonth() &&
+        paidAt.getDate() === collected.getDate()
+      );
+    });
+    if (sameDay.length === 1) return sameDay[0].receiptId;
+  }
+
+  const { year, month } = installmentCalendarMonth(inst);
+  const inMonth = payments
+    .filter((payment) => {
+      const paidAt = parsePaymentDate(payment.paidAt);
+      return (
+        payment.receiptId != null &&
+        paidAt != null &&
+        paidAt.getFullYear() === year &&
+        paidAt.getMonth() + 1 === month
+      );
+    })
+    .sort((a, b) => {
+      const left = parsePaymentDate(a.paidAt)?.getTime() ?? 0;
+      const right = parsePaymentDate(b.paidAt)?.getTime() ?? 0;
+      return right - left;
+    });
+  return inMonth[0]?.receiptId;
+}
+
 function installmentDate(inst: ParentFeeInstallment): Date {
   const { year, month } = installmentCalendarMonth(inst);
   return new Date(year, month - 1, 1);
@@ -193,7 +255,8 @@ function installmentHeads(inst: ParentFeeInstallment) {
 
 export function overviewFeeItems(
   ledger: ParentFeeLedger | null | undefined,
-  now = new Date()
+  now = new Date(),
+  language: AppLanguage = 'en'
 ): { overdue: OverviewFeeItem[]; dueThisMonth: OverviewFeeItem[] } {
   const overdue: OverviewFeeItem[] = [];
   const dueThisMonth: OverviewFeeItem[] = [];
@@ -215,7 +278,7 @@ export function overviewFeeItems(
       const item: OverviewFeeItem = {
         id: `${inst.key}-${head.demandId || head.feeHeadName}`,
         title: head.feeHeadName || inst.label,
-        monthLabel: date.toLocaleString('en-IN', { month: 'long', year: 'numeric' }),
+        monthLabel: date.toLocaleString(appBcp47Locale(language), { month: 'long', year: 'numeric' }),
         amount,
         dueDate: inst.dueDate || null,
         kind: overdueInst ? 'overdue' : 'due',
@@ -231,14 +294,16 @@ export function overviewFeeItems(
 }
 
 export function historyMonthGroups(
-  ledger: ParentFeeLedger | null | undefined
+  ledger: ParentFeeLedger | null | undefined,
+  language: AppLanguage = 'en'
 ): HistoryMonthGroup[] {
   const map = new Map<string, HistoryMonthGroup>();
+  const payments = ledger?.payments || [];
 
   for (const inst of ledger?.installments || []) {
     const date = installmentDate(inst);
     const key = `${date.getFullYear()}-${date.getMonth()}`;
-    const title = date.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    const title = date.toLocaleString(appBcp47Locale(language), { month: 'long', year: 'numeric' });
     const sortKey = date.getFullYear() * 12 + date.getMonth();
     let group = map.get(key);
     if (!group) {
@@ -257,6 +322,8 @@ export function historyMonthGroups(
     if (unpaid > 0 && isOverdueInstallment(inst)) group.status = 'overdue';
     else if (unpaid > 0 && group.status === 'paid') group.status = 'due';
 
+    const receiptId = receiptIdForInstallment(inst, payments);
+
     for (const head of installmentHeads(inst)) {
       const paidAmount = Number(head.paidAmount) || 0;
       if (paidAmount <= 0) continue;
@@ -265,12 +332,26 @@ export function historyMonthGroups(
         title: head.feeHeadName || inst.label,
         amount: paidAmount,
         paidOn: inst.collectedDate || inst.collectedAt || null,
+        receiptId,
       });
     }
   }
 
   return Array.from(map.values())
     .filter((g) => g.items.length > 0)
+    .map((group) => {
+      const receiptIds = [
+        ...new Set(
+          group.items
+            .map((item) => item.receiptId)
+            .filter((id): id is number => typeof id === 'number')
+        ),
+      ];
+      return {
+        ...group,
+        receiptId: receiptIds.length === 1 ? receiptIds[0] : undefined,
+      };
+    })
     .sort((a, b) => a.sortKey - b.sortKey);
 }
 

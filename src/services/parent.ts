@@ -69,8 +69,24 @@ function mapParentStudent(raw: unknown): ParentStudent {
     batchNames: Array.isArray(batches)
       ? batches.map((b) => String(b)).filter(Boolean)
       : [],
-    instituteName: pickStr(r.instituteName, r.institute_name),
-    instituteLogo: pickStr(r.instituteLogo, r.institute_logo) || null,
+    instituteName: pickStr(
+      r.instituteName,
+      r.institute_name,
+      r.schoolName,
+      r.school_name,
+      r.clientName,
+      r.client_name
+    ),
+    instituteLogo:
+      pickStr(
+        r.instituteLogo,
+        r.institute_logo,
+        r.schoolLogo,
+        r.school_logo,
+        r.clientLogo,
+        r.client_logo,
+        r.logo,
+      ) || null,
     dateOfBirth: pickStr(r.dateOfBirth, r.date_of_birth) || null,
     profilePicUrl:
       pickStr(r.profilePicUrl, r.profile_pic_url, r.photoUrl, r.photo) || null,
@@ -367,6 +383,7 @@ export interface ParentSchoolCalendar {
   sessionName: string | null;
   startDate: string | null;
   endDate: string | null;
+  workingDays?: string[];
   events: ParentCalendarEvent[];
 }
 

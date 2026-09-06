@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, shadows } from '../../theme/appTheme';
+import { shadows, useAppColors } from '../../theme/appTheme';
 import { useAppLanguage } from '../contexts';
 
 export type StatusPopupVariant = 'success' | 'error';
@@ -15,21 +15,6 @@ type Props = {
   onDismiss: () => void;
 };
 
-const VARIANT = {
-  success: {
-    icon: 'check' as const,
-    iconBg: colors.successSoft,
-    iconColor: colors.success,
-    buttonBg: colors.success,
-  },
-  error: {
-    icon: 'close' as const,
-    iconBg: colors.dangerSoft,
-    iconColor: colors.danger,
-    buttonBg: colors.danger,
-  },
-};
-
 export function StatusPopup({
   visible,
   variant = 'success',
@@ -39,7 +24,21 @@ export function StatusPopup({
   onDismiss,
 }: Props) {
   const { t } = useAppLanguage();
-  const look = VARIANT[variant];
+  const colors = useAppColors();
+  const look =
+    variant === 'success'
+      ? {
+          icon: 'check' as const,
+          iconBg: colors.successSoft,
+          iconColor: colors.success,
+          buttonBg: colors.success,
+        }
+      : {
+          icon: 'close' as const,
+          iconBg: colors.dangerSoft,
+          iconColor: colors.danger,
+          buttonBg: colors.danger,
+        };
 
   return (
     <Modal
@@ -50,12 +49,12 @@ export function StatusPopup({
     >
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <View style={[styles.iconWrap, { backgroundColor: look.iconBg }]}>
             <MaterialCommunityIcons name={look.icon} size={28} color={look.iconColor} />
           </View>
-          <Text style={styles.title}>{title}</Text>
-          {message ? <Text style={styles.message}>{message}</Text> : null}
+          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+          {message ? <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text> : null}
           <Pressable
             onPress={onDismiss}
             style={[styles.button, { backgroundColor: look.buttonBg }]}
@@ -77,7 +76,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   card: {
-    backgroundColor: colors.surface,
     borderRadius: 20,
     paddingHorizontal: 22,
     paddingTop: 24,
@@ -94,14 +92,12 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   title: {
-    color: colors.text,
     fontSize: 18,
     fontWeight: '800',
     textAlign: 'center',
   },
   message: {
     marginTop: 8,
-    color: colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
@@ -114,7 +110,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   buttonText: {
-    color: colors.headerOn,
+    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
   },

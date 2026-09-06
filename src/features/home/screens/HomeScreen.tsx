@@ -13,17 +13,19 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NavigationProp } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useAppLanguage } from "../../../common";
 import { useParentTheme } from "../../../theme/useParentTheme";
-import { openNotificationCenter } from "../../../services/openNotificationCenter";
 import type { RootStackParamList } from "../../../navigation/Navigation";
 import { useMainTabNavigation } from "../../../navigation/TabNavigationContext";
 import { EmptyState } from "../../../components/EmptyState";
 import { useHomeDashboard } from "../hooks/useHomeDashboard";
-import { HomeHero, homeHeroHeight } from "../components/HomeHero";
+import { HomeHero, homeHeroHeight, HOME_SHEET_OVERLAP } from "../components/HomeHero";
 import { COMPACT_BAR_HEIGHT, HomeCompactHeader } from "../components/HomeCompactHeader";
 import { ChildrenCarousel } from "../components/ChildrenCarousel";
 import { OverviewGrid, type OverviewTile } from "../components/OverviewGrid";
+import { HomeExamsBanner } from "../components/HomeExamsBanner";
 import { UpcomingEventsList } from "../components/UpcomingEventsList";
 import { normalizeUploadUrl } from "../../../common/helpers/normalizeUploadUrl";
 
@@ -32,13 +34,14 @@ export function HomeScreen() {
   const theme = useParentTheme();
   const { colors, spacing, typography } = theme;
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
   const { navigateToTab } = useMainTabNavigation();
   const dash = useHomeDashboard();
   const scrollY = useRef(new Animated.Value(0)).current;
   const compactRef = useRef(false);
   const [compact, setCompact] = useState(false);
-  const heroH = homeHeroHeight(Dimensions.get("window").width);
-  const sheetOverlap = 28;
+  const heroH = homeHeroHeight(Dimensions.get("window").width, insets.top);
+  const sheetOverlap = HOME_SHEET_OVERLAP;
   const collapseDistance = Math.max(heroH - sheetOverlap - COMPACT_BAR_HEIGHT, 120);
 
   const compactOpacity = useMemo(
@@ -60,7 +63,7 @@ export function HomeScreen() {
     () =>
       scrollY.interpolate({
         inputRange: [0, collapseDistance],
-        outputRange: [-10, 0],
+        outputRange: [0, 0],
         extrapolate: "clamp",
       }),
     [collapseDistance, scrollY],
@@ -93,10 +96,15 @@ export function HomeScreen() {
       | "calendar"
       | "notifications"
       | "homework",
+    examsTab?: "upcoming" | "results",
   ) => {
     if (!dash.student) return;
     dash.setSelected(dash.student.id);
-    navigation.navigate("ChildHub", { studentId: dash.student.id, section });
+    navigation.navigate("ChildHub", {
+      studentId: dash.student.id,
+      section,
+      examsTab,
+    });
   };
 
   const tiles: OverviewTile[] = dash.student
@@ -141,19 +149,6 @@ export function HomeScreen() {
           accent: colors.modules.leaves,
           onPress: () => openChildHub("leaves"),
         },
-        ...(dash.hasExam
-          ? [
-              {
-                key: "exams",
-                label: t("home.exams"),
-                metric: dash.nextExamDate ?? "—",
-                sub: dash.nextExamLabel ?? t("home.noExamSoon"),
-                icon: "file-document-outline" as const,
-                accent: colors.modules.exams,
-                onPress: () => openChildHub("exams"),
-              },
-            ]
-          : []),
         // {
         //   key: "transport",
         //   label: t("home.transport"),
@@ -244,7 +239,7 @@ export function HomeScreen() {
           style={[
             styles.sheet,
             {
-              backgroundColor: "#FFFFFF",
+              backgroundColor: colors.surface,
             },
           ]}
         >
@@ -291,28 +286,41 @@ export function HomeScreen() {
                 <Text style={[typography.section, { color: colors.text }]}>
                   {t("home.quickOverview", { name: dash.firstName })}
                 </Text>
-                <Pressable onPress={() => navigateToTab("Study")} hitSlop={8}>
-                  <Text style={[typography.meta, { color: colors.success }]}>
-                    {t("home.viewAll")}
-                  </Text>
-                </Pressable>
               </View>
               <OverviewGrid tiles={tiles} />
+              <View style={{ marginTop: spacing.base }}>
+                <HomeExamsBanner
+                  nextExam={dash.nextExam}
+                  latestResult={dash.latestResult}
+                  hasAnyExams={dash.hasAnyExams}
+                  onOpenUpcoming={() => openChildHub("exams", "upcoming")}
+                  onOpenResults={() => openChildHub("exams", "results")}
+                />
+              </View>
 
               <View style={[styles.sectionHead, { marginTop: spacing.xl }]}>
                 <Text style={[typography.section, { color: colors.text }]}>
                   {t("home.upcomingEvents")}
                 </Text>
-                <Pressable onPress={() => openChildHub("calendar")} hitSlop={8}>
+                <Pressable
+                  onPress={() => navigateToTab("Calendar")}
+                  hitSlop={8}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 2 }}
+                >
                   <Text style={[typography.meta, { color: colors.primary }]}>
-                    {t("home.viewAll")}
+                    {t("home.schoolCalendar")}
                   </Text>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={16}
+                    color={colors.primary}
+                  />
                 </Pressable>
               </View>
               <UpcomingEventsList
                 events={dash.upcomingEvents}
                 emptyLabel={t("home.noUpcomingEvents")}
-                onOpen={() => openChildHub("calendar")}
+                onOpen={() => navigateToTab("Calendar")}
               />
             </View>
           ) : null}
@@ -327,9 +335,11 @@ export function HomeScreen() {
             dash.students.find((s) => s.instituteLogo)?.instituteLogo,
         )}
         schoolName={
-          dash.student?.instituteName || dash.students[0]?.instituteName || ""
+          dash.student?.instituteName ||
+          dash.students.find((s) => s.instituteName)?.instituteName ||
+          dash.parentSchoolName ||
+          ""
         }
-        onBell={() => void openNotificationCenter()}
       />
     </View>
   );

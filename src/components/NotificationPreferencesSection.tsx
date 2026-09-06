@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { Switch, Text, useTheme } from 'react-native-paper';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect } from '@react-navigation/native';
 import { getMyStudents, type ParentStudent } from '../services/parent';
@@ -10,7 +9,8 @@ import {
   type NotificationPreferences,
 } from '../services/notificationPreferences';
 import { formatApiTime } from '../utils/localDateTime';
-import type { AppTheme } from '../theme';
+import { toTitleCase } from '../utils/toTitleCase';
+import { radius, spacing, useAppColors, type AppColors } from '../theme/appTheme';
 import { useAppLanguage } from '../common';
 
 const QUIET_START_OPTIONS = ['21:00', '22:00', '23:00'];
@@ -26,7 +26,7 @@ function formatPrefTime(hhmm: string): string {
 }
 
 export function NotificationPreferencesSection() {
-  const theme = useTheme() as AppTheme;
+  const colors = useAppColors();
   const { t } = useAppLanguage();
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [students, setStudents] = useState<ParentStudent[]>([]);
@@ -62,8 +62,7 @@ export function NotificationPreferencesSection() {
       ? current.filter((id) => id !== studentId)
       : [...current, studentId];
     if (nextIds.length === 0) nextIds = [...allIds];
-    const normalized =
-      nextIds.length === allIds.length ? [] : nextIds;
+    const normalized = nextIds.length === allIds.length ? [] : nextIds;
     await update({ childIds: normalized });
   };
 
@@ -76,184 +75,123 @@ export function NotificationPreferencesSection() {
   if (!prefs) return null;
 
   return (
-    <>
-      <Text
-        variant="labelLarge"
-        style={{
-          color: theme.colors.onSurfaceVariant,
-          fontWeight: '700',
-          marginTop: 16,
-          marginBottom: 8,
-        }}
-      >
+    <View>
+      <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+      <Text style={[styles.groupLabel, { color: colors.textTertiary }]}>
         {t('profile.alertTypesTitle')}
       </Text>
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.outlineVariant,
-          },
-        ]}
-      >
-        <PrefToggleRow
-          label={t('profile.alertPresent')}
-          value={prefs.alertPresent}
-          onChange={(v) => void update({ alertPresent: v })}
-          theme={theme}
-        />
-        <PrefToggleRow
-          label={t('profile.alertLate')}
-          value={prefs.alertLate}
-          onChange={(v) => void update({ alertLate: v })}
-          theme={theme}
-        />
-        <PrefToggleRow
-          label={t('profile.alertAbsent')}
-          value={prefs.alertAbsent}
-          onChange={(v) => void update({ alertAbsent: v })}
-          theme={theme}
-          last
-        />
-      </View>
+      <PrefToggleRow
+        label={t('profile.alertPresent')}
+        value={prefs.alertPresent}
+        onChange={(v) => void update({ alertPresent: v })}
+        colors={colors}
+      />
+      <PrefToggleRow
+        label={t('profile.alertLate')}
+        value={prefs.alertLate}
+        onChange={(v) => void update({ alertLate: v })}
+        colors={colors}
+      />
+      <PrefToggleRow
+        label={t('profile.alertAbsent')}
+        value={prefs.alertAbsent}
+        onChange={(v) => void update({ alertAbsent: v })}
+        colors={colors}
+        last={!prefs.quietHoursEnabled && students.length <= 1}
+      />
 
-      <Text
-        variant="labelLarge"
-        style={{
-          color: theme.colors.onSurfaceVariant,
-          fontWeight: '700',
-          marginTop: 16,
-          marginBottom: 8,
-        }}
-      >
-        {t('profile.quietHoursTitle')}
-      </Text>
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.outlineVariant,
-          },
-        ]}
-      >
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Text
-              variant="titleSmall"
-              style={{ color: theme.colors.onSurface, fontWeight: '700' }}
-            >
-              {t('profile.quietHoursEnable')}
-            </Text>
-            <Text
-              variant="bodySmall"
-              style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}
-            >
-              {t('profile.quietHoursBody')}
-            </Text>
-          </View>
-          <Switch
-            value={prefs.quietHoursEnabled}
-            onValueChange={(v) => void update({ quietHoursEnabled: v })}
+      <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+      <PrefToggleRow
+        label={t('profile.quietHoursEnable')}
+        subtitle={t('profile.quietHoursBody')}
+        value={prefs.quietHoursEnabled}
+        onChange={(v) => void update({ quietHoursEnabled: v })}
+        colors={colors}
+        last={!prefs.quietHoursEnabled && students.length <= 1}
+      />
+      {prefs.quietHoursEnabled ? (
+        <>
+          <TimeRow
+            label={t('profile.quietFrom')}
+            value={formatPrefTime(prefs.quietStart)}
+            onPress={() =>
+              void update({
+                quietStart: cycleTime(prefs.quietStart, QUIET_START_OPTIONS),
+              })
+            }
+            colors={colors}
           />
-        </View>
-        {prefs.quietHoursEnabled ? (
-          <>
-            <TimeRow
-              label={t('profile.quietFrom')}
-              value={formatPrefTime(prefs.quietStart)}
-              onPress={() =>
-                void update({
-                  quietStart: cycleTime(prefs.quietStart, QUIET_START_OPTIONS),
-                })
-              }
-              theme={theme}
-            />
-            <TimeRow
-              label={t('profile.quietTo')}
-              value={formatPrefTime(prefs.quietEnd)}
-              onPress={() =>
-                void update({
-                  quietEnd: cycleTime(prefs.quietEnd, QUIET_END_OPTIONS),
-                })
-              }
-              theme={theme}
-              last
-            />
-          </>
-        ) : null}
-      </View>
+          <TimeRow
+            label={t('profile.quietTo')}
+            value={formatPrefTime(prefs.quietEnd)}
+            onPress={() =>
+              void update({
+                quietEnd: cycleTime(prefs.quietEnd, QUIET_END_OPTIONS),
+              })
+            }
+            colors={colors}
+            last={students.length <= 1}
+          />
+        </>
+      ) : null}
 
       {students.length > 1 ? (
         <>
-          <Text
-            variant="labelLarge"
-            style={{
-              color: theme.colors.onSurfaceVariant,
-              fontWeight: '700',
-              marginTop: 16,
-              marginBottom: 8,
-            }}
-          >
+          <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+          <Text style={[styles.groupLabel, { color: colors.textTertiary }]}>
             {t('profile.notifyChildrenTitle')}
           </Text>
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.outlineVariant,
-              },
-            ]}
-          >
-            {students.map((student, index) => (
-              <PrefToggleRow
-                key={student.id}
-                label={student.name}
-                value={isChildEnabled(student.id)}
-                onChange={() => void toggleChild(student.id)}
-                theme={theme}
-                last={index === students.length - 1}
-              />
-            ))}
-          </View>
+          {students.map((student, index) => (
+            <PrefToggleRow
+              key={student.id}
+              label={toTitleCase(student.name) || student.name}
+              value={isChildEnabled(student.id)}
+              onChange={() => void toggleChild(student.id)}
+              colors={colors}
+              last={index === students.length - 1}
+            />
+          ))}
         </>
       ) : null}
-    </>
+    </View>
   );
 }
 
 function PrefToggleRow({
   label,
+  subtitle,
   value,
   onChange,
-  theme,
+  colors,
   last,
 }: {
   label: string;
+  subtitle?: string;
   value: boolean;
   onChange: (v: boolean) => void;
-  theme: AppTheme;
+  colors: AppColors;
   last?: boolean;
 }) {
   return (
     <View
       style={[
         styles.row,
-        !last && {
-          borderBottomWidth: 1,
-          borderBottomColor: theme.colors.outlineVariant,
-        },
+        !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
       ]}
     >
-      <Text
-        variant="bodyLarge"
-        style={{ color: theme.colors.onSurface, flex: 1, fontWeight: '600' }}
-      >
-        {label}
-      </Text>
-      <Switch value={value} onValueChange={onChange} />
+      <View style={{ flex: 1, paddingRight: 8 }}>
+        <Text style={[styles.rowTitle, { color: colors.text }]}>{label}</Text>
+        {subtitle ? (
+          <Text style={[styles.rowSub, { color: colors.textSecondary }]}>{subtitle}</Text>
+        ) : null}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ false: colors.border, true: colors.primaryMuted }}
+        thumbColor={value ? colors.primary : colors.surface}
+        ios_backgroundColor={colors.border}
+      />
     </View>
   );
 }
@@ -262,13 +200,13 @@ function TimeRow({
   label,
   value,
   onPress,
-  theme,
+  colors,
   last,
 }: {
   label: string;
   value: string;
   onPress: () => void;
-  theme: AppTheme;
+  colors: AppColors;
   last?: boolean;
 }) {
   return (
@@ -276,41 +214,48 @@ function TimeRow({
       onPress={onPress}
       style={[
         styles.row,
-        !last && {
-          borderBottomWidth: 1,
-          borderBottomColor: theme.colors.outlineVariant,
-        },
+        !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
       ]}
     >
-      <Text variant="bodyLarge" style={{ color: theme.colors.onSurface, flex: 1 }}>
-        {label}
-      </Text>
-      <Text
-        variant="bodyLarge"
-        style={{ color: theme.colors.primary, fontWeight: '700', marginRight: 4 }}
-      >
-        {value}
-      </Text>
-      <MaterialCommunityIcons
-        name="chevron-right"
-        size={20}
-        color={theme.colors.outline}
-      />
+      <Text style={[styles.rowTitle, { color: colors.text, flex: 1 }]}>{label}</Text>
+      <Text style={[styles.timeValue, { color: colors.primary }]}>{value}</Text>
+      <MaterialCommunityIcons name="chevron-right" size={18} color={colors.textTertiary} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: 'hidden',
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: spacing.base,
+  },
+  groupLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    paddingHorizontal: spacing.base,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
+    paddingHorizontal: spacing.base,
+    paddingVertical: 13,
+    gap: 8,
+  },
+  rowTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  rowSub: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 3,
+  },
+  timeValue: {
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

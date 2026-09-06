@@ -2,7 +2,6 @@ import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   RefreshControl,
@@ -13,7 +12,6 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
 import {
   cancelStudentLeave,
   getMyStudents,
@@ -26,9 +24,16 @@ import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import { StudentModuleHero } from '../components/layout/StudentModuleHero';
-import { colors, shadows, spacing } from '../theme/appTheme';
-import { useAppLanguage } from '../common';
-import { navigateToTab } from '../navigation/navigationRef';
+import { shadows, spacing, useAppColors, type AppColors } from '../theme/appTheme';
+import {
+  ConfirmationPopup,
+  StatusPopup,
+  useAppLanguage,
+  type StatusPopupVariant,
+} from '../common';
+import type { AppLanguage } from '../common/contexts/parentTranslations';
+import { formatAppDate } from '../utils/appDateLocale';
+import { useHubAwareBack } from '../navigation/ChildHubNavContext';
 
 const LEAVE_TYPES = ['SICK', 'CASUAL', 'EMERGENCY', 'OTHER'] as const;
 
@@ -46,10 +51,13 @@ function parseDay(value?: string | null): Date | null {
   }
 }
 
-function formatShortDate(value: string | null | undefined): string {
+function formatShortDate(
+  value: string | null | undefined,
+  language: AppLanguage
+): string {
   const date = parseDay(value);
   if (!date) return '—';
-  return format(date, 'd MMM yyyy');
+  return formatAppDate(date, 'd MMM yyyy', language);
 }
 
 function sessionLabelKey(session: string | null | undefined): string {
@@ -60,26 +68,27 @@ function sessionLabelKey(session: string | null | undefined): string {
 
 function formatLeaveRange(
   item: ParentLeaveItem,
-  t: (key: any) => string
+  t: (key: any) => string,
+  language: AppLanguage
 ): string {
   const fromSession = item.fromSession || 'FULL';
   const toSession = item.toSession || 'FULL';
   const fromPart =
     fromSession === 'FULL'
-      ? formatShortDate(item.fromDate)
-      : `${formatShortDate(item.fromDate)} (${t(sessionLabelKey(fromSession) as any)})`;
+      ? formatShortDate(item.fromDate, language)
+      : `${formatShortDate(item.fromDate, language)} (${t(sessionLabelKey(fromSession) as any)})`;
   if (item.fromDate === item.toDate && fromSession === toSession) {
     return fromPart;
   }
   if (item.fromDate === item.toDate) {
-    return `${formatShortDate(item.fromDate)} (${t(
+    return `${formatShortDate(item.fromDate, language)} (${t(
       sessionLabelKey(fromSession) as any
-    )} – ${t(sessionLabelKey(toSession) as any)})`;
+    )} → ${t(sessionLabelKey(toSession) as any)})`;
   }
   const toPart =
     toSession === 'FULL'
-      ? formatShortDate(item.toDate)
-      : `${formatShortDate(item.toDate)} (${t(sessionLabelKey(toSession) as any)})`;
+      ? formatShortDate(item.toDate, language)
+      : `${formatShortDate(item.toDate, language)} (${t(sessionLabelKey(toSession) as any)})`;
   return `${fromPart} – ${toPart}`;
 }
 
@@ -105,7 +114,10 @@ function durationLabel(
   return n === 1 ? t('leaves.daysOne') : t('leaves.daysCount', { count: n });
 }
 
-function formatReviewedAt(value: string | null | undefined): string {
+function formatReviewedAt(
+  value: string | null | undefined,
+  language: AppLanguage
+): string {
   if (!value) return '';
   try {
     const trimmed = value.trim();
@@ -115,7 +127,7 @@ function formatReviewedAt(value: string | null | undefined): string {
       : trimmed.includes('T')
         ? `${trimmed}Z`
         : `${trimmed}T00:00:00Z`;
-    return format(parseISO(iso), 'd MMM yyyy, h:mm a');
+    return formatAppDate(parseISO(iso), 'd MMM yyyy, h:mm a', language);
   } catch {
     return value;
   }
@@ -129,7 +141,7 @@ function leaveKind(status: string): LeaveKind {
   return 'PENDING';
 }
 
-function dateRail(item: ParentLeaveItem) {
+function dateRail(item: ParentLeaveItem, language: AppLanguage) {
   const from = parseDay(item.fromDate);
   const to = parseDay(item.toDate) ?? from;
   if (!from || !to) {
@@ -137,22 +149,26 @@ function dateRail(item: ParentLeaveItem) {
   }
   const same = format(from, 'yyyy-MM-dd') === format(to, 'yyyy-MM-dd');
   return {
-    month: format(from, 'MMM').toUpperCase(),
+    month: formatAppDate(from, 'MMM', language).toUpperCase(),
     days: same ? format(from, 'd') : `${format(from, 'd')}–${format(to, 'd')}`,
     year: format(from, 'yyyy'),
-    week: same ? format(from, 'EEE') : `${format(from, 'EEE')}–${format(to, 'EEE')}`,
+    week: same
+      ? formatAppDate(from, 'EEE', language)
+      : `${formatAppDate(from, 'EEE', language)}–${formatAppDate(to, 'EEE', language)}`,
   };
 }
 
-const STATUS_THEME: Record<
+function statusTheme(colors: AppColors): Record<
   LeaveKind,
   { accent: string; soft: string; icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'] }
-> = {
-  PENDING: { accent: colors.warning, soft: colors.warningSoft, icon: 'clock-outline' },
-  APPROVED: { accent: colors.success, soft: colors.successSoft, icon: 'check' },
-  REJECTED: { accent: colors.danger, soft: colors.dangerSoft, icon: 'close' },
-  CANCELLED: { accent: colors.textSecondary, soft: '#EEF0F3', icon: 'minus' },
-};
+> {
+  return {
+    PENDING: { accent: colors.warning, soft: colors.warningSoft, icon: 'clock-outline' },
+    APPROVED: { accent: colors.success, soft: colors.successSoft, icon: 'check' },
+    REJECTED: { accent: colors.danger, soft: colors.dangerSoft, icon: 'close' },
+    CANCELLED: { accent: colors.textSecondary, soft: colors.surfaceMuted, icon: 'minus' },
+  };
+}
 
 function LeavesOverviewCard({
   total,
@@ -164,6 +180,8 @@ function LeavesOverviewCard({
   pending: number;
 }) {
   const { t } = useAppLanguage();
+  const colors = useAppColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const cells = [
     {
       value: total,
@@ -190,7 +208,11 @@ function LeavesOverviewCard({
         {cells.map((cell, index) => (
           <View
             key={cell.label}
-            style={[styles.summaryCell, index < cells.length - 1 && styles.summaryCellBorder]}
+            style={[
+              styles.summaryCell,
+              index < cells.length - 1 && styles.summaryCellBorder,
+              index < cells.length - 1 && { borderRightColor: colors.divider },
+            ]}
           >
             <MaterialCommunityIcons name={cell.icon} size={18} color={cell.color} />
             <Text style={[styles.summaryValue, { color: cell.color }]}>{String(cell.value)}</Text>
@@ -211,10 +233,12 @@ function LeaveRequestCard({
   item: ParentLeaveItem;
   onPress: () => void;
 }) {
-  const { t } = useAppLanguage();
+  const { t, language } = useAppLanguage();
+  const colors = useAppColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const kind = leaveKind(item.status);
-  const theme = STATUS_THEME[kind];
-  const rail = dateRail(item);
+  const theme = statusTheme(colors)[kind];
+  const rail = dateRail(item, language);
   const statusLabel =
     kind === 'APPROVED'
       ? t('leaves.statusApproved')
@@ -246,7 +270,7 @@ function LeaveRequestCard({
         <View style={styles.metaLine}>
           <MaterialCommunityIcons name="calendar-range" size={14} color={colors.textTertiary} />
           <Text style={styles.metaText} numberOfLines={2}>
-            {formatLeaveRange(item, t)} ({durationLabel(item, t)})
+            {formatLeaveRange(item, t, language)} ({durationLabel(item, t)})
           </Text>
         </View>
         <View style={styles.metaLine}>
@@ -267,9 +291,10 @@ function LeaveRequestCard({
 }
 
 export function LeaveScreen({ embedded = false }: Props) {
-  const { t } = useAppLanguage();
+  const { t, language } = useAppLanguage();
+  const colors = useAppColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
   const studentId = useSelectionStore((s) => s.selectedStudentId);
 
   const [students, setStudents] = useState<ParentStudent[]>([]);
@@ -282,6 +307,12 @@ export function LeaveScreen({ embedded = false }: Props) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [detail, setDetail] = useState<ParentLeaveItem | null>(null);
+  const [status, setStatus] = useState<{
+    variant: StatusPopupVariant;
+    title: string;
+  } | null>(null);
+  const [cancelItem, setCancelItem] = useState<ParentLeaveItem | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const selectedStudent = students.find((s) => s.id === studentId) ?? null;
 
@@ -346,37 +377,29 @@ export function LeaveScreen({ embedded = false }: Props) {
     });
   }, [items, tab, typeFilter]);
 
-  const goBack = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    navigateToTab({ tab: 'Home' });
-  };
+  const goBack = useHubAwareBack();
 
   const onCancel = (item: ParentLeaveItem) => {
     if (studentId == null) return;
-    Alert.alert(t('leaves.cancelTitle'), t('leaves.cancelMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('leaves.cancelLeave'),
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              const res = await cancelStudentLeave(studentId, item.id);
-              if (!res.status) {
-                throw new Error(res.message || t('leaves.cancelFailed'));
-              }
-              setDetail(null);
-              await load(true);
-            } catch (e: any) {
-              Alert.alert('', e?.message || t('leaves.cancelFailed'));
-            }
-          })();
-        },
-      },
-    ]);
+    setCancelItem(item);
+  };
+
+  const confirmCancelLeave = async () => {
+    if (studentId == null || cancelItem == null || cancelLoading) return;
+    setCancelLoading(true);
+    try {
+      const res = await cancelStudentLeave(studentId, cancelItem.id);
+      if (!res.status) {
+        throw new Error(res.message || t('leaves.cancelFailed'));
+      }
+      setCancelItem(null);
+      setDetail(null);
+      await load(true);
+    } catch (e: any) {
+      setStatus({ variant: 'error', title: e?.message || t('leaves.cancelFailed') });
+    } finally {
+      setCancelLoading(false);
+    }
   };
 
   const tabs: { id: LeaveTab; label: string }[] = [
@@ -441,7 +464,7 @@ export function LeaveScreen({ embedded = false }: Props) {
                 {detail.reason?.trim() || t(`leaves.type${detail.leaveType}` as any)}
               </Text>
               <Text style={styles.modalMeta}>
-                {t(`leaves.type${detail.leaveType}` as any)} · {formatLeaveRange(detail, t)}
+                {t(`leaves.type${detail.leaveType}` as any)} · {formatLeaveRange(detail, t, language)}
               </Text>
               <Text style={styles.modalMeta}>{durationLabel(detail, t)}</Text>
               {detail.status === 'APPROVED' || detail.status === 'REJECTED' ? (
@@ -451,7 +474,7 @@ export function LeaveScreen({ embedded = false }: Props) {
                   {[detail.reviewedByName, detail.reviewedByRoleLabel]
                     .filter(Boolean)
                     .join(' · ') || t('leaves.reviewerUnknown')}
-                  {detail.reviewedAt ? ` · ${formatReviewedAt(detail.reviewedAt)}` : ''}
+                  {detail.reviewedAt ? ` · ${formatReviewedAt(detail.reviewedAt, language)}` : ''}
                 </Text>
               ) : null}
               {detail.reviewNote ? (
@@ -584,17 +607,48 @@ export function LeaveScreen({ embedded = false }: Props) {
     </ScrollView>
   );
 
+  const popup = (
+    <>
+      <StatusPopup
+        visible={status != null}
+        variant={status?.variant}
+        title={status?.title ?? ''}
+        onDismiss={() => setStatus(null)}
+      />
+      <ConfirmationPopup
+        isVisible={cancelItem != null}
+        title={t('leaves.cancelTitle')}
+        message={t('leaves.cancelMessage')}
+        confirmText={t('leaves.cancelLeave')}
+        confirmButtonColor={colors.danger}
+        confirmLoading={cancelLoading}
+        onCancel={() => {
+          if (cancelLoading) return;
+          setCancelItem(null);
+        }}
+        onConfirm={() => void confirmCancelLeave()}
+      />
+    </>
+  );
+
   if (embedded) {
-    return <View style={styles.flex}>{body}</View>;
+    return (
+      <View style={styles.flex}>
+        {body}
+        {popup}
+      </View>
+    );
   }
 
   return (
     <View style={styles.standalone}>
       <StudentModuleHero
         title={t('leaves.title')}
+        subtitle={t('leaves.subtitle')}
         student={selectedStudent}
         onBack={goBack}
         backAccessibilityLabel={t('leaves.backHome')}
+        heroIcon="calendar-remove-outline"
         rightAction={applyAction}
       >
         <LeavesOverviewCard
@@ -604,11 +658,13 @@ export function LeaveScreen({ embedded = false }: Props) {
         />
       </StudentModuleHero>
       {body}
+      {popup}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   flex: { flex: 1 },
   standalone: { flex: 1, backgroundColor: colors.background },
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 40 },
@@ -624,7 +680,7 @@ const styles = StyleSheet.create({
   },
   applyChipText: { color: colors.primary, fontSize: 12, fontWeight: '800' },
   summaryCard: {
-    marginTop: -22,
+    marginTop: 12,
     marginHorizontal: spacing.base,
     backgroundColor: colors.surface,
     borderRadius: 20,
@@ -635,7 +691,7 @@ const styles = StyleSheet.create({
   },
   summaryRow: { flexDirection: 'row' },
   summaryCell: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 4 },
-  summaryCellBorder: { borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: '#EEF0F3' },
+  summaryCellBorder: { borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colors.divider },
   summaryValue: { fontSize: 22, fontWeight: '800' },
   summaryLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '600', textAlign: 'center' },
   tabs: { gap: 8, marginTop: 8, marginBottom: 8, paddingRight: 8 },
@@ -667,7 +723,7 @@ const styles = StyleSheet.create({
   chips: { gap: 8, paddingBottom: 14 },
   chip: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
   chipActive: { backgroundColor: colors.primary },
-  chipIdle: { backgroundColor: colors.surface, borderWidth: 1, borderColor: '#E6E8EE' },
+  chipIdle: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   chipText: { color: colors.text, fontSize: 13, fontWeight: '600' },
   chipTextActive: { color: colors.headerOn },
   list: { gap: 12 },
@@ -741,7 +797,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surfaceMuted,
   },
   modalTitle: {
     color: colors.text,
@@ -759,4 +815,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dangerSoft,
   },
   cancelBtnText: { color: colors.danger, fontWeight: '700', fontSize: 15 },
-});
+  });
+}

@@ -1,9 +1,7 @@
-import { addDays, differenceInCalendarDays, format, parseISO, startOfDay } from 'date-fns';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { differenceInCalendarDays, parseISO, startOfDay } from 'date-fns';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
-  Linking,
   Modal,
   Pressable,
   RefreshControl,
@@ -29,15 +27,22 @@ import { useSelectionStore } from '../store/selectionStore';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import { StudentModuleHero } from '../components/layout/StudentModuleHero';
-import { colors, shadows, spacing } from '../theme/appTheme';
-import { useAppLanguage } from '../common';
+import { shadows, spacing, useAppColors, type AppColors } from '../theme/appTheme';
+import { StatusPopup, useAppLanguage, type StatusPopupVariant } from '../common';
+import type { AppLanguage } from '../common/contexts/parentTranslations';
+import { formatAppDate } from '../utils/appDateLocale';
 import { savePdfToDevice } from '../utils/savePdfToDevice';
 import { toTitleCase } from '../utils/toTitleCase';
 import { navigateToTab } from '../navigation/navigationRef';
+import { useHubAwareBack } from '../navigation/ChildHubNavContext';
 import type { RootStackParamList } from '../navigation/Navigation';
 import { subjectVisual } from '../features/homework/utils/homeworkStatus';
 
-type Props = { embedded?: boolean; highlightExamId?: number };
+type Props = {
+  embedded?: boolean;
+  highlightExamId?: number;
+  initialTab?: ExamsTab;
+};
 type ExamsTab = 'upcoming' | 'results' | 'completed';
 
 function parseDay(value?: string | null): Date | null {
@@ -49,13 +54,16 @@ function parseDay(value?: string | null): Date | null {
   }
 }
 
-function formatShortDate(value: string | null | undefined): string {
+function formatShortDate(
+  value: string | null | undefined,
+  language: AppLanguage
+): string {
   const date = parseDay(value);
   if (!date) return '—';
-  return format(date, 'd MMM yyyy');
+  return formatAppDate(date, 'd MMM yyyy', language);
 }
 
-function formatClock(value?: string | null): string | null {
+function formatClock(value: string | null | undefined, language: AppLanguage): string | null {
   if (!value) return null;
   const parts = value.split(':');
   const h = Number(parts[0]);
@@ -63,7 +71,7 @@ function formatClock(value?: string | null): string | null {
   if (!Number.isFinite(h)) return null;
   const date = new Date();
   date.setHours(h, m, 0, 0);
-  return format(date, 'h:mm a');
+  return formatAppDate(date, 'h:mm a', language);
 }
 
 function formatMarks(value: number | null | undefined): string {
@@ -89,15 +97,6 @@ function countdownLabel(
   return t('exams.inDays', { count: days });
 }
 
-function googleCalendarUrl(item: ParentExamListItem): string {
-  const start = parseDay(item.startDate) ?? new Date();
-  const end = parseDay(item.endDate) ?? start;
-  const dates = `${format(start, 'yyyyMMdd')}/${format(addDays(end, 1), 'yyyyMMdd')}`;
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
-    item.name
-  )}&dates=${dates}`;
-}
-
 function ExamOverviewCard({
   upcoming,
   completed,
@@ -108,6 +107,8 @@ function ExamOverviewCard({
   results: number;
 }) {
   const { t } = useAppLanguage();
+  const colors = useAppColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const cells = [
     { value: upcoming, label: t('exams.statUpcoming'), color: colors.primary, icon: 'calendar-blank-outline' as const },
     { value: completed, label: t('exams.statCompleted'), color: colors.success, icon: 'check-circle-outline' as const },
@@ -134,8 +135,14 @@ function ExamOverviewCard({
   );
 }
 
-export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) {
-  const { t } = useAppLanguage();
+export function ExamResultsScreen({
+  embedded = false,
+  highlightExamId,
+  initialTab,
+}: Props) {
+  const { t, language } = useAppLanguage();
+  const colors = useAppColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const studentId = useSelectionStore((s) => s.selectedStudentId);
@@ -145,10 +152,14 @@ export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) 
   const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState<ParentExamListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<ExamsTab>('upcoming');
+  const [tab, setTab] = useState<ExamsTab>(initialTab ?? 'upcoming');
   const [detail, setDetail] = useState<ParentExamDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [status, setStatus] = useState<{
+    variant: StatusPopupVariant;
+    title: string;
+  } | null>(null);
 
   const selectedStudent = students.find((s) => s.id === studentId) ?? null;
   const today = useMemo(() => new Date(), [items.length]);
@@ -200,10 +211,10 @@ export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) 
       if (res.status && res.data) {
         setDetail(res.data);
       } else {
-        Alert.alert('', res.message || t('exams.detailFailed'));
+        setStatus({ variant: 'error', title: res.message || t('exams.detailFailed') });
       }
     } catch (e: any) {
-      Alert.alert('', e?.message || t('exams.detailFailed'));
+      setStatus({ variant: 'error', title: e?.message || t('exams.detailFailed') });
     } finally {
       setDetailLoading(false);
     }
@@ -244,6 +255,23 @@ export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) 
     [items]
   );
 
+  const tabSettled = useRef(Boolean(initialTab));
+
+  useEffect(() => {
+    if (initialTab) {
+      setTab(initialTab);
+      tabSettled.current = true;
+    }
+  }, [initialTab, studentId]);
+
+  useEffect(() => {
+    if (tabSettled.current || loading) return;
+    if (upcoming.length === 0 && results.length > 0) {
+      setTab('results');
+    }
+    tabSettled.current = true;
+  }, [loading, upcoming.length, results.length]);
+
   const featured = upcoming[0] ?? null;
   const restUpcoming = upcoming.slice(1);
 
@@ -279,33 +307,18 @@ export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) 
         mimeType: res.data.mimeType || 'application/pdf',
       });
       if (result === 'cancelled') return;
-      Alert.alert(
-        '',
-        result === 'shared' ? t('exams.reportCardShared') : t('exams.reportCardSaved')
-      );
+      setStatus({
+        variant: 'success',
+        title: result === 'shared' ? t('exams.reportCardShared') : t('exams.reportCardSaved'),
+      });
     } catch (e: any) {
-      Alert.alert('', e?.message || t('exams.reportCardFailed'));
+      setStatus({ variant: 'error', title: e?.message || t('exams.reportCardFailed') });
     } finally {
       setDownloading(false);
     }
   };
 
-  const addToCalendar = async (item: ParentExamListItem) => {
-    try {
-      const ok = await Linking.openURL(googleCalendarUrl(item));
-      if (!ok) throw new Error('unavailable');
-    } catch {
-      Alert.alert('', t('exams.calendarFailed'));
-    }
-  };
-
-  const goBack = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    navigateToTab({ tab: 'Home' });
-  };
+  const goBack = useHubAwareBack();
 
   const openCalendar = () => {
     if (studentId == null) return;
@@ -329,7 +342,7 @@ export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) 
             {toTitleCase(item.name)}
           </Text>
           <Text style={styles.compactMeta} numberOfLines={1}>
-            {formatShortDate(item.nextPaperDate || item.startDate)}
+            {formatShortDate(item.nextPaperDate || item.startDate, language)}
           </Text>
           {item.subjectNames?.length ? (
             <Text style={styles.tag} numberOfLines={1}>
@@ -356,8 +369,8 @@ export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) 
       <View style={{ flex: 1 }}>
         <Text style={styles.compactTitle}>{toTitleCase(item.name)}</Text>
         <Text style={styles.compactMeta}>
-          {formatShortDate(item.startDate)}
-          {item.startDate !== item.endDate ? ` – ${formatShortDate(item.endDate)}` : ''}
+          {formatShortDate(item.startDate, language)}
+          {item.startDate !== item.endDate ? ` – ${formatShortDate(item.endDate, language)}` : ''}
         </Text>
       </View>
       <View style={{ alignItems: 'flex-end' }}>
@@ -374,9 +387,9 @@ export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) 
   );
 
   const timeLine = (item: ParentExamListItem) => {
-    const start = formatClock(item.nextStartTime);
-    const end = formatClock(item.nextEndTime);
-    const date = formatShortDate(item.nextPaperDate || item.startDate);
+    const start = formatClock(item.nextStartTime, language);
+    const end = formatClock(item.nextEndTime, language);
+    const date = formatShortDate(item.nextPaperDate || item.startDate, language);
     if (start && end) return `${date}  •  ${start} - ${end}`;
     return date;
   };
@@ -432,6 +445,8 @@ export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) 
             icon="calendar-blank-outline"
             title={t('exams.emptyUpcomingTitle')}
             message={t('exams.emptyUpcomingMessage')}
+            actionLabel={results.length ? t('exams.viewResultsCta') : undefined}
+            onAction={results.length ? () => setTab('results') : undefined}
           />
         ) : (
           <>
@@ -479,16 +494,6 @@ export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) 
                   <View style={styles.featuredDays}>
                     <Text style={styles.featuredDaysText}>{countdownLabel(featured, today, t)}</Text>
                   </View>
-                </View>
-                <View style={styles.featuredActions}>
-                  <Pressable style={styles.primaryBtn} onPress={() => void addToCalendar(featured)}>
-                    <MaterialCommunityIcons name="calendar-plus" size={16} color={colors.headerOn} />
-                    <Text style={styles.primaryBtnText}>{t('exams.addToCalendar')}</Text>
-                  </Pressable>
-                  <Pressable style={styles.outlineBtn} onPress={() => void openDetail(featured.examId)}>
-                    <MaterialCommunityIcons name="book-open-page-variant-outline" size={16} color={colors.primary} />
-                    <Text style={styles.outlineBtnText}>{t('exams.viewSyllabus')}</Text>
-                  </Pressable>
                 </View>
               </View>
             ) : null}
@@ -596,7 +601,7 @@ export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) 
                           : subject.attendanceStatus && subject.attendanceStatus !== 'PRESENT'
                             ? t(`exams.attendance${subject.attendanceStatus}` as any)
                             : subject.entered
-                              ? formatShortDate(subject.examDate)
+                              ? formatShortDate(subject.examDate, language)
                               : t('exams.notEntered')}
                       </Text>
                     </View>
@@ -609,7 +614,7 @@ export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) 
                         <Text style={styles.compactMeta}>/ {subject.maxMarks}</Text>
                       </Text>
                     ) : (
-                      <Text style={styles.compactMeta}>{formatShortDate(subject.examDate)}</Text>
+                      <Text style={styles.compactMeta}>{formatShortDate(subject.examDate, language)}</Text>
                     )}
                   </View>
                 ))}
@@ -619,6 +624,15 @@ export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) 
         </View>
       </Modal>
     </ScrollView>
+  );
+
+  const popup = (
+    <StatusPopup
+      visible={status != null}
+      variant={status?.variant}
+      title={status?.title ?? ''}
+      onDismiss={() => setStatus(null)}
+    />
   );
 
   if (studentId == null) {
@@ -636,25 +650,15 @@ export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) 
     );
   }
 
-  if (embedded) return <View style={styles.flex}>{body}</View>;
-
   return (
     <View style={styles.standalone}>
       <StudentModuleHero
         title={t('exams.screenTitle')}
+        subtitle={t('exams.subtitle')}
         student={selectedStudent}
         onBack={goBack}
         backAccessibilityLabel={t('attendance.backHome')}
-        rightAction={
-          <Pressable
-            onPress={openCalendar}
-            hitSlop={8}
-            style={styles.navBtn}
-            accessibilityLabel={t('exams.viewSchedule')}
-          >
-            <MaterialCommunityIcons name="calendar-plus" size={20} color={colors.headerOn} />
-          </Pressable>
-        }
+        heroIcon="file-document-outline"
       >
         <ExamOverviewCard
           upcoming={upcoming.length}
@@ -663,25 +667,19 @@ export function ExamResultsScreen({ embedded = false, highlightExamId }: Props) 
         />
       </StudentModuleHero>
       {body}
+      {popup}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   flex: { flex: 1 },
   standalone: { flex: 1, backgroundColor: colors.background },
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 40 },
   center: { paddingVertical: 48, alignItems: 'center' },
-  navBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.overlay,
-  },
   summaryCard: {
-    marginTop: -22,
+    marginTop: 12,
     marginHorizontal: spacing.base,
     backgroundColor: colors.surface,
     borderRadius: 20,
@@ -692,17 +690,18 @@ const styles = StyleSheet.create({
   summaryTitle: { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 10 },
   summaryRow: { flexDirection: 'row' },
   summaryCell: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 4 },
-  summaryCellBorder: { borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: '#EEF0F3' },
+  summaryCellBorder: { borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colors.divider },
   summaryValue: { fontSize: 22, fontWeight: '800' },
   summaryLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '600', textAlign: 'center' },
   tabs: {
     flexDirection: 'row',
+    flexGrow: 0,
     marginTop: 8,
     marginBottom: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E6E8EE',
+    borderBottomColor: colors.border,
   },
-  tabBtn: { flex: 1, alignItems: 'center' },
+  tabBtn: { flex: 1, alignItems: 'center', justifyContent: 'flex-start' },
   tabInner: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 10 },
   tabLabel: { fontSize: 13, fontWeight: '600', color: colors.textTertiary },
   tabLabelActive: { color: colors.primary },
@@ -761,7 +760,6 @@ const styles = StyleSheet.create({
     maxWidth: 72,
   },
   featuredDaysText: { color: colors.danger, fontSize: 11, fontWeight: '800', textAlign: 'center' },
-  featuredActions: { flexDirection: 'row', gap: 8, marginTop: 14 },
   primaryBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -773,19 +771,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   primaryBtnText: { color: colors.headerOn, fontWeight: '700', fontSize: 13 },
-  outlineBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderWidth: 1.5,
-    borderColor: colors.primaryMuted,
-    borderRadius: 12,
-    paddingVertical: 10,
-    backgroundColor: colors.surface,
-  },
-  outlineBtnText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
   compactCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -864,7 +849,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surfaceMuted,
   },
   modalTitle: { color: colors.text, fontSize: 20, fontWeight: '800', paddingRight: 40 },
   modalMeta: { color: colors.textSecondary, marginTop: 6, fontSize: 14 },
@@ -893,4 +878,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-});
+  });
+}

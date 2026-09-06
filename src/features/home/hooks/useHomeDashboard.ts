@@ -26,6 +26,18 @@ import {
   safeParseDate,
   upcomingCalendarEvents,
 } from '../utils/homeMetrics';
+import { payableFeeSummary } from '../../../utils/feeDueBreakdown';
+
+export type HomeExamSnapshot = {
+  name: string;
+  dateLabel: string | null;
+};
+
+export type HomeResultSnapshot = {
+  name: string;
+  percent: number | null;
+  partial: boolean;
+};
 
 export function useHomeDashboard() {
   const unreadCount = useUnreadNotificationCount();
@@ -35,6 +47,7 @@ export function useHomeDashboard() {
 
   const [students, setStudents] = useState<ParentStudent[]>([]);
   const [parentLabel, setParentLabel] = useState('');
+  const [parentSchoolName, setParentSchoolName] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,11 +55,10 @@ export function useHomeDashboard() {
 
   const [attendancePct, setAttendancePct] = useState<number | null>(null);
   const [feeDue, setFeeDue] = useState<number | null>(null);
-  const [nextDueDate, setNextDueDate] = useState<string | null>(null);
   const [pendingHomework, setPendingHomework] = useState<number | null>(null);
-  const [nextExamLabel, setNextExamLabel] = useState<string | null>(null);
-  const [nextExamDate, setNextExamDate] = useState<string | null>(null);
-  const [hasExam, setHasExam] = useState(false);
+  const [nextExam, setNextExam] = useState<HomeExamSnapshot | null>(null);
+  const [latestResult, setLatestResult] = useState<HomeResultSnapshot | null>(null);
+  const [hasAnyExams, setHasAnyExams] = useState(false);
   const [pendingLeaves, setPendingLeaves] = useState<number | null>(null);
   const [className, setClassName] = useState<string | null>(null);
   const [sectionName, setSectionName] = useState<string | null>(null);
@@ -64,8 +76,19 @@ export function useHomeDashboard() {
       try {
         const meRes = await getMe();
         if (meRes.status && meRes.data && typeof meRes.data === 'object') {
-          const d = meRes.data as { firstName?: string };
+          const d = meRes.data as {
+            firstName?: string;
+            clientName?: string;
+            instituteName?: string;
+            schoolName?: string;
+          };
           if (d.firstName) setParentLabel(d.firstName);
+          const school =
+            (typeof d.instituteName === 'string' && d.instituteName.trim()) ||
+            (typeof d.clientName === 'string' && d.clientName.trim()) ||
+            (typeof d.schoolName === 'string' && d.schoolName.trim()) ||
+            '';
+          if (school) setParentSchoolName(school);
         }
       } catch {
         /* optional */
@@ -108,11 +131,9 @@ export function useHomeDashboard() {
       setAttendancePct(monthAttendancePct(rows));
 
       if (feeRes?.status && feeRes.data) {
-        setFeeDue(feeRes.data.totalDue ?? 0);
-        setNextDueDate(feeRes.data.nextDueDate ?? null);
+        setFeeDue(payableFeeSummary(feeRes.data).dueThisMonth);
       } else {
         setFeeDue(null);
-        setNextDueDate(null);
       }
 
       const homeworks = hwRes?.status ? hwRes.data?.homeworks ?? [] : [];
@@ -122,7 +143,7 @@ export function useHomeDashboard() {
 
       const today = startOfDay(new Date());
       const exams = examRes?.status ? examRes.data?.exams ?? [] : [];
-      setHasExam(exams.length > 0);
+      setHasAnyExams(exams.length > 0);
       const upcomingExam = exams
         .map((e) => ({
           e,
@@ -130,13 +151,29 @@ export function useHomeDashboard() {
         }))
         .filter((x) => x.d && !isBefore(x.d, today))
         .sort((a, b) => a.d!.getTime() - b.d!.getTime())[0];
-      setNextExamLabel(upcomingExam?.e.name ?? exams[0]?.name ?? null);
-      setNextExamDate(
-        upcomingExam?.d
-          ? format(upcomingExam.d, 'd MMM')
-          : exams.length > 0
-            ? String(exams.length)
-            : null
+      setNextExam(
+        upcomingExam
+          ? {
+              name: upcomingExam.e.name,
+              dateLabel: upcomingExam.d ? format(upcomingExam.d, 'd MMM') : null,
+            }
+          : null
+      );
+      const published = [...exams]
+        .filter(
+          (item) =>
+            Boolean(item.resultsReady) &&
+            (item.percent != null || item.partialResults)
+        )
+        .sort((a, b) => String(b.endDate).localeCompare(String(a.endDate)))[0];
+      setLatestResult(
+        published
+          ? {
+              name: published.name,
+              percent: published.percent ?? null,
+              partial: Boolean(published.partialResults),
+            }
+          : null
       );
 
       const leaves = leaveRes?.status ? leaveRes.data?.leaves ?? [] : [];
@@ -182,15 +219,13 @@ export function useHomeDashboard() {
   }, []);
 
   const feeMetric = feeDue == null ? '—' : formatInr(feeDue);
-  const feeSub =
-    feeDue != null && feeDue > 0 && nextDueDate
-      ? nextDueDate
-      : null;
+  const feeSub = null;
 
   return {
     students,
     student,
     parentLabel,
+    parentSchoolName,
     greetingHour,
     firstName: firstName(student?.name),
     className,
@@ -204,9 +239,9 @@ export function useHomeDashboard() {
     feeSub,
     pendingHomework,
     pendingLeaves,
-    hasExam,
-    nextExamLabel,
-    nextExamDate,
+    nextExam,
+    latestResult,
+    hasAnyExams,
     bus,
     unreadCount,
     upcomingEvents,

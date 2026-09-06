@@ -22,6 +22,7 @@ export type ChildNavigationPayload = {
   studentId?: number;
   highlightAttendanceId?: number;
   highlightSessionDate?: string;
+  openedFromNotification?: boolean;
 };
 
 export type BusTrackingNavigationPayload = {
@@ -42,6 +43,19 @@ function applyStudentId(studentId?: number) {
   }
 }
 
+let childHubOpenHandler: ((payload: ChildNavigationPayload) => void) | null =
+  null;
+
+export function registerChildHubOpenHandler(
+  handler: (payload: ChildNavigationPayload) => void
+): void {
+  childHubOpenHandler = handler;
+}
+
+export function unregisterChildHubOpenHandler(): void {
+  childHubOpenHandler = null;
+}
+
 export function navigateToChildScreen(payload: ChildNavigationPayload): void {
   applyStudentId(payload.studentId);
 
@@ -54,11 +68,27 @@ export function navigateToChildScreen(payload: ChildNavigationPayload): void {
     return;
   }
 
+  const onChildHub = navigationRef.getCurrentRoute()?.name === 'ChildHub';
+
+  if (payload.section === 'notifications') {
+    navigationRef.navigate('ChildHub', {
+      studentId: payload.studentId,
+      section: 'notifications',
+    });
+    return;
+  }
+
+  if (onChildHub && childHubOpenHandler) {
+    childHubOpenHandler(payload);
+    return;
+  }
+
   navigationRef.navigate('ChildHub', {
     studentId: payload.studentId,
     section: payload.section,
     highlightAttendanceId: payload.highlightAttendanceId,
     highlightSessionDate: payload.highlightSessionDate,
+    openedFromNotification: payload.openedFromNotification,
   });
 }
 
@@ -112,6 +142,7 @@ export function parseNotificationNavigation(
     return {
       section: 'fees',
       studentId: Number.isFinite(studentId) ? studentId : undefined,
+      openedFromNotification: true,
     };
   }
 
@@ -119,6 +150,7 @@ export function parseNotificationNavigation(
     return {
       section: 'exams',
       studentId: Number.isFinite(studentId) ? studentId : undefined,
+      openedFromNotification: true,
     };
   }
 
@@ -126,6 +158,7 @@ export function parseNotificationNavigation(
     return {
       section: 'leaves',
       studentId: Number.isFinite(studentId) ? studentId : undefined,
+      openedFromNotification: true,
     };
   }
 
@@ -133,6 +166,7 @@ export function parseNotificationNavigation(
     return {
       section: 'homework',
       studentId: Number.isFinite(studentId) ? studentId : undefined,
+      openedFromNotification: true,
     };
   }
 
@@ -150,6 +184,7 @@ export function parseNotificationNavigation(
       ? attendanceId
       : undefined,
     highlightSessionDate: sessionDate?.trim() || undefined,
+    openedFromNotification: section !== 'notifications',
   };
 }
 
@@ -162,7 +197,7 @@ export function navigateFromNotification(
 
 /** Tab handler kept for Home / Profile only */
 export type TabNavigationPayload = {
-  tab: 'Home' | 'Attendance' | 'Study' | 'Fees' | 'More' | 'Profile';
+  tab: 'Home' | 'Attendance' | 'Calendar' | 'Fees' | 'Settings' | 'More' | 'Profile';
   studentId?: number;
 };
 

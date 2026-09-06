@@ -15,29 +15,37 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
   getMyStudents,
   getStudentAttendance,
+  getStudentSchoolCalendar,
   PARENT_ATTENDANCE_PAGE_SIZE,
   type ParentAttendanceRow,
   type ParentStudent,
 } from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
+import { useChildHubRestore, useHubAwareBack } from '../navigation/ChildHubNavContext';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import { kindFromStatus, sessionTimeRange } from '../utils/dashboardHome';
 import {
   filterRowsByKind,
   groupRowsByDay,
-  lastNMonthAnchors,
-  monthSessionStats,
   rowsInCalendarMonth,
   type AttendanceFilter,
   type DaySection,
 } from '../utils/attendanceHistory';
+
+type AttendanceTab = 'overview' | 'calendar';
 import { AttendanceCalendarView } from '../components/AttendanceCalendarView';
+import { AttendanceDashboard } from '../components/AttendanceDashboard';
 import { AttendanceHeroHeader } from '../components/layout/AttendanceHeroHeader';
+import {
+  clampMonthToSession,
+  resolveSessionRange,
+  sessionMonthAnchors,
+} from '../utils/academicSession';
 import type { AppTheme } from '../theme';
-import { shadows } from '../theme/appTheme';
+import { shadows, useAppColors } from '../theme/appTheme';
 import { useAppLanguage, type TranslationKey } from '../common';
-import { navigateToTab } from '../navigation/navigationRef';
+import { formatAppDate } from '../utils/appDateLocale';
 
 function statusLabel(
   kind: ReturnType<typeof kindFromStatus>,
@@ -194,121 +202,6 @@ function SessionCard({
   );
 }
 
-function MonthSummaryBanner({
-  monthAnchor,
-  stats,
-  theme,
-}: {
-  monthAnchor: Date;
-  stats: ReturnType<typeof monthSessionStats>;
-  theme: AppTheme;
-}) {
-  const { t } = useAppLanguage();
-  const mon = format(monthAnchor, 'MMM').toUpperCase();
-  const yr = format(monthAnchor, 'yyyy');
-  return (
-    <View
-      style={[
-        styles.summaryBanner,
-        {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.outlineVariant,
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.summaryLeft,
-          { backgroundColor: theme.colors.primaryContainer },
-        ]}
-      >
-        <Text
-          variant="labelLarge"
-          style={{
-            color: theme.colors.primary,
-            fontWeight: '800',
-            textAlign: 'center',
-          }}
-        >
-          {mon}
-        </Text>
-        <Text
-          variant="labelMedium"
-          style={{
-            color: theme.colors.primary,
-            textAlign: 'center',
-            marginTop: 2,
-          }}
-        >
-          {yr}
-        </Text>
-      </View>
-      <View style={styles.summaryRight}>
-        <Text
-          variant="titleSmall"
-          style={{ color: theme.colors.onSurface, fontWeight: '700' }}
-        >
-          {t('attendance.summaryPresentMonth', { pct: stats.pctPresent })}
-        </Text>
-        <View style={styles.summaryChips}>
-          <View
-            style={[
-              styles.miniChip,
-              { backgroundColor: theme.palette.successSoft },
-            ]}
-          >
-            <Text
-              variant="labelSmall"
-              style={{ color: theme.colors.success, fontWeight: '700' }}
-            >
-              {t('attendance.countPresent', { n: stats.present })}
-            </Text>
-          </View>
-          <View
-            style={[
-              styles.miniChip,
-              { backgroundColor: theme.palette.dangerSoft },
-            ]}
-          >
-            <Text
-              variant="labelSmall"
-              style={{ color: theme.colors.error, fontWeight: '700' }}
-            >
-              {t('attendance.countAbsent', { n: stats.absent })}
-            </Text>
-          </View>
-          <View
-            style={[
-              styles.miniChip,
-              { backgroundColor: theme.palette.warningSoft },
-            ]}
-          >
-            <Text
-              variant="labelSmall"
-              style={{ color: theme.colors.warning, fontWeight: '700' }}
-            >
-              {t('attendance.countLate', { n: stats.late })}
-            </Text>
-          </View>
-          <View
-            style={[
-              styles.miniChip,
-              { backgroundColor: theme.colors.primaryContainer },
-            ]}
-          >
-            <Text
-              variant="labelSmall"
-              style={{ color: theme.colors.primary, fontWeight: '700' }}
-            >
-              {t('attendance.countLeave', { n: stats.leave })}
-            </Text>
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-}
-
 function findAttendanceIdBySessionDate(
   rows: ParentAttendanceRow[],
   sessionDate: string
@@ -331,7 +224,10 @@ export function AttendanceScreen({
   highlightSessionDate?: string;
 } = {}) {
   const theme = useTheme() as AppTheme;
-  const { t } = useAppLanguage();
+  const colors = useAppColors();
+  const { t, language } = useAppLanguage();
+  const restore = useChildHubRestore();
+  const goBack = useHubAwareBack();
   const STATUS_CHIPS = useMemo(
     () =>
       [
@@ -361,8 +257,12 @@ export function AttendanceScreen({
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const [filter, setFilter] = useState<AttendanceFilter>('all');
+  const [tab, setTab] = useState<AttendanceTab>('overview');
   const [monthModal, setMonthModal] = useState(false);
   const [contactModal, setContactModal] = useState(false);
+  const [sessionRange, setSessionRange] = useState<{ start: Date; end: Date } | null>(
+    null
+  );
   const highlightDoneRef = useRef(false);
   const userPickedDayRef = useRef(false);
 
@@ -379,6 +279,7 @@ export function AttendanceScreen({
       setFocusMonth(new Date(d.getFullYear(), d.getMonth(), 1));
       setSelectedCalendarDay(d);
       setFilter('all');
+      setTab('calendar');
     } catch {
       /* ignore invalid date */
     }
@@ -392,21 +293,33 @@ export function AttendanceScreen({
     if (!studentId) {
       setStudent(null);
       setAllRows([]);
+      setSessionRange(null);
       return;
     }
     setError(null);
     setLoading(true);
     setPage(0);
     try {
-      const [stRes, attRes] = await Promise.all([
+      const [stRes, attRes, calRes] = await Promise.all([
         getMyStudents(),
         getStudentAttendance(studentId, 0, PAGE_SIZE),
+        getStudentSchoolCalendar(studentId).catch(() => null),
       ]);
-      if (stRes.status && Array.isArray(stRes.data)) {
-        setStudent(stRes.data.find((s) => s.id === studentId) ?? null);
-      } else {
-        setStudent(null);
-      }
+      const nextStudent =
+        stRes.status && Array.isArray(stRes.data)
+          ? stRes.data.find((s) => s.id === studentId) ?? null
+          : null;
+      setStudent(nextStudent);
+      setSessionRange(
+        resolveSessionRange({
+          startDate: calRes?.status ? calRes.data?.startDate : null,
+          endDate: calRes?.status ? calRes.data?.endDate : null,
+          academicYear:
+            calRes?.status && calRes.data?.sessionName
+              ? calRes.data.sessionName
+              : nextStudent?.academicYear,
+        })
+      );
       if (attRes.status && attRes.data?.content) {
         setAllRows(attRes.data.content);
         setHasMore(
@@ -457,10 +370,9 @@ export function AttendanceScreen({
     () => filterRowsByKind(monthRows, filter),
     [monthRows, filter]
   );
-  const stats = useMemo(() => monthSessionStats(monthRows), [monthRows]);
   const sections: DaySection[] = useMemo(
-    () => groupRowsByDay(filteredMonthRows),
-    [filteredMonthRows]
+    () => groupRowsByDay(filteredMonthRows, language),
+    [filteredMonthRows, language]
   );
 
   const calendarDaySections: DaySection[] = useMemo(() => {
@@ -488,6 +400,7 @@ export function AttendanceScreen({
     }
     highlightDoneRef.current = true;
     userPickedDayRef.current = true;
+    setTab('calendar');
     const dt = row.sessionDate?.slice(0, 10);
     if (dt) {
       try {
@@ -498,6 +411,7 @@ export function AttendanceScreen({
         /* ignore */
       }
     }
+    useSelectionStore.getState().setAttendanceHighlight(null);
   }, [
     resolvedHighlightId,
     allRows,
@@ -535,7 +449,15 @@ export function AttendanceScreen({
     return `${student.instituteName}  |  ${b}`;
   }, [student, t]);
 
-  const monthChoices = useMemo(() => lastNMonthAnchors(12), []);
+  const monthChoices = useMemo(
+    () => sessionMonthAnchors(sessionRange),
+    [sessionRange]
+  );
+
+  useEffect(() => {
+    if (!monthChoices.length) return;
+    setFocusMonth((current) => clampMonthToSession(current, monthChoices));
+  }, [monthChoices]);
 
   if (!studentId) {
     if (embedded) return null;
@@ -615,157 +537,206 @@ export function AttendanceScreen({
           </View>
         ) : (
           <View>
-            {embedded ? (
-              <MonthSummaryBanner
-                monthAnchor={focusMonth}
-                stats={stats}
-                theme={theme}
-              />
-            ) : null}
-            <ScrollView
-              horizontal
-              nestedScrollEnabled
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipRow}
-            >
-              {STATUS_CHIPS.map((chip) => {
-                const on = filter === chip.key;
+            <View style={[styles.tabs, { borderBottomColor: colors.border }]}>
+              {(
+                [
+                  { id: 'overview' as const, label: t('attendance.tabOverview') },
+                  { id: 'calendar' as const, label: t('attendance.calendarView') },
+                ]
+              ).map((item) => {
+                const active = tab === item.id;
                 return (
                   <Pressable
-                    key={chip.key}
-                    onPress={() => setFilter(chip.key)}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: on
-                          ? theme.colors.primary
-                          : theme.colors.surface,
-                        borderColor: on
-                          ? theme.colors.primary
-                          : theme.colors.outlineVariant,
-                      },
-                    ]}
+                    key={item.id}
+                    onPress={() => setTab(item.id)}
+                    style={styles.tabBtn}
                   >
-                    <Text
-                      variant="labelMedium"
-                      style={{
-                        color: on ? '#FFFFFF' : theme.colors.onSurface,
-                        fontWeight: '700',
-                      }}
-                    >
-                      {chip.label}
+                    <Text style={[styles.tabLabel, active && { color: colors.primary, fontWeight: '800' }]}>
+                      {item.label}
                     </Text>
+                    <View
+                      style={[
+                        styles.tabUnderline,
+                        active && { backgroundColor: colors.primary },
+                      ]}
+                    />
                   </Pressable>
                 );
               })}
-            </ScrollView>
-            <AttendanceCalendarView
-              monthAnchor={focusMonth}
-              rows={filteredMonthRows}
-              selectedDay={selectedCalendarDay}
-              onSelectDay={(d) => {
-                userPickedDayRef.current = true;
-                setSelectedCalendarDay(d);
-              }}
+            </View>
+
+            {tab === 'overview' ? (
+              <>
+            <AttendanceDashboard
+              rows={allRows}
+              focusMonth={focusMonth}
+              sessionMonths={monthChoices}
               onPressMonth={() => setMonthModal(true)}
-            />
-            {calendarDaySections.map((section) => (
-              <View key={section.title}>
-                <View
-                  style={[
-                    styles.dayHeader,
-                    { backgroundColor: theme.colors.background },
-                  ]}
+                  onSelectMonth={(month) => {
+                    userPickedDayRef.current = false;
+                    setFocusMonth(new Date(month.getFullYear(), month.getMonth(), 1));
+                  }}
+                />
+                {hasMore ? (
+                  <Button
+                    mode="outlined"
+                    loading={loadingMore}
+                    onPress={() => void loadMore()}
+                    style={{ marginTop: 4, marginBottom: 16 }}
+                  >
+                    {t('attendance.loadMore')}
+                  </Button>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <ScrollView
+                  horizontal
+                  nestedScrollEnabled
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.chipRow}
                 >
-                  <MaterialCommunityIcons
-                    name="calendar"
-                    size={18}
-                    color={theme.colors.primary}
+                  {STATUS_CHIPS.map((chip) => {
+                    const on = filter === chip.key;
+                    return (
+                      <Pressable
+                        key={chip.key}
+                        onPress={() => setFilter(chip.key)}
+                        style={[
+                          styles.chip,
+                          {
+                            backgroundColor: on
+                              ? theme.colors.primary
+                              : theme.colors.surface,
+                            borderColor: on
+                              ? theme.colors.primary
+                              : theme.colors.outlineVariant,
+                          },
+                        ]}
+                      >
+                        <Text
+                          variant="labelMedium"
+                          style={{
+                            color: on ? '#FFFFFF' : theme.colors.onSurface,
+                            fontWeight: '700',
+                          }}
+                        >
+                          {chip.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+                <AttendanceCalendarView
+                  monthAnchor={focusMonth}
+                  rows={filteredMonthRows}
+                  selectedDay={selectedCalendarDay}
+                  sessionRange={sessionRange}
+                  onSelectDay={(d) => {
+                    userPickedDayRef.current = true;
+                    setSelectedCalendarDay(d);
+                  }}
+                  onPressMonth={() => setMonthModal(true)}
+                />
+                {calendarDaySections.map((section) => (
+                  <View key={section.title}>
+                    <View
+                      style={[
+                        styles.dayHeader,
+                        { backgroundColor: theme.colors.background },
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name="calendar"
+                        size={18}
+                        color={theme.colors.primary}
+                      />
+                      <Text
+                        variant="titleSmall"
+                        style={{
+                          color: theme.colors.onBackground,
+                          fontWeight: '700',
+                          marginLeft: 8,
+                        }}
+                      >
+                        {section.title}
+                      </Text>
+                    </View>
+                    {section.data.map((item) => (
+                      <SessionCard
+                        key={item.attendanceId}
+                        row={item}
+                        theme={theme}
+                        highlighted={resolvedHighlightId === item.attendanceId}
+                      />
+                    ))}
+                  </View>
+                ))}
+                {selectedCalendarDay && calendarDaySections.length === 0 ? (
+                  <EmptyState
+                    icon="calendar-blank-outline"
+                    title={
+                      filter !== 'all'
+                        ? t('attendance.emptyNoMatch')
+                        : t('attendance.noSessionsOnDay', {
+                            date: formatAppDate(selectedCalendarDay, 'd MMM', language),
+                          })
+                    }
+                    message={
+                      filter !== 'all'
+                        ? t('attendance.tryFilterOrMonth')
+                        : t('attendance.noRowsThisDay')
+                    }
                   />
+                ) : null}
+                {!selectedCalendarDay && !loading && sections.length === 0 ? (
+                  <EmptyState
+                    icon={error ? 'alert-circle-outline' : 'calendar-blank-outline'}
+                    title={
+                      error
+                        ? t('attendance.emptyCouldNotLoad')
+                        : filter !== 'all'
+                          ? t('attendance.emptyNoMatch')
+                          : t('attendance.emptyNoSessions')
+                    }
+                    message={
+                      error ??
+                      (filter !== 'all'
+                        ? t('attendance.tryFilterOrMonth')
+                        : t('attendance.noRowsThisMonth'))
+                    }
+                  />
+                ) : null}
+                <View style={styles.footer}>
+                  {hasMore ? (
+                    <Button
+                      mode="outlined"
+                      loading={loadingMore}
+                      onPress={() => void loadMore()}
+                      style={{ marginBottom: 16 }}
+                    >
+                      {t('attendance.loadMore')}
+                    </Button>
+                  ) : null}
                   <Text
-                    variant="titleSmall"
+                    variant="bodySmall"
                     style={{
-                      color: theme.colors.onBackground,
-                      fontWeight: '700',
-                      marginLeft: 8,
+                      color: theme.colors.onSurfaceVariant,
+                      marginBottom: 10,
                     }}
                   >
-                    {section.title}
+                    {t('attendance.reportAbsence')}
                   </Text>
+                  <Button
+                    mode="contained-tonal"
+                    onPress={() => setContactModal(true)}
+                    icon="phone-outline"
+                  >
+                    {t('attendance.contactButton')}
+                  </Button>
                 </View>
-                {section.data.map((item) => (
-                  <SessionCard
-                    key={item.attendanceId}
-                    row={item}
-                    theme={theme}
-                    highlighted={resolvedHighlightId === item.attendanceId}
-                  />
-                ))}
-              </View>
-            ))}
-            {selectedCalendarDay && calendarDaySections.length === 0 ? (
-              <EmptyState
-                icon="calendar-blank-outline"
-                title={
-                  filter !== 'all'
-                    ? t('attendance.emptyNoMatch')
-                    : t('attendance.noSessionsOnDay', {
-                        date: format(selectedCalendarDay, 'd MMM'),
-                      })
-                }
-                message={
-                  filter !== 'all'
-                    ? t('attendance.tryFilterOrMonth')
-                    : t('attendance.noRowsThisDay')
-                }
-              />
-            ) : null}
-            {!selectedCalendarDay && !loading && sections.length === 0 ? (
-              <EmptyState
-                icon={error ? 'alert-circle-outline' : 'calendar-blank-outline'}
-                title={
-                  error
-                    ? t('attendance.emptyCouldNotLoad')
-                    : filter !== 'all'
-                      ? t('attendance.emptyNoMatch')
-                      : t('attendance.emptyNoSessions')
-                }
-                message={
-                  error ??
-                  (filter !== 'all'
-                    ? t('attendance.tryFilterOrMonth')
-                    : t('attendance.noRowsThisMonth'))
-                }
-              />
-            ) : null}
-            <View style={styles.footer}>
-              {hasMore ? (
-                <Button
-                  mode="outlined"
-                  loading={loadingMore}
-                  onPress={() => void loadMore()}
-                  style={{ marginBottom: 16 }}
-                >
-                  {t('attendance.loadMore')}
-                </Button>
-              ) : null}
-              <Text
-                variant="bodySmall"
-                style={{
-                  color: theme.colors.onSurfaceVariant,
-                  marginBottom: 10,
-                }}
-              >
-                {t('attendance.reportAbsence')}
-              </Text>
-              <Button
-                mode="contained-tonal"
-                onPress={() => setContactModal(true)}
-                icon="phone-outline"
-              >
-                {t('attendance.contactButton')}
-              </Button>
-            </View>
+              </>
+            )}
           </View>
         )}
       </ScrollView>
@@ -872,7 +843,7 @@ export function AttendanceScreen({
                         fontWeight: active ? '700' : '400',
                       }}
                     >
-                      {format(d, 'MMMM yyyy')}
+                      {formatAppDate(d, 'MMMM yyyy', language)}
                     </Text>
                   </Pressable>
                 );
@@ -889,12 +860,8 @@ export function AttendanceScreen({
   }
 
   return (
-    <View style={styles.standalone}>
-      <AttendanceHeroHeader
-        student={student}
-        stats={stats}
-        onBack={() => navigateToTab({ tab: 'Home' })}
-      />
+    <View style={[styles.standalone, { backgroundColor: colors.background }]}>
+      <AttendanceHeroHeader student={student} onBack={restore ? goBack : undefined} />
       {body}
     </View>
   );
@@ -902,7 +869,7 @@ export function AttendanceScreen({
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  standalone: { flex: 1, backgroundColor: '#F8F9FB' },
+  standalone: { flex: 1 },
   embedded: { flex: 1 },
   center: { flex: 1, padding: 20, justifyContent: 'center' },
   topBar: {
@@ -924,6 +891,24 @@ const styles = StyleSheet.create({
   title: { fontWeight: '800', textAlign: 'center', width: '100%' },
   subtitle: { marginTop: 6, textAlign: 'center', width: '100%' },
   listContent: { paddingHorizontal: 16, paddingBottom: 40 },
+  tabs: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  tabBtn: { flex: 1, alignItems: 'center', paddingTop: 4 },
+  tabLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    paddingBottom: 10,
+  },
+  tabUnderline: {
+    alignSelf: 'stretch',
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'transparent',
+  },
   chipRow: {
     flexDirection: 'row',
     gap: 8,
@@ -936,32 +921,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  summaryBanner: {
-    flexDirection: 'row',
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: 'hidden',
-    marginTop: 16,
-    elevation: 2,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-  },
-  summaryLeft: {
-    width: 76,
-    paddingVertical: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  summaryRight: { flex: 1, padding: 14, justifyContent: 'center' },
-  summaryChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 10,
-  },
-  miniChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   dayHeader: {
     flexDirection: 'row',
     alignItems: 'center',
