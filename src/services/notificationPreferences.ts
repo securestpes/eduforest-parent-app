@@ -11,6 +11,7 @@ export type NotificationPreferences = {
   quietEnd: string;
   /** Empty = all linked children */
   childIds: number[];
+  voiceAnnouncementsEnabled: boolean;
 };
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
@@ -21,13 +22,23 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   quietStart: '22:00',
   quietEnd: '07:00',
   childIds: [],
+  voiceAnnouncementsEnabled: false,
 };
 
 export async function getNotificationPreferences(): Promise<NotificationPreferences> {
   const raw = await AsyncStorage.getItem(
     localStorageKeys.NOTIFICATION_PREFERENCES
   );
-  if (!raw) return { ...DEFAULT_NOTIFICATION_PREFERENCES };
+  const legacyVoice = await AsyncStorage.getItem(
+    localStorageKeys.VOICE_ANNOUNCEMENTS_ENABLED
+  );
+  const legacyVoiceOn = legacyVoice === 'true';
+  if (!raw) {
+    return {
+      ...DEFAULT_NOTIFICATION_PREFERENCES,
+      voiceAnnouncementsEnabled: legacyVoiceOn,
+    };
+  }
   try {
     const parsed = JSON.parse(raw) as Partial<NotificationPreferences>;
     return {
@@ -36,9 +47,16 @@ export async function getNotificationPreferences(): Promise<NotificationPreferen
       childIds: Array.isArray(parsed.childIds)
         ? parsed.childIds.filter((id) => typeof id === 'number')
         : [],
+      voiceAnnouncementsEnabled:
+        typeof parsed.voiceAnnouncementsEnabled === 'boolean'
+          ? parsed.voiceAnnouncementsEnabled
+          : legacyVoiceOn,
     };
   } catch {
-    return { ...DEFAULT_NOTIFICATION_PREFERENCES };
+    return {
+      ...DEFAULT_NOTIFICATION_PREFERENCES,
+      voiceAnnouncementsEnabled: legacyVoiceOn,
+    };
   }
 }
 
@@ -121,6 +139,7 @@ export function shouldPlayVoiceForNotification(
     return false;
   }
   if (!shouldShowAttendanceNotification(data, prefs)) return false;
+  if (!prefs.voiceAnnouncementsEnabled) return false;
   if (isQuietHoursActive(prefs)) return false;
   return true;
 }

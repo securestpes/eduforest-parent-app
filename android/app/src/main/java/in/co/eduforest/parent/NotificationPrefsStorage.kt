@@ -8,7 +8,7 @@ object NotificationPrefsStorage {
   private const val KEY = "notification_preferences"
 
   private const val DEFAULT_JSON =
-    """{"alertPresent":true,"alertLate":true,"alertAbsent":true,"quietHoursEnabled":false,"quietStart":"22:00","quietEnd":"07:00","childIds":[]}"""
+    """{"alertPresent":true,"alertLate":true,"alertAbsent":true,"quietHoursEnabled":false,"quietStart":"22:00","quietEnd":"07:00","childIds":[],"voiceAnnouncementsEnabled":false}"""
 
   fun set(context: Context, json: String) {
     context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -53,6 +53,7 @@ object NotificationPrefsStorage {
     if (!shouldShow(context, statusRaw, studentIdRaw)) return false
     return try {
       val obj = JSONObject(getJson(context))
+      if (!obj.optBoolean("voiceAnnouncementsEnabled", false)) return false
       if (!obj.optBoolean("quietHoursEnabled", false)) return true
       val start = parseMinutes(obj.optString("quietStart", "22:00"))
       val end = parseMinutes(obj.optString("quietEnd", "07:00"))

@@ -50,7 +50,6 @@ class AttendanceFcmReceiver : BroadcastReceiver() {
         englishFallback = englishBody
       ).ifBlank { englishBody }
     }
-    val playVoice = extras.getString("play_voice")?.equals("true", ignoreCase = true) ?: false
     val studentId = extras.getString("studentId") ?: extras.getString("child_id")
     val status = extras.getString("status")
     val voiceMessage = extras.getString("voice_message")?.trim().orEmpty()
@@ -88,8 +87,8 @@ class AttendanceFcmReceiver : BroadcastReceiver() {
     val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     nm.notify(Random.nextInt(100000, 999999), notification)
 
-    // Voice (TTS) is attendance-only.
-    if (isParentAlert || !playVoice) return
+    // Voice (TTS) is attendance-only, and off unless the parent enabled it in Profile.
+    if (isParentAlert) return
     if (!NotificationPrefsStorage.shouldPlayVoice(context, status, studentId)) return
     val legacyText = listOfNotNull(
       voiceMessage,

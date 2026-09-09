@@ -13,11 +13,8 @@ import {
 import { getNotifee } from '../../native/notifeeSafe';
 
 export const isVoiceAnnouncementsEnabled = async () => {
-  const raw = await AsyncStorage.getItem(
-    localStorageKeys.VOICE_ANNOUNCEMENTS_ENABLED
-  );
-
-  return raw === null ? true : raw === 'true';
+  const prefs = await getNotificationPreferences();
+  return prefs.voiceAnnouncementsEnabled;
 };
 
 const playVoiceAnnouncement = async (

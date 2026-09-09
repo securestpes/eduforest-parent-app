@@ -28,6 +28,10 @@ import {
   type StatusPopupVariant,
 } from '../common';
 import { NotificationPreferencesSection } from '../components/NotificationPreferencesSection';
+import {
+  getNotificationPreferences,
+  saveNotificationPreferences,
+} from '../services/notificationPreferences';
 
 const APP_LOGO = require('../assets/logo.png');
 
@@ -47,7 +51,7 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
   const [schoolPickerOpen, setSchoolPickerOpen] = useState(false);
   const [switchingSchool, setSwitchingSchool] = useState(false);
   const [voiceAnnouncementsEnabled, setVoiceAnnouncementsEnabled] =
-    useState(true);
+    useState(false);
   const [deleteAccountModalVisible, setDeleteAccountModalVisible] =
     useState(false);
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
@@ -63,11 +67,9 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
         try {
           const res = await getMe();
           const schoolRes = await listMySchools();
-          const savedVoiceToggle = await AsyncStorage.getItem(
-            localStorageKeys.VOICE_ANNOUNCEMENTS_ENABLED
-          );
-          if (!cancelled && savedVoiceToggle !== null) {
-            setVoiceAnnouncementsEnabled(savedVoiceToggle === 'true');
+          const prefs = await getNotificationPreferences();
+          if (!cancelled) {
+            setVoiceAnnouncementsEnabled(prefs.voiceAnnouncementsEnabled);
           }
           if (cancelled) return;
           if (res.status && res.data && typeof res.data === 'object') {
@@ -123,6 +125,7 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
 
   const onToggleVoiceAnnouncements = async (value: boolean) => {
     setVoiceAnnouncementsEnabled(value);
+    await saveNotificationPreferences({ voiceAnnouncementsEnabled: value });
     await AsyncStorage.setItem(
       localStorageKeys.VOICE_ANNOUNCEMENTS_ENABLED,
       String(value)

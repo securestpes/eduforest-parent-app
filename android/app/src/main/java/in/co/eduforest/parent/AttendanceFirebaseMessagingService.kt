@@ -74,9 +74,6 @@ class AttendanceFirebaseMessagingService : FirebaseMessagingService() {
     showNotification(channelId, title, body)
 
     if (isParentAlert) return
-
-    val playVoice = data["play_voice"]?.equals("true", ignoreCase = true) ?: false
-    if (!playVoice) return
     if (!NotificationPrefsStorage.shouldPlayVoice(this, status, studentId)) return
 
     val legacyText = listOfNotNull(
