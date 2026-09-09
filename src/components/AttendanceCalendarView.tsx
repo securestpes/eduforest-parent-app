@@ -167,6 +167,10 @@ export function AttendanceCalendarView({
                       borderColor: theme.colors.primary,
                       borderWidth: 2,
                     },
+                    isToday && !isSelected && !hasStatus && {
+                      borderColor: theme.colors.primary,
+                      borderWidth: 1.5,
+                    },
                   ]}
                 >
                 <View
@@ -193,7 +197,6 @@ export function AttendanceCalendarView({
                   </Text>
                 </View>
               </View>
-              {isToday ? <View style={styles.todayDot} /> : <View style={styles.todayDotSpacer} />}
             </Pressable>
           );
         })}
@@ -273,18 +276,6 @@ const styles = StyleSheet.create({
   },
   dayNumber: {
     textAlign: 'center',
-  },
-  todayDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: EduForestColors.primary,
-    marginTop: 2,
-  },
-  todayDotSpacer: {
-    width: 5,
-    height: 5,
-    marginTop: 2,
   },
   legendRow: {
     flexDirection: 'row',

@@ -34,6 +34,7 @@ class AttendanceFirebaseMessagingService : FirebaseMessagingService() {
       || type == "exam_results_published"
       || type == "leave_request_status"
       || type == "homework_assigned"
+      || type == "school_announcement"
       || type == "bus_alert"
     val title = if (isParentAlert) {
       englishTitle
@@ -57,7 +58,7 @@ class AttendanceFirebaseMessagingService : FirebaseMessagingService() {
     if (!NotificationPrefsStorage.shouldShow(this, status, studentId)) return
 
     val channelId = when {
-      isFee || type == "exam_results_published" || type == "homework_assigned" || type == "leave_request_status" ->
+      isFee || type == "exam_results_published" || type == "homework_assigned" || type == "leave_request_status" || type == "school_announcement" ->
         "school_alerts_v2"
       type == "bus_alert" -> "bus_alerts_v2"
       else -> "eduforest_attendance_v2"
@@ -103,6 +104,7 @@ class AttendanceFirebaseMessagingService : FirebaseMessagingService() {
       "fee_reminder" -> "Fee reminder"
       "bus_alert" -> "Bus update"
       "homework_assigned" -> "New homework"
+      "school_announcement" -> "School notice"
       "exam_results_published" -> "Exam results"
       "leave_request_status" -> "Leave update"
       else -> "Attendance Update"
@@ -114,6 +116,7 @@ class AttendanceFirebaseMessagingService : FirebaseMessagingService() {
       "fee_payment", "fee_reminder" -> "Open Fees to view details."
       "bus_alert" -> "Open the app to track the bus."
       "homework_assigned" -> "Open Homework to view details."
+      "school_announcement" -> "Open Notifications to read this notice."
       "exam_results_published" -> "Open Results to view marks."
       "leave_request_status" -> "Open Leave to view status."
       else -> "Attendance updated."

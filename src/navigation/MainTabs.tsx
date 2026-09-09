@@ -58,18 +58,19 @@ export function MainTabs() {
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         <View style={{ flex: 1, display: index === 0 ? 'flex' : 'none' }}>
           <AttendanceScreen
+            active={index === 0}
             highlightAttendanceId={attendanceHighlight?.highlightAttendanceId}
             highlightSessionDate={attendanceHighlight?.highlightSessionDate}
           />
         </View>
         <View style={{ flex: 1, display: index === 1 ? 'flex' : 'none' }}>
-          <FeesScreen />
+          <FeesScreen active={index === 1} />
         </View>
         <View style={{ flex: 1, display: index === 2 ? 'flex' : 'none' }}>
-          <HomeScreen />
+          <HomeScreen active={index === 2} />
         </View>
         <View style={{ flex: 1, display: index === 3 ? 'flex' : 'none' }}>
-          <SchoolCalendarScreen />
+          <SchoolCalendarScreen active={index === 3} />
         </View>
         <View style={{ flex: 1, display: index === 4 ? 'flex' : 'none' }}>
           <ProfileScreen variant="settings" />

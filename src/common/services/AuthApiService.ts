@@ -3,14 +3,12 @@ import axios, {
   type AxiosRequestConfig,
   type CancelTokenSource,
 } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   isServerError,
   isNetworkError,
   NETWORK_ERROR_MESSAGE,
 } from '../helpers/networkHelper';
 import { GlobalToastService } from './GlobalToastService';
-import { localStorageKeys } from '../constants';
 import NetInfo from '@react-native-community/netinfo';
 
 export class AuthApiService {
@@ -39,8 +37,7 @@ export class AuthApiService {
         if (error?.response?.status === 401) {
           try {
             const { AuthService } = await import('../../features/login/services/AuthService');
-            await AuthService.firebaseSignOut();
-            await AsyncStorage.removeItem(localStorageKeys.ACCESS_TOKEN);
+            await AuthService.clearLocalSession();
             const { store } = await import('../../redux/store');
             const { logout } = await import('../../features/login/slices/authSlice');
             store.dispatch(logout());

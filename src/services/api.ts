@@ -57,9 +57,7 @@ api.interceptors.response.use(
       try {
         const { AuthService } =
           await import('../features/login/services/AuthService');
-        await AuthService.firebaseSignOut();
-        await AsyncStorage.removeItem(localStorageKeys.ACCESS_TOKEN);
-        await AsyncStorage.removeItem(localStorageKeys.LEGACY_ACCESS_TOKEN);
+        await AuthService.clearLocalSession();
         const { store } = await import('../redux/store');
         const { logout } = await import('../features/login/slices/authSlice');
         store.dispatch(logout());

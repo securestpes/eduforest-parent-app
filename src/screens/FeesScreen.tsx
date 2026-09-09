@@ -1,5 +1,5 @@
 import { parseISO } from 'date-fns';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -33,8 +33,9 @@ import { savePdfToDevice } from '../utils/savePdfToDevice';
 import { payableFeeSummary, overviewFeeItems, historyMonthGroups, type HistoryMonthGroup, type OverviewFeeItem } from '../utils/feeDueBreakdown';
 import { isMonthInSession, resolveSessionRange } from '../utils/academicSession';
 import { useChildHubRestore, useHubAwareBack } from '../navigation/ChildHubNavContext';
+import { useReloadWhenActive } from '../navigation/TabNavigationContext';
 
-type Props = { embedded?: boolean };
+type Props = { embedded?: boolean; active?: boolean };
 type FeesTab = 'due' | 'history';
 type HistoryFilter = 'all' | 'month' | 'year' | 'custom';
 
@@ -540,7 +541,7 @@ function HistoryPanel({
   );
 }
 
-export function FeesScreen({ embedded = false }: Props) {
+export function FeesScreen({ embedded = false, active = true }: Props) {
   const { t, language } = useAppLanguage();
   const colors = useAppColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -566,14 +567,14 @@ export function FeesScreen({ embedded = false }: Props) {
   const selectedStudent = students.find((s) => s.id === studentId) ?? null;
 
   const load = useCallback(
-    async (isRefresh = false) => {
+    async (isRefresh: boolean | 'silent' = false) => {
       if (studentId == null) {
         setLedger(null);
         setLoading(false);
         return;
       }
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
+      if (isRefresh === true) setRefreshing(true);
+      else if (isRefresh !== 'silent') setLoading(true);
       setError(null);
       try {
         const [stRes, feeRes, calRes] = await Promise.all([
@@ -613,9 +614,7 @@ export function FeesScreen({ embedded = false }: Props) {
     [studentId, t]
   );
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useReloadWhenActive(active, (silent) => load(silent ? 'silent' : false), studentId);
 
   const overview = useMemo(() => overviewFeeItems(ledger, new Date(), language), [ledger, language]);
   const historyGroups = useMemo(() => historyMonthGroups(ledger, language), [ledger, language]);

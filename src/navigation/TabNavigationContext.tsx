@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 
 export type MainTabName = 'Home' | 'Attendance' | 'Calendar' | 'Fees' | 'Settings' | 'More' | 'Profile';
 
@@ -60,4 +60,22 @@ export function useMainTabNavigation(): TabNavigationContextValue {
     throw new Error('useMainTabNavigation must be used within TabNavigationProvider');
   }
   return ctx;
+}
+
+/** Main tabs stay mounted (`display: none`). Reload when a tab becomes visible. */
+export function useReloadWhenActive(
+  active: boolean,
+  reload: (silent: boolean) => void | Promise<void>,
+  extraKey?: unknown
+) {
+  const hasLoadedRef = useRef(false);
+  const reloadRef = useRef(reload);
+  reloadRef.current = reload;
+
+  useEffect(() => {
+    if (!active) return;
+    const silent = hasLoadedRef.current;
+    hasLoadedRef.current = true;
+    void reloadRef.current(silent);
+  }, [active, extraKey]);
 }

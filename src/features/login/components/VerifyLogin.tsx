@@ -242,6 +242,7 @@ export const VerifyLogin: React.FC<Props> = ({ navigation, route }) => {
             data.accessToken
           );
           await AsyncStorage.removeItem(localStorageKeys.LEGACY_ACCESS_TOKEN);
+          await AsyncStorage.removeItem(localStorageKeys.MUST_RESET_PASSWORD);
           const userResponse = await ParentProfileService.getUser();
           if (userResponse?.status && userResponse.data) {
             dispatch(

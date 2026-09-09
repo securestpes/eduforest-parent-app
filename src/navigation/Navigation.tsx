@@ -10,6 +10,7 @@ import {
   mapParentMeToUser,
   ParentProfileService,
 } from '../features/profile/services/ParentProfileService';
+import { ResetPassword } from '../features/login/components';
 import type { MainTabParamList } from './MainTabs';
 import type { ChildChipAction } from '../components/ChildActionChips';
 import { AuthNavigation } from './AuthNavigation';
@@ -19,6 +20,7 @@ import type { RootState } from '../redux/store';
 export type RootStackParamList = {
   LegalConsent: undefined;
   Login: undefined;
+  ForgotPassword: undefined;
   VerifyLogin: {
     mobileNumber: string;
     verificationId?: string;
@@ -68,30 +70,59 @@ export const Navigation: React.FC = () => {
           const currentTime = Date.now() / 1000;
           const exp = decoded.exp as number | undefined;
           if (exp && exp < currentTime) {
-            await AsyncStorage.removeItem(localStorageKeys.ACCESS_TOKEN);
+            await AsyncStorage.multiRemove([
+              localStorageKeys.ACCESS_TOKEN,
+              localStorageKeys.MUST_RESET_PASSWORD,
+            ]);
             dispatch(logout());
             return;
           }
+          const mustResetPassword =
+            (await AsyncStorage.getItem(localStorageKeys.MUST_RESET_PASSWORD)) ===
+            'true';
           try {
             const userResponse = await ParentProfileService.getUser();
             if (userResponse?.status && userResponse.data) {
               dispatch(
-                loginSuccess(
-                  mapParentMeToUser(
+                loginSuccess({
+                  ...mapParentMeToUser(
                     userResponse.data as Record<string, unknown>
-                  )
-                )
+                  ),
+                  mustResetPassword,
+                })
               );
             } else {
-              dispatch(loginSuccess(mapParentMeToUser(decoded)));
+              dispatch(
+                loginSuccess({
+                  ...mapParentMeToUser(decoded),
+                  mustResetPassword,
+                })
+              );
             }
           } catch (e) {
+            const status = (e as { response?: { status?: number } })?.response?.status;
+            if (status === 401) {
+              await AsyncStorage.multiRemove([
+                localStorageKeys.ACCESS_TOKEN,
+                localStorageKeys.MUST_RESET_PASSWORD,
+              ]);
+              dispatch(logout());
+              return;
+            }
             console.warn('Parent profile fetch failed, using token claims:', e);
-            dispatch(loginSuccess(mapParentMeToUser(decoded)));
+            dispatch(
+              loginSuccess({
+                ...mapParentMeToUser(decoded),
+                mustResetPassword,
+              })
+            );
           }
           return;
         } catch {
-          await AsyncStorage.removeItem(localStorageKeys.ACCESS_TOKEN);
+          await AsyncStorage.multiRemove([
+            localStorageKeys.ACCESS_TOKEN,
+            localStorageKeys.MUST_RESET_PASSWORD,
+          ]);
           dispatch(logout());
         }
       } else {
@@ -113,7 +144,15 @@ export const Navigation: React.FC = () => {
   return (
     <View style={{ flex: 1 }}>
       <GlobalOfflineBanner />
-      {auth.isAuthenticated ? <AppNavigation /> : <AuthNavigation />}
+      {auth.isAuthenticated ? (
+        auth.mustResetPassword ? (
+          <ResetPassword />
+        ) : (
+          <AppNavigation />
+        )
+      ) : (
+        <AuthNavigation />
+      )}
     </View>
   );
 };

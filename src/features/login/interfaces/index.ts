@@ -23,6 +23,7 @@ export interface IUser {
 export interface IAuth {
   isAuthenticated: boolean | null;
   user: IUser | null;
+  mustResetPassword: boolean;
 }
 
 export interface IAuthState {

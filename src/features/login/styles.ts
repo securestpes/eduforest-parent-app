@@ -1,6 +1,22 @@
 import { StyleSheet } from 'react-native';
 import { AppTheme } from '../../theme';
 
+export const LOGIN_COLORS = {
+  sky: '#3B82F6',
+  edu: '#8DC63F',
+  forest: '#2D47B9',
+  heading: '#1A237E',
+  parents: '#3D5AFE',
+  body: '#6B7280',
+  field: '#F0F3FA',
+  icon: '#5B5CE6',
+  link: '#3D5AFE',
+  googleBorder: '#E5E7EB',
+  leaf: '#8DC63F',
+};
+
+export const LOGIN_GRADIENT = ['#4F86FF', '#7B5CFF'] as const;
+
 export const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     container: {
@@ -49,5 +65,323 @@ export const createStyles = (theme: AppTheme) =>
     },
     changeMobiletext: {
       fontSize: theme.fontSizes.md,
+    },
+    screen: {
+      flex: 1,
+      backgroundColor: LOGIN_COLORS.sky,
+    },
+    hero: {
+      overflow: 'hidden',
+      backgroundColor: LOGIN_COLORS.sky,
+    },
+    heroImage: {
+      position: 'absolute',
+      right: 0,
+      bottom: 0,
+    },
+    heroSafe: {
+      flex: 1,
+      paddingHorizontal: 16,
+      paddingTop: 4,
+      justifyContent: 'flex-start',
+    },
+    brandRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    brandLogoWrap: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: '#FFFFFF',
+      overflow: 'hidden',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    brandLogo: {
+      width: 102,
+      height: 102,
+    },
+    brandCopy: {
+      flex: 1,
+    },
+    brandTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+    },
+    brandEdu: {
+      color: LOGIN_COLORS.edu,
+      fontSize: 28,
+      fontWeight: '800',
+      letterSpacing: 0.2,
+    },
+    brandForest: {
+      color: LOGIN_COLORS.forest,
+      fontSize: 28,
+      fontWeight: '800',
+      letterSpacing: 0.2,
+      textShadowColor: 'rgba(255,255,255,0.55)',
+      textShadowOffset: { width: 0, height: 0 },
+      textShadowRadius: 4,
+    },
+    brandApp: {
+      color: '#FFFFFF',
+      fontSize: 15,
+      fontWeight: '600',
+      marginTop: 1,
+    },
+    brandRule: {
+      marginTop: 5,
+      width: 92,
+      height: 1.5,
+      backgroundColor: 'rgba(255,255,255,0.9)',
+    },
+    brandTagline: {
+      marginTop: 5,
+      color: 'rgba(255,255,255,0.96)',
+      fontSize: 12,
+      fontWeight: '500',
+    },
+    card: {
+      flex: 1,
+      marginTop: -36,
+      backgroundColor: '#FFFFFF',
+      borderTopLeftRadius: 48,
+      borderTopRightRadius: 48,
+      paddingHorizontal: 24,
+      paddingTop: 32,
+      shadowColor: '#1E3A8A',
+      shadowOpacity: 0.1,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: -4 },
+      elevation: 10,
+    },
+    cardScroll: {
+      paddingBottom: 36,
+      flexGrow: 1,
+    },
+    welcomeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'flex-end',
+    },
+    welcome: {
+      fontSize: 30,
+      fontWeight: '800',
+      color: LOGIN_COLORS.heading,
+    },
+    welcomeParents: {
+      fontSize: 30,
+      fontWeight: '800',
+      color: LOGIN_COLORS.parents,
+    },
+    cardSubtitle: {
+      marginTop: 8,
+      marginBottom: 24,
+      fontSize: 14,
+      lineHeight: 21,
+      color: LOGIN_COLORS.body,
+    },
+    field: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: LOGIN_COLORS.field,
+      borderRadius: 16,
+      minHeight: 54,
+      paddingHorizontal: 16,
+      marginBottom: 14,
+    },
+    fieldError: {
+      borderWidth: 1,
+      borderColor: '#DC2626',
+    },
+    fieldInput: {
+      flex: 1,
+      marginLeft: 10,
+      fontSize: 15,
+      color: '#1F2937',
+      paddingVertical: 12,
+    },
+    fieldText: {
+      flex: 1,
+      marginLeft: 10,
+      fontSize: 15,
+      color: '#1F2937',
+      paddingVertical: 16,
+    },
+    fieldPlaceholder: {
+      color: '#9CA3AF',
+    },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(15, 23, 42, 0.45)',
+      justifyContent: 'flex-end',
+    },
+    modalSheet: {
+      backgroundColor: '#FFFFFF',
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 20,
+      paddingTop: 18,
+      paddingBottom: 28,
+      maxHeight: '70%',
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: LOGIN_COLORS.heading,
+      marginBottom: 12,
+    },
+    schoolOption: {
+      minHeight: 48,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      justifyContent: 'center',
+      marginBottom: 8,
+      backgroundColor: LOGIN_COLORS.field,
+    },
+    schoolOptionActive: {
+      backgroundColor: '#E0E7FF',
+    },
+    schoolOptionText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: '#1F2937',
+    },
+    errorText: {
+      color: '#DC2626',
+      fontSize: 12,
+      marginTop: -6,
+      marginBottom: 8,
+      marginLeft: 4,
+    },
+    forgot: {
+      alignSelf: 'flex-end',
+      marginBottom: 18,
+      marginTop: -2,
+    },
+    forgotText: {
+      color: LOGIN_COLORS.link,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    loginBtn: {
+      borderRadius: 16,
+      overflow: 'hidden',
+    },
+    loginBtnInner: {
+      minHeight: 54,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    loginBtnText: {
+      color: '#FFFFFF',
+      fontSize: 17,
+      fontWeight: '700',
+    },
+    orRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: 20,
+      gap: 12,
+    },
+    orLine: {
+      flex: 1,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: '#D1D5DB',
+    },
+    orText: {
+      color: '#9CA3AF',
+      fontSize: 13,
+    },
+    googleBtn: {
+      minHeight: 54,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: LOGIN_COLORS.googleBorder,
+      backgroundColor: '#FFFFFF',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+    },
+    googleMark: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    googleMarkText: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: '#4285F4',
+    },
+    googleText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: '#374151',
+    },
+    footer: {
+      marginTop: 26,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    footerMuted: {
+      fontSize: 14,
+      color: LOGIN_COLORS.body,
+    },
+    footerLink: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: LOGIN_COLORS.link,
+    },
+    legal: {
+      marginTop: 16,
+      fontSize: 11,
+      lineHeight: 16,
+      textAlign: 'center',
+      color: LOGIN_COLORS.body,
+    },
+    legalLink: {
+      color: LOGIN_COLORS.link,
+      textDecorationLine: 'underline',
+    },
+    hintText: {
+      marginTop: -4,
+      marginBottom: 14,
+      fontSize: 12,
+      lineHeight: 17,
+      color: LOGIN_COLORS.body,
+    },
+    ghostBtn: {
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 4,
+    },
+    ghostBtnText: {
+      color: LOGIN_COLORS.link,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    leafBl: {
+      position: 'absolute',
+      left: 4,
+      bottom: 8,
+      opacity: 0.55,
+      transform: [{ rotate: '-25deg' }],
+    },
+    leafBr: {
+      position: 'absolute',
+      right: 4,
+      bottom: 8,
+      opacity: 0.55,
+      transform: [{ rotate: '25deg' }],
     },
   });

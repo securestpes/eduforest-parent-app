@@ -27,6 +27,7 @@ import {
   upcomingCalendarEvents,
 } from '../utils/homeMetrics';
 import { payableFeeSummary } from '../../../utils/feeDueBreakdown';
+import type { TranslationKey } from '../../../common';
 
 export type HomeExamSnapshot = {
   name: string;
@@ -39,7 +40,7 @@ export type HomeResultSnapshot = {
   partial: boolean;
 };
 
-export function useHomeDashboard() {
+export function useHomeDashboard(isActive = true) {
   const unreadCount = useUnreadNotificationCount();
   const selectedStudentId = useSelectionStore((s) => s.selectedStudentId);
   const setSelected = useSelectionStore((s) => s.setSelectedStudentId);
@@ -55,6 +56,7 @@ export function useHomeDashboard() {
 
   const [attendancePct, setAttendancePct] = useState<number | null>(null);
   const [feeDue, setFeeDue] = useState<number | null>(null);
+  const [feeSubKey, setFeeSubKey] = useState<TranslationKey>('home.statsThisMonth');
   const [pendingHomework, setPendingHomework] = useState<number | null>(null);
   const [nextExam, setNextExam] = useState<HomeExamSnapshot | null>(null);
   const [latestResult, setLatestResult] = useState<HomeResultSnapshot | null>(null);
@@ -131,9 +133,20 @@ export function useHomeDashboard() {
       setAttendancePct(monthAttendancePct(rows));
 
       if (feeRes?.status && feeRes.data) {
-        setFeeDue(payableFeeSummary(feeRes.data).dueThisMonth);
+        const summary = payableFeeSummary(feeRes.data);
+        setFeeDue(summary.pending);
+        if (summary.pending <= 0) {
+          setFeeSubKey('dashboard.feesClearSub');
+        } else if (summary.overdue > 0 && summary.dueThisMonth <= 0) {
+          setFeeSubKey('fees.sectionOverdue');
+        } else if (summary.overdue > 0) {
+          setFeeSubKey('fees.totalOutstanding');
+        } else {
+          setFeeSubKey('fees.sectionDueThisMonth');
+        }
       } else {
         setFeeDue(null);
+        setFeeSubKey('home.statsThisMonth');
       }
 
       const homeworks = hwRes?.status ? hwRes.data?.homeworks ?? [] : [];
@@ -195,14 +208,14 @@ export function useHomeDashboard() {
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || !isActive) return;
     void loadStudents();
-  }, [hydrated, loadStudents]);
+  }, [hydrated, isActive, loadStudents]);
 
   useEffect(() => {
-    if (!student) return;
+    if (!student || !isActive) return;
     void loadOverview(student.id);
-  }, [student?.id, loadOverview]);
+  }, [student?.id, isActive, loadOverview]);
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
@@ -219,7 +232,6 @@ export function useHomeDashboard() {
   }, []);
 
   const feeMetric = feeDue == null ? '—' : formatInr(feeDue);
-  const feeSub = null;
 
   return {
     students,
@@ -235,8 +247,9 @@ export function useHomeDashboard() {
     overviewLoading,
     error,
     attendancePct,
+    feeDue,
     feeMetric,
-    feeSub,
+    feeSubKey,
     pendingHomework,
     pendingLeaves,
     nextExam,

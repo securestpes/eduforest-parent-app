@@ -1,16 +1,18 @@
 import React, { useCallback, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getMe } from '../services/parent';
+import { getMe, listMySchools, switchParentSchool, type ParentSchoolOption } from '../services/parent';
 import { ParentProfileService } from '../features/profile/services/ParentProfileService';
 import { logout } from '../features/login/slices/authSlice';
 import { AuthService } from '../features/login/services/AuthService';
+import { completeParentLogin } from '../features/login/services/completeParentLogin';
 import { localStorageKeys } from '../common/constants';
 import type { RootState } from '../redux/store';
+import type { AppDispatch } from '../redux/store';
 import type { RootStackParamList } from '../navigation/Navigation';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { ScreenDecor } from '../components/ScreenDecor';
@@ -36,11 +38,14 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
   const { t, language, setLanguage, supportedLanguages } = useAppLanguage();
   const { isDark, toggleTheme } = useAppTheme();
   const { isConnected } = useNetworkError(null);
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation();
   const user = useSelector((s: RootState) => s.auth.user);
   const [displayName, setDisplayName] = useState('');
   const [mobile, setMobile] = useState('');
+  const [schools, setSchools] = useState<ParentSchoolOption[]>([]);
+  const [schoolPickerOpen, setSchoolPickerOpen] = useState(false);
+  const [switchingSchool, setSwitchingSchool] = useState(false);
   const [voiceAnnouncementsEnabled, setVoiceAnnouncementsEnabled] =
     useState(true);
   const [deleteAccountModalVisible, setDeleteAccountModalVisible] =
@@ -57,6 +62,7 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
       (async () => {
         try {
           const res = await getMe();
+          const schoolRes = await listMySchools();
           const savedVoiceToggle = await AsyncStorage.getItem(
             localStorageKeys.VOICE_ANNOUNCEMENTS_ENABLED
           );
@@ -68,6 +74,9 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
             const d = res.data as { mobile?: string; firstName?: string };
             setDisplayName(d.firstName ?? user?.name ?? t('common.parent'));
             setMobile(d.mobile ?? user?.mobile ?? '');
+          }
+          if (schoolRes.status && Array.isArray(schoolRes.data)) {
+            setSchools(schoolRes.data);
           }
         } catch {
           if (!cancelled) {
@@ -83,10 +92,33 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
   );
 
   const onLogout = async () => {
-    await AuthService.firebaseSignOut();
-    await AsyncStorage.removeItem(localStorageKeys.ACCESS_TOKEN);
-    await AsyncStorage.removeItem(localStorageKeys.LEGACY_ACCESS_TOKEN);
+    await AuthService.clearLocalSession();
     dispatch(logout());
+  };
+
+  const onSwitchSchool = async (schoolId: number) => {
+    if (schoolId === user?.clientId || switchingSchool) {
+      setSchoolPickerOpen(false);
+      return;
+    }
+    setSwitchingSchool(true);
+    try {
+      const response = await switchParentSchool(schoolId);
+      const result = await completeParentLogin(dispatch, {
+        status: response.status,
+        message: response.message,
+        data: response.data,
+      });
+      setSchoolPickerOpen(false);
+      if (!result.ok) {
+        setStatus({ variant: 'error', title: result.message });
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t('profile.switchingSchool');
+      setStatus({ variant: 'error', title: message });
+    } finally {
+      setSwitchingSchool(false);
+    }
   };
 
   const onToggleVoiceAnnouncements = async (value: boolean) => {
@@ -130,9 +162,7 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
           return;
         }
         setDeleteAccountModalVisible(false);
-        await AuthService.firebaseSignOut();
-        await AsyncStorage.removeItem(localStorageKeys.ACCESS_TOKEN);
-        await AsyncStorage.removeItem(localStorageKeys.LEGACY_ACCESS_TOKEN);
+        await AuthService.clearLocalSession();
         dispatch(logout());
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -227,6 +257,16 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
             <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
               {t('profile.mobileLabel')}: {mobile || user?.mobile || '—'}
             </Text>
+            <Text style={[styles.rowSub, { color: colors.textSecondary, marginTop: 4 }]}>
+              {t('profile.schoolLabel')}: {user?.clientName || '—'}
+            </Text>
+            {schools.length > 1 ? (
+              <Pressable onPress={() => setSchoolPickerOpen(true)} hitSlop={8}>
+                <Text style={[styles.accountHint, { color: colors.primary, marginTop: 6 }]}>
+                  {switchingSchool ? t('profile.switchingSchool') : t('profile.switchSchool')}
+                </Text>
+              </Pressable>
+            ) : null}
             <Text style={[styles.accountHint, { color: colors.textTertiary }]}>
               {t('profile.mobileChangeHint')}
             </Text>
@@ -418,6 +458,44 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
           title={status?.title ?? ''}
           onDismiss={() => setStatus(null)}
         />
+
+        <Modal
+          visible={schoolPickerOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSchoolPickerOpen(false)}
+        >
+          <Pressable
+            style={styles.schoolModalBackdrop}
+            onPress={() => setSchoolPickerOpen(false)}
+          >
+            <Pressable style={[styles.schoolModalSheet, { backgroundColor: colors.surface }]} onPress={() => undefined}>
+              <Text style={[styles.rowTitle, { color: colors.text, marginBottom: 12 }]}>
+                {t('profile.switchSchool')}
+              </Text>
+              {schools.map((school) => {
+                const active = school.schoolId === user?.clientId;
+                return (
+                  <Pressable
+                    key={school.schoolId}
+                    onPress={() => void onSwitchSchool(school.schoolId)}
+                    disabled={switchingSchool}
+                    style={[
+                      styles.schoolOption,
+                      {
+                        backgroundColor: active ? colors.primarySoft : colors.surfaceMuted,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.rowTitle, { color: colors.text }]}>
+                      {school.schoolName}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </Pressable>
+          </Pressable>
+        </Modal>
 
         {showIdentity ? (
         <Button
@@ -652,4 +730,23 @@ const styles = StyleSheet.create({
   footerLogo: { width: 48, height: 48, marginBottom: 4 },
   footerTitle: { fontSize: 14, fontWeight: '800' },
   footerTag: { fontSize: 12 },
+  schoolModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  schoolModalSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 32,
+  },
+  schoolOption: {
+    minHeight: 48,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
 });

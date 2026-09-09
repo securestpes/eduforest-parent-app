@@ -2,17 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RootStackParamList } from './Navigation';
-import { LegalConsent, Login, VerifyLogin } from '../features/login/components';
+import { LegalConsent, Login, VerifyLogin, ForgotPassword } from '../features/login/components';
 import { localStorageKeys } from '../common/constants';
 
 const Stack =
   createStackNavigator<
-    Pick<RootStackParamList, 'LegalConsent' | 'Login' | 'VerifyLogin'>
+    Pick<RootStackParamList, 'LegalConsent' | 'Login' | 'VerifyLogin' | 'ForgotPassword'>
   >();
 
 export const AuthNavigation: React.FC = () => {
   const [initialRouteName, setInitialRouteName] = useState<
-    | keyof Pick<RootStackParamList, 'LegalConsent' | 'Login' | 'VerifyLogin'>
+    | keyof Pick<RootStackParamList, 'LegalConsent' | 'Login' | 'VerifyLogin' | 'ForgotPassword'>
     | undefined
   >(undefined);
 
@@ -41,6 +41,7 @@ export const AuthNavigation: React.FC = () => {
     >
       <Stack.Screen name="LegalConsent" component={LegalConsent} />
       <Stack.Screen name="Login" component={Login} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
       <Stack.Screen name="VerifyLogin" component={VerifyLogin} />
     </Stack.Navigator>
   );

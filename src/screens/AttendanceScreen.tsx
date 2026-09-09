@@ -22,6 +22,7 @@ import {
 } from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
 import { useChildHubRestore, useHubAwareBack } from '../navigation/ChildHubNavContext';
+import { useReloadWhenActive } from '../navigation/TabNavigationContext';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import { kindFromStatus, sessionTimeRange } from '../utils/dashboardHome';
@@ -216,10 +217,12 @@ function findAttendanceIdBySessionDate(
 
 export function AttendanceScreen({
   embedded,
+  active = true,
   highlightAttendanceId,
   highlightSessionDate,
 }: {
   embedded?: boolean;
+  active?: boolean;
   highlightAttendanceId?: number;
   highlightSessionDate?: string;
 } = {}) {
@@ -289,7 +292,7 @@ export function AttendanceScreen({
     highlightDoneRef.current = false;
   }, [highlightAttendanceId, highlightSessionDate, studentId]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     if (!studentId) {
       setStudent(null);
       setAllRows([]);
@@ -297,7 +300,7 @@ export function AttendanceScreen({
       return;
     }
     setError(null);
-    setLoading(true);
+    if (!silent) setLoading(true);
     setPage(0);
     try {
       const [stRes, attRes, calRes] = await Promise.all([
@@ -358,9 +361,7 @@ export function AttendanceScreen({
     }
   }, [studentId, hasMore, loadingMore, page]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useReloadWhenActive(active, (silent) => load(silent), studentId);
 
   const monthRows = useMemo(
     () => rowsInCalendarMonth(allRows, focusMonth),

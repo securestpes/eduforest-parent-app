@@ -8,6 +8,7 @@ export interface ParentStudent {
   guardianName: string;
   batchNames: string[];
   instituteName: string;
+  schoolId?: number | null;
   instituteLogo?: string | null;
   dateOfBirth?: string | null;
   profilePicUrl?: string | null;
@@ -46,6 +47,47 @@ export async function getMe(): Promise<ApiEnvelope> {
   return data;
 }
 
+export type ParentSchoolOption = {
+  schoolId: number;
+  schoolName: string;
+  logo?: string | null;
+};
+
+function mapParentSchool(raw: unknown): ParentSchoolOption | null {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const schoolId = Number(r.schoolId ?? r.clientId ?? 0);
+  const schoolName = pickStr(r.schoolName, r.clientName, r.name);
+  if (!schoolId || !schoolName) {
+    return null;
+  }
+  return {
+    schoolId,
+    schoolName,
+    logo: pickStr(r.logo) || null,
+  };
+}
+
+export async function listMySchools(): Promise<
+  ApiEnvelope & { data?: ParentSchoolOption[] }
+> {
+  const { data } = await api.get(`${prefix}/me/schools`);
+  const envelope = data as ApiEnvelope & { data?: unknown };
+  if (Array.isArray(envelope.data)) {
+    return {
+      ...envelope,
+      data: envelope.data.map(mapParentSchool).filter((s): s is ParentSchoolOption => s != null),
+    };
+  }
+  return { ...envelope, data: [] };
+}
+
+export async function switchParentSchool(
+  schoolId: number
+): Promise<ApiEnvelope> {
+  const { data } = await api.post<ApiEnvelope>(`${prefix}/me/school`, { schoolId });
+  return data;
+}
+
 /** Soft-deletes the parent account on the server (sets {@code is_active} false, deactivates FCM tokens). */
 export async function deleteMyAccount(): Promise<ApiEnvelope> {
   const { data } = await api.delete<ApiEnvelope>(`${prefix}/me`);
@@ -64,6 +106,7 @@ function mapParentStudent(raw: unknown): ParentStudent {
   const batches = r.batchNames;
   return {
     id: Number(r.id ?? 0),
+    schoolId: Number(r.schoolId ?? r.clientId ?? 0) || null,
     name: pickStr(r.name) || 'Student',
     guardianName: pickStr(r.guardianName, r.guardian_name),
     batchNames: Array.isArray(batches)

@@ -29,14 +29,14 @@ import { HomeExamsBanner } from "../components/HomeExamsBanner";
 import { UpcomingEventsList } from "../components/UpcomingEventsList";
 import { normalizeUploadUrl } from "../../../common/helpers/normalizeUploadUrl";
 
-export function HomeScreen() {
+export function HomeScreen({ active = true }: { active?: boolean }) {
   const { t } = useAppLanguage();
   const theme = useParentTheme();
   const { colors, spacing, typography } = theme;
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const { navigateToTab } = useMainTabNavigation();
-  const dash = useHomeDashboard();
+  const dash = useHomeDashboard(active);
   const scrollY = useRef(new Animated.Value(0)).current;
   const compactRef = useRef(false);
   const [compact, setCompact] = useState(false);
@@ -121,12 +121,25 @@ export function HomeScreen() {
         {
           key: "fees",
           label: t("home.feesDue"),
-          metric: dash.feeMetric,
-          sub: dash.feeSub
-            ? t("home.dueOn", { date: dash.feeSub })
-            : t("home.statsThisMonth"),
-          icon: "wallet-outline",
-          accent: colors.modules.fees,
+          metric:
+            dash.feeDue != null && dash.feeDue <= 0
+              ? t("dashboard.feesClear")
+              : dash.feeMetric,
+          sub: t(dash.feeSubKey),
+          icon:
+            dash.feeDue != null && dash.feeDue <= 0
+              ? "check-circle-outline"
+              : "wallet-outline",
+          accent:
+            dash.feeDue != null && dash.feeDue <= 0
+              ? {
+                  icon: colors.success,
+                  onIcon: colors.successOn,
+                  well: colors.successSoft,
+                  card: colors.successSoft,
+                  metric: colors.success,
+                }
+              : colors.modules.fees,
           onPress: () => navigateToTab("Fees"),
         },
         {

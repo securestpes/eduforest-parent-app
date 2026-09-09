@@ -3,6 +3,7 @@ import {
   endOfMonth,
   format,
   getDay,
+  isSameDay,
   parseISO,
   startOfMonth,
 } from 'date-fns';
@@ -29,6 +30,7 @@ import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import { StudentModuleHero } from '../components/layout/StudentModuleHero';
 import { useChildHubRestore, useHubAwareBack } from '../navigation/ChildHubNavContext';
+import { useReloadWhenActive } from '../navigation/TabNavigationContext';
 import {
   clampMonthToSession,
   isDateInSession,
@@ -92,9 +94,10 @@ function typeLabel(
 
 type Props = {
   embedded?: boolean;
+  active?: boolean;
 };
 
-export function SchoolCalendarScreen({ embedded = false }: Props) {
+export function SchoolCalendarScreen({ embedded = false, active = true }: Props) {
   const theme = useTheme() as AppTheme;
   const { t, language } = useAppLanguage();
   const restore = useChildHubRestore();
@@ -121,14 +124,14 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
   const selectedStudent = students.find((s) => s.id === studentId) ?? null;
 
   const load = useCallback(
-    async (isRefresh = false) => {
+    async (isRefresh: boolean | 'silent' = false) => {
       if (studentId == null) {
         setEvents([]);
         setLoading(false);
         return;
       }
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
+      if (isRefresh === true) setRefreshing(true);
+      else if (isRefresh !== 'silent') setLoading(true);
       setError(null);
       try {
         const [studentsRes, calRes] = await Promise.all([
@@ -172,9 +175,7 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
     [studentId, t]
   );
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useReloadWhenActive(active, (silent) => load(silent ? 'silent' : false), studentId);
 
   const filteredEvents = useMemo(() => {
     if (filter === 'ALL') return events;
@@ -427,12 +428,16 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
                 const key = toYmd(day);
                 const dayItems = eventsByDay.get(key) ?? [];
                 const isSelected = key === selectedDay;
-                const primaryType = (
-                  dayItems[0]?.eventType || ''
-                ).toUpperCase();
-                const colors = TYPE_COLORS[primaryType];
                 const hasEvent = dayItems.length > 0;
                 const inSession = isDateInSession(day, sessionRange);
+                const isToday = isSameDay(day, new Date());
+                const typeDots = [
+                  ...new Set(
+                    dayItems
+                      .map((item) => (item.eventType || '').toUpperCase())
+                      .filter((type) => TYPE_COLORS[type])
+                  ),
+                ].slice(0, 3);
 
                 return (
                   <Pressable
@@ -447,34 +452,42 @@ export function SchoolCalendarScreen({ embedded = false }: Props) {
                     <View
                       style={[
                         styles.dayCircle,
-                        hasEvent && colors
-                          ? { backgroundColor: colors.fg }
-                          : null,
-                        isSelected && !hasEvent
+                        isSelected
                           ? {
                               borderWidth: 2,
                               borderColor: theme.colors.primary,
                             }
-                          : null,
-                        isSelected && hasEvent
-                          ? {
-                              borderWidth: 2,
-                              borderColor: theme.colors.onPrimary,
-                            }
-                          : null,
+                          : isToday
+                            ? {
+                                borderWidth: 1.5,
+                                borderColor: theme.colors.primary,
+                              }
+                            : null,
                       ]}
                     >
                       <Text
                         variant="labelMedium"
                         style={{
-                          fontWeight: '700',
-                          color: hasEvent
-                            ? '#fff'
-                            : theme.colors.onSurface,
+                          fontWeight: isToday || isSelected || hasEvent ? '700' : '500',
+                          color:
+                            isToday || isSelected
+                              ? theme.colors.primary
+                              : theme.colors.onSurface,
                         }}
                       >
                         {day.getDate()}
                       </Text>
+                    </View>
+                    <View style={styles.eventDots}>
+                      {typeDots.map((type) => (
+                        <View
+                          key={type}
+                          style={[
+                            styles.eventDot,
+                            { backgroundColor: TYPE_COLORS[type].fg },
+                          ]}
+                        />
+                      ))}
                     </View>
                   </Pressable>
                 );
@@ -656,8 +669,22 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
+    borderWidth: 2,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  eventDots: {
+    minHeight: 6,
+    marginTop: 2,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  eventDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   legendRow: {
     flexDirection: 'row',

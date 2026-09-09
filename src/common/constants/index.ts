@@ -21,4 +21,8 @@ export const localStorageKeys = {
   PARENT_ONBOARDING_COMPLETED: 'parent_onboarding_completed',
   /** JSON blob — see notificationPreferences.ts */
   NOTIFICATION_PREFERENCES: 'notification_preferences',
+  /** First login used mobile as password — gate the app until they set a real one. */
+  MUST_RESET_PASSWORD: 'must_reset_password',
+  /** Last school chosen at parent login (client id). */
+  PARENT_LAST_SCHOOL_ID: 'parent_last_school_id',
 } as const;

@@ -1,7 +1,10 @@
 import type { IApiResponse } from '../../../common/interfaces';
+import { localStorageKeys } from '../../../common/constants';
 import { authApiService } from '../../../common/services/authClient';
 import { isFirebaseLoginEnabled } from '../../../../config/firebaseLogin';
 import { getFirebaseAuth } from '../../../native/firebaseAuthSafe';
+import { api } from '../../../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const auth = getFirebaseAuth();
 const apiService = authApiService;
@@ -165,6 +168,95 @@ export class AuthService {
       await auth().signOut();
     } catch {
       /* ignore */
+    }
+  }
+
+  public static async clearLocalSession(): Promise<void> {
+    await AuthService.firebaseSignOut();
+    await AsyncStorage.multiRemove([
+      localStorageKeys.ACCESS_TOKEN,
+      localStorageKeys.LEGACY_ACCESS_TOKEN,
+      localStorageKeys.MUST_RESET_PASSWORD,
+    ]);
+  }
+
+  public static async passwordLogin(
+    mobile: string,
+    password: string,
+    schoolId: number
+  ): Promise<IApiResponse> {
+    try {
+      return await apiService.post<IApiResponse>(
+        '/clients/authentication/parent/password-login',
+        { mobile, password, schoolId }
+      );
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Login failed: ${msg}`);
+    }
+  }
+
+  public static async listSchoolsForMobile(mobile: string): Promise<IApiResponse> {
+    try {
+      return await apiService.post<IApiResponse>(
+        '/clients/authentication/parent/schools',
+        { mobile }
+      );
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Could not load schools: ${msg}`);
+    }
+  }
+
+  public static async requestForgotPasswordOtp(mobile: string): Promise<IApiResponse> {
+    try {
+      return await apiService.post<IApiResponse>(
+        '/clients/authentication/parent/forgot-password',
+        { mobile }
+      );
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`send otp failed: ${msg}`);
+    }
+  }
+
+  public static async resetPasswordWithOtp(params: {
+    mobile: string;
+    otp: string;
+    newPassword: string;
+  }): Promise<IApiResponse> {
+    try {
+      return await apiService.post<IApiResponse>(
+        '/clients/authentication/parent/reset-password',
+        {
+          mobile: params.mobile,
+          otp: params.otp,
+          newPassword: params.newPassword,
+        }
+      );
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`reset password failed: ${msg}`);
+    }
+  }
+
+  public static async changePassword(
+    newPassword: string,
+    currentPassword?: string
+  ): Promise<IApiResponse> {
+    try {
+      const { data } = await api.put<IApiResponse>('/clients/parent/me/password', {
+        newPassword,
+        currentPassword: currentPassword || undefined,
+      });
+      return data;
+    } catch (error: unknown) {
+      const ax = error as { response?: { data?: IApiResponse } };
+      if (ax?.response?.data) {
+        return ax.response.data;
+      }
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`change password failed: ${msg}`);
     }
   }
 
