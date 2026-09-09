@@ -20,7 +20,7 @@ import type { RootState } from '../redux/store';
 export type RootStackParamList = {
   LegalConsent: undefined;
   Login: undefined;
-  ForgotPassword: undefined;
+  ForgotPassword: { mobile?: string } | undefined;
   VerifyLogin: {
     mobileNumber: string;
     verificationId?: string;

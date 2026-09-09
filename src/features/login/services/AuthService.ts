@@ -235,8 +235,12 @@ export class AuthService {
         }
       );
     } catch (error: unknown) {
+      const ax = error as { response?: { data?: IApiResponse } };
+      if (ax?.response?.data) {
+        return ax.response.data;
+      }
       const msg = error instanceof Error ? error.message : String(error);
-      throw new Error(`reset password failed: ${msg}`);
+      throw new Error(msg);
     }
   }
 
