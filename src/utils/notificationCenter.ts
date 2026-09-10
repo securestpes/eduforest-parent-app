@@ -277,10 +277,16 @@ export function applyUnreadFlags(
   }));
 }
 
+export type WeeklyStudentStats = {
+  name: string;
+  present: number;
+  absent: number;
+  late: number;
+};
+
 export type WeeklySummaryBlock = {
-  title: string;
   dateStr: string;
-  lines: string[];
+  students: WeeklyStudentStats[];
 };
 
 export function buildWeeklySummary(
@@ -290,30 +296,29 @@ export function buildWeeklySummary(
 ): WeeklySummaryBlock | null {
   const start = startOfWeek(now, { weekStartsOn: 1 });
   const end = endOfWeek(now, { weekStartsOn: 1 });
-  const lines: string[] = [];
+  const stats: WeeklyStudentStats[] = [];
 
   for (const s of students) {
     const rows = perStudentRows.get(s.id) ?? [];
-    let p = 0;
-    let a = 0;
-    let l = 0;
+    let present = 0;
+    let absent = 0;
+    let late = 0;
     for (const r of rows) {
       const d = parseRowDate(r);
       if (!d || !isWithinInterval(d, { start, end })) continue;
       const k = kindFromStatus(r.status);
-      if (k === 'present') p += 1;
-      else if (k === 'absent') a += 1;
-      else if (k === 'late') l += 1;
+      if (k === 'present') present += 1;
+      else if (k === 'absent') absent += 1;
+      else if (k === 'late') late += 1;
     }
-    if (p + a + l > 0) {
-      lines.push(`${s.name}: ${p} Present / ${a} Absent / ${l} Late`);
+    if (present + absent + late > 0) {
+      stats.push({ name: s.name, present, absent, late });
     }
   }
 
-  if (lines.length === 0) return null;
+  if (stats.length === 0) return null;
   return {
-    title: 'Weekly report',
     dateStr: formatLocalDate(now),
-    lines,
+    students: stats,
   };
 }

@@ -89,7 +89,8 @@ export function ChildCard({ student, selected, width, compact, onPress }: Props)
           <View style={styles.nameRow}>
             <Text
               style={[typography.cardTitle, styles.name, { color: colors.text }]}
-              numberOfLines={2}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {student.name}
             </Text>
@@ -149,11 +150,10 @@ const styles = StyleSheet.create({
   body: { flex: 1, minWidth: 0 },
   nameRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 6,
   },
-  name: { flexGrow: 1, flexShrink: 1, minWidth: 72 },
+  name: { flex: 1, minWidth: 0 },
   pill: {
     paddingHorizontal: 8,
     paddingVertical: 2,

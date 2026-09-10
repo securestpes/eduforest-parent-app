@@ -6,9 +6,9 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
-import { Button, Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
@@ -24,6 +24,7 @@ import {
 } from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
 import { EmptyState } from '../components/EmptyState';
+import { Badge } from '../components/ui/Badge';
 import {
   applyUnreadFlags,
   buildWeeklySummary,
@@ -33,207 +34,193 @@ import {
   sortNotificationsUnreadFirst,
   splitNotificationsByRecency,
   type CenterNotification,
+  type CenterNotificationKind,
+  type NotifAccent,
   type WeeklySummaryBlock,
 } from '../utils/notificationCenter';
-import type { AppTheme } from '../theme';
-import { shadows, useAppColors } from '../theme/appTheme';
 import { StudentModuleHero } from '../components/layout/StudentModuleHero';
 import { navigateToChildScreen, navigateToTab } from '../navigation/navigationRef';
 import type { RootStackParamList } from '../navigation/Navigation';
 import { APP_NOTIFICATION_RECEIVED_EVENT } from '../constants/notifications';
-import { useAppLanguage } from '../common';
+import { useAppLanguage, type TranslationKey } from '../common';
 import {
   getNotificationsLastOpenedAt,
   markNotificationsOpenedNow,
 } from '../services/notificationReadState';
+import { useParentTheme } from '../theme/useParentTheme';
+import type { ModuleAccent, ParentHomeTheme } from '../theme/parentHomeTheme';
 
-function accentColor(
-  accent: CenterNotification['accent'],
-  theme: AppTheme
+type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+
+function kindAccent(
+  kind: CenterNotificationKind,
+  colors: ParentHomeTheme['colors']
+): ModuleAccent {
+  if (kind === 'homework') return colors.modules.homework;
+  if (kind === 'exam_results') return colors.modules.exams;
+  if (kind === 'leave_status') return colors.modules.leaves;
+  if (kind === 'fee_payment' || kind === 'fee_reminder') return colors.modules.fees;
+  return colors.modules.attendance;
+}
+
+function kindIcon(kind: CenterNotificationKind): IconName {
+  if (kind === 'homework') return 'book-open-page-variant-outline';
+  if (kind === 'exam_results') return 'clipboard-text-outline';
+  if (kind === 'leave_status') return 'calendar-account-outline';
+  if (kind === 'fee_payment' || kind === 'fee_reminder') return 'currency-inr';
+  return 'calendar-check';
+}
+
+function actionLabel(
+  kind: CenterNotificationKind,
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string
 ): string {
-  if (accent === 'danger') return theme.colors.error;
-  if (accent === 'warning') return theme.colors.warning;
-  if (accent === 'success') return theme.colors.success;
-  return theme.colors.primary;
+  if (kind === 'exam_results') return t('notifications.viewExams');
+  if (kind === 'leave_status') return t('notifications.viewLeaves');
+  if (kind === 'homework') return t('notifications.viewHomework');
+  if (kind === 'fee_payment' || kind === 'fee_reminder') return t('notifications.viewFees');
+  return t('notifications.viewDetails');
+}
+
+function badgeTone(accent: NotifAccent): 'success' | 'warning' | 'danger' | 'primary' {
+  if (accent === 'danger') return 'danger';
+  if (accent === 'warning') return 'warning';
+  if (accent === 'success') return 'success';
+  return 'primary';
 }
 
 function NotifCard({
   item,
-  theme,
-  onViewDetails,
+  onPress,
 }: {
   item: CenterNotification;
-  theme: AppTheme;
-  onViewDetails: () => void;
+  onPress: () => void;
 }) {
   const { t } = useAppLanguage();
-  const dot = accentColor(item.accent, theme);
-  const isFee =
-    item.kind === 'fee_payment' || item.kind === 'fee_reminder';
-  const isExam = item.kind === 'exam_results';
-  const isLeave = item.kind === 'leave_status';
-  const isHomework = item.kind === 'homework';
-  const pillBg =
-    item.accent === 'danger'
-      ? theme.colors.errorContainer
-      : item.accent === 'warning'
-        ? theme.colors.secondaryContainer
-        : item.accent === 'success'
-          ? theme.palette.successSoft
-          : theme.colors.primaryContainer;
+  const { colors, typography, shadows, radius } = useParentTheme();
+  const accent = kindAccent(item.kind, colors);
+
   return (
-    <View
-      style={[
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.headline}. ${actionLabel(item.kind, t)}`}
+      style={({ pressed }) => [
         styles.card,
         shadows.card,
         {
-          backgroundColor: theme.colors.surface,
-          borderLeftWidth: item.unread ? 3 : 0,
-          borderLeftColor: item.unread
-            ? theme.colors.primary
-            : 'transparent',
+          backgroundColor: item.unread ? accent.card : colors.surface,
+          borderColor: item.unread ? accent.well : colors.border,
+          opacity: pressed ? 0.92 : 1,
+          borderRadius: radius.card,
         },
       ]}
     >
-      <View style={styles.cardTop}>
-        <View style={styles.cardTopLeft}>
-          <View style={[styles.statusPill, { backgroundColor: pillBg }]}>
-            <Text
-              variant="labelSmall"
-              style={{ color: dot, fontWeight: '800' }}
-            >
-              {item.statusLabel}
-            </Text>
+      <View style={[styles.unreadBar, { backgroundColor: item.unread ? accent.icon : 'transparent' }]} />
+      <View style={[styles.iconWell, { backgroundColor: accent.well }]}>
+        <MaterialCommunityIcons name={kindIcon(item.kind)} size={20} color={accent.icon} />
+      </View>
+      <View style={styles.cardBody}>
+        <View style={styles.cardTop}>
+          <View style={styles.badges}>
+            <Badge label={item.statusLabel} tone={badgeTone(item.accent)} />
+            {item.unread ? <Badge label={t('notifications.newBadge')} tone="primary" /> : null}
           </View>
-          {item.unread ? (
-            <Text
-              variant="labelSmall"
-              style={{ color: theme.colors.primary, fontWeight: '700' }}
-            >
-              {t('notifications.newBadge')}
-            </Text>
-          ) : null}
+          <Text style={[typography.time, { color: colors.textTertiary }]}>{item.timeLabel}</Text>
         </View>
         <Text
-          variant="labelSmall"
-          style={{ color: theme.colors.onSurfaceVariant }}
+          style={[
+            typography.cardTitle,
+            { color: colors.text, marginTop: 8, fontWeight: item.unread ? '800' : '700' },
+          ]}
+          numberOfLines={2}
         >
-          {item.timeLabel}
+          {item.headline}
         </Text>
-      </View>
-      <Text
-        variant="titleSmall"
-        style={{
-          color: theme.colors.onSurface,
-          fontWeight: item.unread ? '800' : '700',
-          marginTop: 8,
-        }}
-      >
-        {item.headline}
-      </Text>
-      <Text
-        variant="bodySmall"
-        style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}
-      >
-        {item.detail}
-      </Text>
-      <View style={styles.cardActions}>
-        <Button
-          mode="contained-tonal"
-          compact
-          onPress={onViewDetails}
-          style={styles.actionBtn}
-          icon={
-            isExam
-              ? 'clipboard-text-outline'
-              : isLeave
-                ? 'calendar-account-outline'
-                : isHomework
-                  ? 'book-open-page-variant-outline'
-                  : isFee
-                    ? 'currency-inr'
-                    : 'calendar-check'
-          }
+        <Text
+          style={[typography.meta, { color: colors.textSecondary, marginTop: 4 }]}
+          numberOfLines={2}
         >
-          {isExam
-            ? t('notifications.viewExams')
-            : isLeave
-              ? t('notifications.viewLeaves')
-              : isHomework
-                ? t('notifications.viewHomework')
-                : isFee
-                  ? t('notifications.viewFees')
-                  : t('notifications.viewDetails')}
-        </Button>
+          {item.detail}
+        </Text>
+        <View style={styles.ctaRow}>
+          <Text style={[typography.meta, { color: colors.primary, fontWeight: '700' }]}>
+            {actionLabel(item.kind, t)}
+          </Text>
+          <MaterialCommunityIcons name="chevron-right" size={18} color={colors.primary} />
+        </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
 function WeeklyCard({
   block,
-  theme,
   onOpenAttendance,
 }: {
   block: WeeklySummaryBlock;
-  theme: AppTheme;
   onOpenAttendance: () => void;
 }) {
   const { t } = useAppLanguage();
+  const { colors, typography, shadows, radius } = useParentTheme();
+  const accent = colors.modules.attendance;
+
   return (
     <Pressable
       onPress={onOpenAttendance}
-      style={[
+      accessibilityRole="button"
+      accessibilityLabel={t('notifications.viewFullReport')}
+      style={({ pressed }) => [
         styles.weeklyCard,
+        shadows.card,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.outlineVariant,
+          backgroundColor: accent.card,
+          borderRadius: radius.card,
+          opacity: pressed ? 0.94 : 1,
         },
       ]}
     >
       <View style={styles.weeklyTop}>
-        <MaterialCommunityIcons
-          name="chart-box-outline"
-          size={22}
-          color={theme.colors.primary}
-        />
-        <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text
-            variant="titleSmall"
-            style={{ color: theme.colors.onSurface, fontWeight: '700' }}
-          >
-            {block.title}
+        <View style={[styles.iconWell, { backgroundColor: accent.well }]}>
+          <MaterialCommunityIcons name="chart-box-outline" size={20} color={accent.icon} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[typography.cardTitle, { color: colors.text }]} numberOfLines={1}>
+            {t('home.statsThisWeek')}
           </Text>
-          <Text
-            variant="labelSmall"
-            style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}
-          >
+          <Text style={[typography.meta, { color: colors.textSecondary, marginTop: 2 }]}>
             {block.dateStr}
           </Text>
         </View>
-        <MaterialCommunityIcons
-          name="chevron-right"
-          size={22}
-          color={theme.colors.outline}
-        />
+        <MaterialCommunityIcons name="chevron-right" size={22} color={accent.icon} />
       </View>
-      {block.lines.map((line, idx) => (
-        <Text
-          key={`${idx}-${line}`}
-          variant="bodySmall"
-          style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}
-        >
-          {line}
-        </Text>
+
+      {block.students.map((row) => (
+        <View key={row.name} style={styles.weeklyStudent}>
+          <Text style={[typography.meta, { color: colors.text, fontWeight: '700' }]} numberOfLines={1}>
+            {row.name}
+          </Text>
+          <View style={styles.statChips}>
+            <View style={[styles.statChip, { backgroundColor: colors.successSoft }]}>
+              <Text style={[typography.badge, { color: colors.success }]}>
+                {t('attendance.countPresent', { n: row.present })}
+              </Text>
+            </View>
+            <View style={[styles.statChip, { backgroundColor: colors.dangerSoft }]}>
+              <Text style={[typography.badge, { color: colors.danger }]}>
+                {t('attendance.countAbsent', { n: row.absent })}
+              </Text>
+            </View>
+            <View style={[styles.statChip, { backgroundColor: colors.warningSoft }]}>
+              <Text style={[typography.badge, { color: colors.warning }]}>
+                {t('attendance.countLate', { n: row.late })}
+              </Text>
+            </View>
+          </View>
+        </View>
       ))}
-      <Text
-        variant="labelMedium"
-        style={{
-          color: theme.colors.primary,
-          marginTop: 10,
-          fontWeight: '700',
-        }}
-      >
+
+      <Text style={[typography.meta, { color: colors.primary, fontWeight: '700', marginTop: 4 }]}>
         {t('notifications.viewFullReport')}
       </Text>
     </Pressable>
@@ -241,21 +228,56 @@ function WeeklyCard({
 }
 
 function SectionTitle({
-  emoji,
+  icon,
   text,
-  theme,
 }: {
-  emoji: string;
+  icon: IconName;
   text: string;
-  theme: AppTheme;
 }) {
+  const { colors, typography } = useParentTheme();
   return (
-    <Text
-      variant="labelLarge"
-      style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}
+    <View style={styles.sectionHead}>
+      <View style={[styles.sectionIcon, { backgroundColor: colors.primarySoft }]}>
+        <MaterialCommunityIcons name={icon} size={14} color={colors.primary} />
+      </View>
+      <Text style={[typography.section, { color: colors.text }]}>{text}</Text>
+    </View>
+  );
+}
+
+function ThemeButton({
+  label,
+  onPress,
+  loading,
+  filled,
+}: {
+  label: string;
+  onPress: () => void;
+  loading?: boolean;
+  filled?: boolean;
+}) {
+  const { colors, typography, radius } = useParentTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={loading}
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.themeBtn,
+        {
+          borderRadius: radius.md,
+          backgroundColor: filled ? colors.primarySoft : colors.surface,
+          borderColor: filled ? colors.primarySoft : colors.border,
+          opacity: pressed || loading ? 0.7 : 1,
+        },
+      ]}
     >
-      {emoji} {text}
-    </Text>
+      {loading ? (
+        <ActivityIndicator size="small" color={colors.primary} />
+      ) : (
+        <Text style={[typography.meta, { color: colors.primary, fontWeight: '700' }]}>{label}</Text>
+      )}
+    </Pressable>
   );
 }
 
@@ -278,8 +300,7 @@ export function NotificationsScreen({
 }: {
   embedded?: boolean;
 } = {}) {
-  const theme = useTheme() as AppTheme;
-  const colors = useAppColors();
+  const { colors, typography } = useParentTheme();
   const { t } = useAppLanguage();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const selectedStudentId = useSelectionStore((s) => s.selectedStudentId);
@@ -584,40 +605,22 @@ export function NotificationsScreen({
   );
 
   if (loading) {
-    const loader = (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text
-          variant="bodyLarge"
-          style={{ marginTop: 14, color: theme.colors.onSurfaceVariant }}
-        >
-          {t('notifications.loading')}
-        </Text>
-      </View>
-    );
     return (
       <View style={[styles.standalone, { backgroundColor: colors.background }]}>
         {hero}
-        {loader}
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[typography.body, { marginTop: 14, color: colors.textSecondary }]}>
+            {t('notifications.loading')}
+          </Text>
+        </View>
       </View>
     );
   }
 
-  const body = (
-    <>
-      {lastUpdatedLabel ? (
-        <Text
-          variant="labelSmall"
-          style={{
-            color: theme.colors.primary,
-            marginVertical: 8,
-            marginLeft: 16,
-          }}
-        >
-          {lastUpdatedLabel}
-        </Text>
-      ) : null}
-
+  return (
+    <View style={[styles.standalone, { backgroundColor: colors.background }]}>
+      {hero}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
@@ -628,10 +631,16 @@ export function NotificationsScreen({
               setRefreshing(true);
               load();
             }}
-            tintColor={theme.colors.primary}
+            tintColor={colors.primary}
           />
         }
       >
+        {lastUpdatedLabel ? (
+          <Text style={[typography.meta, { color: colors.textTertiary, marginBottom: 8 }]}>
+            {lastUpdatedLabel}
+          </Text>
+        ) : null}
+
         {students.length === 0 ? (
           <EmptyState
             icon="bell-off-outline"
@@ -658,17 +667,12 @@ export function NotificationsScreen({
           <>
             {todaySorted.length > 0 ? (
               <>
-                <SectionTitle
-                  emoji="🆕"
-                  text={t('notifications.sectionToday')}
-                  theme={theme}
-                />
+                <SectionTitle icon="white-balance-sunny" text={t('notifications.sectionToday')} />
                 {todaySorted.map((item) => (
                   <NotifCard
                     key={item.id}
                     item={item}
-                    theme={theme}
-                    onViewDetails={() => openDetails(item)}
+                    onPress={() => openDetails(item)}
                   />
                 ))}
               </>
@@ -676,24 +680,15 @@ export function NotificationsScreen({
 
             {thisWeekSorted.length > 0 || weekly ? (
               <>
-                <SectionTitle
-                  emoji="📅"
-                  text={t('notifications.sectionThisWeek')}
-                  theme={theme}
-                />
+                <SectionTitle icon="calendar-week" text={t('notifications.sectionThisWeek')} />
                 {weekly ? (
-                  <WeeklyCard
-                    block={weekly}
-                    theme={theme}
-                    onOpenAttendance={goToAttendance}
-                  />
+                  <WeeklyCard block={weekly} onOpenAttendance={goToAttendance} />
                 ) : null}
                 {thisWeekSorted.map((item) => (
                   <NotifCard
                     key={item.id}
                     item={item}
-                    theme={theme}
-                    onViewDetails={() => openDetails(item)}
+                    onPress={() => openDetails(item)}
                   />
                 ))}
               </>
@@ -701,125 +696,136 @@ export function NotificationsScreen({
 
             {earlierSorted.length > 0 ? (
               <>
-                <SectionTitle
-                  emoji="📆"
-                  text={t('notifications.sectionEarlier')}
-                  theme={theme}
-                />
+                <SectionTitle icon="history" text={t('notifications.sectionEarlier')} />
                 {earlierSorted.map((item) => (
                   <NotifCard
                     key={item.id}
                     item={item}
-                    theme={theme}
-                    onViewDetails={() => openDetails(item)}
+                    onPress={() => openDetails(item)}
                   />
                 ))}
               </>
             ) : null}
 
             {older.length > 0 ? (
-              <Button
-                mode="outlined"
+              <ThemeButton
+                label={
+                  showOlder
+                    ? t('notifications.hideOlder')
+                    : t('notifications.showOlder', {
+                        count: older.length,
+                        days: NOTIFICATION_RECENT_DAYS,
+                      })
+                }
                 onPress={() => setShowOlder((v) => !v)}
-                style={styles.loadMoreBtn}
-              >
-                {showOlder
-                  ? t('notifications.hideOlder')
-                  : t('notifications.showOlder', {
-                      count: older.length,
-                      days: NOTIFICATION_RECENT_DAYS,
-                    })}
-              </Button>
+              />
             ) : null}
 
             {hasMore ? (
-              <Button
-                mode="outlined"
+              <ThemeButton
+                label={t('attendance.loadMore')}
                 onPress={() => void loadMore()}
                 loading={loadingMore}
-                disabled={loadingMore}
-                style={styles.loadMoreBtn}
-              >
-                {t('attendance.loadMore')}
-              </Button>
+              />
             ) : null}
           </>
         )}
 
         {feedItems.length === 0 && older.length > 0 ? (
-          <Button
-            mode="contained-tonal"
-            onPress={() => setShowOlder(true)}
-            style={styles.loadMoreBtn}
-          >
-            {t('notifications.showOlder', {
+          <ThemeButton
+            filled
+            label={t('notifications.showOlder', {
               count: older.length,
               days: NOTIFICATION_RECENT_DAYS,
             })}
-          </Button>
+            onPress={() => setShowOlder(true)}
+          />
         ) : null}
       </ScrollView>
-    </>
-  );
-
-  return (
-    <View style={[styles.standalone, { backgroundColor: colors.background }]}>
-      {hero}
-      {body}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
   standalone: { flex: 1 },
-  embedded: { flex: 1 },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
-  headerRow: {
+  scroll: { paddingHorizontal: 16, paddingBottom: 40 },
+  sectionHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    marginTop: 4,
-  },
-  headerTitleWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-  },
-  scroll: { paddingHorizontal: 16, paddingBottom: 36 },
-  sectionTitle: {
-    marginTop: 20,
-    marginBottom: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  card: {
-    borderRadius: 20,
-    padding: 16,
+    gap: 8,
+    marginTop: 18,
     marginBottom: 12,
   },
+  sectionIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: 14,
+    paddingLeft: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  unreadBar: {
+    width: 3,
+    alignSelf: 'stretch',
+    borderRadius: 99,
+    marginRight: -4,
+  },
+  iconWell: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardBody: { flex: 1, minWidth: 0 },
   cardTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
   },
-  cardTopLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  cardActions: { flexDirection: 'row', marginTop: 14 },
-  actionBtn: { flex: 1 },
+  badges: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, flexWrap: 'wrap' },
+  ctaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    gap: 2,
+  },
   weeklyCard: {
-    borderRadius: 16,
-    borderWidth: 1,
     padding: 14,
     marginBottom: 12,
+    gap: 12,
   },
-  weeklyTop: { flexDirection: 'row', alignItems: 'center' },
-  loadMoreBtn: { marginTop: 8, marginBottom: 16 },
+  weeklyTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  weeklyStudent: { gap: 8 },
+  statChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  statChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  themeBtn: {
+    marginTop: 8,
+    marginBottom: 12,
+    minHeight: 44,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
 });

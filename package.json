@@ -11,7 +11,7 @@
     "start:prod": "dotenv -e ./env/.env.production -- npx expo start",
     "android": "dotenv -e ./env/.env.development -- npx expo run:android",
     "android:prod": "dotenv -e ./env/.env.production -- npx expo run:android --variant=release",
-    "bundleRelease": "cd ./android && ./gradlew bundleRelease",
+    "bundleRelease": "cd ./android && APP_ENV=development ./gradlew bundleRelease",
     "bundleRelease:prod": "cd ./android && APP_ENV=production ./gradlew bundleRelease",
     "ios": "dotenv -e ./env/.env.development -- npx expo run:ios",
     "web": "dotenv -e ./env/.env.development -- npx expo start --web"

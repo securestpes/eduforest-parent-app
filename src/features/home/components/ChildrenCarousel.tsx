@@ -27,7 +27,7 @@ export function ChildrenCarousel({ students, selectedId, onSelect }: Props) {
   const lastIdRef = useRef<number | null | undefined>(undefined);
   const screenW = Dimensions.get('window').width;
   const side = spacing.lg;
-  const peek = Math.min(64, Math.max(40, Math.round(screenW * 0.14)));
+  const peek = Math.min(96, Math.max(56, Math.round(screenW * 0.22)));
   const cardWidth = Math.round(screenW - side - peek);
   const step = cardWidth + GAP;
   const selectedIndex = Math.max(
