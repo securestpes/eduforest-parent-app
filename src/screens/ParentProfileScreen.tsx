@@ -20,6 +20,7 @@ import { useSelectionStore } from '../store/selectionStore';
 import { initials, avatarHue } from '../utils/attendanceVisuals';
 import { shadows, spacing, useAppColors } from '../theme/appTheme';
 import { useAppLanguage } from '../common';
+import { ChildPhoto } from '../components/ui/ChildPhoto';
 
 const HERO_BG = require('../assets/hero-bg.png');
 
@@ -201,14 +202,7 @@ export function ParentProfileScreen() {
                       onPress={() => selectStudent(s.id)}
                       style={[styles.studentRow, on && { backgroundColor: colors.primarySoft }]}
                     >
-                      <View
-                        style={[
-                          styles.miniAvatar,
-                          { backgroundColor: `hsl(${avatarHue(s.name)} 48% 46%)` },
-                        ]}
-                      >
-                        <Text style={styles.miniInitials}>{initials(s.name)}</Text>
-                      </View>
+                      <ChildPhoto name={s.name} uri={s.profilePicUrl} size={48} />
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: colors.text, fontWeight: '700' }}>{s.name}</Text>
                         <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
@@ -395,12 +389,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     borderRadius: 12,
   },
-  miniAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  miniInitials: { color: '#fff', fontSize: 12, fontWeight: '700' },
 });

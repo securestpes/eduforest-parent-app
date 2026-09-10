@@ -34,9 +34,8 @@ import {
 } from '../../services/parent';
 import { useAppLanguage, StatusPopup, type StatusPopupVariant } from '../../common';
 import { formatAppDate, weekdayShortLabelsMondayFirst } from '../../utils/appDateLocale';
-import { normalizeUploadUrl } from '../../common/helpers/normalizeUploadUrl';
-import { initials, avatarHue } from '../../utils/attendanceVisuals';
 import { shadows, spacing, useAppColors, type AppColors } from '../../theme/appTheme';
+import { ChildPhoto } from '../../components/ui/ChildPhoto';
 import {
   DEFAULT_SCHOOL_WORKING_DAYS,
   WEEKDAY_HEADER_KEYS,
@@ -267,7 +266,6 @@ export function ApplyLeaveScreen({
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [picker, setPicker] = useState<'from' | 'to' | null>(null);
-  const [photoFailed, setPhotoFailed] = useState(false);
   const [status, setStatus] = useState<{
     variant: StatusPopupVariant;
     title: string;
@@ -323,9 +321,6 @@ export function ApplyLeaveScreen({
   }, [workingDays, sessionRange]);
 
   const name = student?.name || t('common.student');
-  const hue = avatarHue(name);
-  const photoUri = normalizeUploadUrl(student?.profilePicUrl);
-  const showPhoto = Boolean(photoUri) && !photoFailed;
   const classLine = [
     withPrefix(student?.className, t('home.classWord')),
     withPrefix(student?.sectionName, t('home.sectionShort')),
@@ -471,25 +466,10 @@ export function ApplyLeaveScreen({
           </View>
 
           <View style={styles.studentCard}>
-            {showPhoto ? (
-              <Image
-                source={{ uri: photoUri, headers: { 'ngrok-skip-browser-warning': 'true' } }}
-                style={styles.avatar}
-                onError={() => setPhotoFailed(true)}
-              />
-            ) : (
-              <View style={[styles.avatar, { backgroundColor: `hsl(${hue} 48% 46%)` }]}>
-                <Text style={styles.initials}>{initials(name)}</Text>
-              </View>
-            )}
+            <ChildPhoto name={name} uri={student?.profilePicUrl} size={72} />
             <View style={{ flex: 1 }}>
               <Text style={styles.studentName}>{name}</Text>
               {classLine ? <Text style={styles.studentMeta}>{classLine}</Text> : null}
-              {student?.rollNumber ? (
-                <Text style={styles.studentMeta}>
-                  {t('leaves.rollNo', { n: student.rollNumber })}
-                </Text>
-              ) : null}
             </View>
           </View>
         </View>
@@ -643,15 +623,6 @@ function createStyles(colors: AppColors) {
     ...shadows.card,
     zIndex: 3,
   },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  initials: { color: colors.headerOn, fontWeight: '700', fontSize: 18 },
   studentName: { color: colors.text, fontSize: 16, fontWeight: '800' },
   studentMeta: { marginTop: 2, color: colors.textSecondary, fontSize: 13, fontWeight: '500' },
   form: { paddingHorizontal: spacing.lg, paddingTop: 20, gap: 4 },

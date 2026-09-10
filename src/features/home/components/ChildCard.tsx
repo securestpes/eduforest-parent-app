@@ -1,11 +1,9 @@
 import React, { useMemo } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ParentStudent } from '../../../services/parent';
 import { useAppLanguage } from '../../../common';
-import { normalizeUploadUrl } from '../../../common/helpers/normalizeUploadUrl';
 import { useParentTheme } from '../../../theme/useParentTheme';
-import { initials, avatarHue } from '../../../utils/attendanceVisuals';
+import { ChildPhoto } from '../../../components/ui/ChildPhoto';
 
 type Props = {
   student: ParentStudent;
@@ -24,8 +22,6 @@ function withPrefix(value: string | null | undefined, word: string): string | nu
 export function ChildCard({ student, selected, width, compact, onPress }: Props) {
   const { t } = useAppLanguage();
   const { colors, typography } = useParentTheme();
-  const hue = avatarHue(student.name);
-  const photoUri = normalizeUploadUrl(student.profilePicUrl);
   const isActive = !student.status || /active/i.test(student.status);
 
   const classLine = useMemo(() => {
@@ -37,9 +33,7 @@ export function ChildCard({ student, selected, width, compact, onPress }: Props)
     return student.batchNames?.filter(Boolean).join(' • ') || t('common.dash');
   }, [student, t]);
 
-  const rollLine = withPrefix(student.rollNumber || String(student.id), t('home.rollWord'));
-
-  const photoSize = compact ? 44 : 56;
+  const photoSize = compact ? 60 : 72;
 
   return (
     <Pressable
@@ -57,33 +51,7 @@ export function ChildCard({ student, selected, width, compact, onPress }: Props)
       ]}
     >
       <View style={styles.row}>
-        <View style={styles.photoWrap}>
-          {photoUri ? (
-            <Image
-              source={{
-                uri: photoUri,
-                headers: { 'ngrok-skip-browser-warning': 'true' },
-              }}
-              style={[styles.photo, { width: photoSize, height: photoSize }]}
-              resizeMode="cover"
-            />
-          ) : (
-            <View
-              style={[
-                styles.photo,
-                {
-                  width: photoSize,
-                  height: photoSize,
-                  backgroundColor: `hsl(${hue} 48% 46%)`,
-                },
-              ]}
-            >
-              <Text style={[styles.initials, compact && styles.initialsCompact]}>
-                {initials(student.name)}
-              </Text>
-            </View>
-          )}
-        </View>
+        <ChildPhoto name={student.name} uri={student.profilePicUrl} size={photoSize} />
 
         <View style={styles.body}>
           <View style={styles.nameRow}>
@@ -105,22 +73,8 @@ export function ChildCard({ student, selected, width, compact, onPress }: Props)
           <Text style={[styles.meta, { color: colors.text }]} numberOfLines={2}>
             {classLine}
           </Text>
-          {rollLine ? (
-            <Text style={[styles.meta, { color: colors.text }]} numberOfLines={2}>
-              {rollLine}
-            </Text>
-          ) : null}
         </View>
       </View>
-
-      {isActive ? (
-        <View style={styles.status}>
-          <MaterialCommunityIcons name="shield-check" size={16} color={colors.success} />
-          <Text style={[styles.statusText, { color: colors.success }]} numberOfLines={1}>
-            {t('home.activeStudent')}
-          </Text>
-        </View>
-      ) : null}
     </Pressable>
   );
 }
@@ -134,18 +88,7 @@ const styles = StyleSheet.create({
   cardCompact: {
     padding: 10,
   },
-  row: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  photoWrap: { overflow: 'hidden', borderRadius: 12 },
-  photo: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  initials: { color: '#FFFFFF', fontWeight: '700', fontSize: 18 },
-  initialsCompact: { fontSize: 15 },
+  row: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   body: { flex: 1, minWidth: 0 },
   nameRow: {
     flexDirection: 'row',
@@ -168,16 +111,5 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 13,
     fontWeight: '600',
-  },
-  status: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 10,
-  },
-  statusText: {
-    flexShrink: 1,
-    fontSize: 12,
-    fontWeight: '700',
   },
 });

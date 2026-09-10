@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Dimensions, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type { ParentStudent } from '../../services/parent';
 import { useAppLanguage } from '../../common';
-import { normalizeUploadUrl } from '../../common/helpers/normalizeUploadUrl';
-import { initials, avatarHue } from '../../utils/attendanceVisuals';
+import { ChildPhoto } from '../ui/ChildPhoto';
 import { shadows, spacing, useAppColors } from '../../theme/appTheme';
 import { TabHeaderActions } from '../TabHeaderActions';
 
@@ -47,11 +46,7 @@ export function StudentModuleHero({
   const { t } = useAppLanguage();
   const colors = useAppColors();
   const insets = useSafeAreaInsets();
-  const [photoFailed, setPhotoFailed] = useState(false);
   const name = student?.name || cardName || t('common.student');
-  const hue = avatarHue(name);
-  const photoUri = normalizeUploadUrl(student?.profilePicUrl);
-  const showPhoto = Boolean(photoUri) && !photoFailed;
   const screenW = Dimensions.get('window').width;
 
   const classLine = student
@@ -112,21 +107,7 @@ export function StudentModuleHero({
 
       {showCard ? (
         <View style={[styles.studentCard, { backgroundColor: colors.surface }]}>
-          {showPhoto ? (
-            <Image
-              source={{
-                uri: photoUri,
-                headers: { 'ngrok-skip-browser-warning': 'true' },
-              }}
-              style={styles.avatar}
-              resizeMode="cover"
-              onError={() => setPhotoFailed(true)}
-            />
-          ) : (
-            <View style={[styles.avatar, { backgroundColor: `hsl(${hue} 48% 46%)` }]}>
-              <Text style={styles.initials}>{initials(name)}</Text>
-            </View>
-          )}
+          <ChildPhoto name={name} uri={student?.profilePicUrl} size={72} />
           <View style={styles.info}>
             <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
               {name}
@@ -220,15 +201,6 @@ const styles = StyleSheet.create({
     ...shadows.card,
     zIndex: 3,
   },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  initials: { color: '#FFFFFF', fontWeight: '700', fontSize: 18 },
   info: { flex: 1, minWidth: 0 },
   name: {
     fontSize: 16,

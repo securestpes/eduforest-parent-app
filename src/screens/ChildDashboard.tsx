@@ -28,10 +28,10 @@ import {
   type ParentChildBus,
 } from '../services/transport';
 import { useUnreadNotificationCount } from '../common/hooks/useUnreadNotificationCount';
-import { initials, avatarHue } from '../utils/attendanceVisuals';
 import { resolveTodayAttendance } from '../utils/dashboardHome';
 import { formatApiTime } from '../utils/localDateTime';
 import { useAppLanguage, type TranslationKey } from '../common';
+import { ChildPhoto } from '../components/ui/ChildPhoto';
 import type { ChildChipAction } from '../components/ChildActionChips';
 import {
   EduForestColors,
@@ -330,7 +330,6 @@ export function ChildDashboard({
       : { fg: EduForestColors.successStrong, bg: EduForestColors.successLight };
 
   const showLeaveShortcut = kind === 'not_marked' || kind === 'absent';
-  const hue = avatarHue(student.name);
   const batchLine = student.batchNames?.length
     ? student.batchNames.join(' · ')
     : t('common.dash');
@@ -433,11 +432,7 @@ export function ChildDashboard({
       {greeting ? <Text style={styles.greeting}>{greeting}</Text> : null}
 
       <View style={styles.identityCard}>
-        <View
-          style={[styles.avatar, { backgroundColor: `hsl(${hue} 45% 46%)` }]}
-        >
-          <Text style={styles.avatarText}>{initials(student.name)}</Text>
-        </View>
+        <ChildPhoto name={student.name} uri={student.profilePicUrl} size={72} />
         <View style={styles.identityTextCol}>
           <Text style={styles.identityName} numberOfLines={1}>
             {student.name}
@@ -727,18 +722,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: EduForestSpacing.md,
     padding: EduForestSpacing.base,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: EduForestRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: EduForestColors.textInverse,
-    fontWeight: '700',
-    fontSize: 16,
   },
   identityTextCol: { flex: 1, minWidth: 0 },
   identityName: {
