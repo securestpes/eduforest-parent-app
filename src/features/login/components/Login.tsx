@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   Modal,
   Pressable,
   ScrollView,
@@ -18,12 +19,12 @@ import {
   useAppLanguage,
   useAppTheme,
   useNetworkError,
-  getNetworkErrorMessage,
   localStorageKeys,
 } from '../../../common';
-import { createStyles, LOGIN_COLORS, LOGIN_GRADIENT } from '../styles';
+import { createStyles, getLoginColors, LOGIN_GRADIENT, LOGIN_GRADIENT_DARK } from '../styles';
 import { AuthService } from '../services';
 import { completeParentLogin } from '../services/completeParentLogin';
+import { friendlyAuthError } from '../loginErrors';
 import type { ILoginFormState } from '../interfaces';
 import type { RootStackParamList } from '../../../navigation/Navigation';
 import type { AppDispatch } from '../../../redux/store';
@@ -74,8 +75,10 @@ function parseSchools(raw: unknown): ParentSchoolOption[] {
 
 export const Login: React.FC<Props> = ({ navigation }) => {
   const { t } = useAppLanguage();
-  const { theme } = useAppTheme();
+  const { theme, isDark } = useAppTheme();
   const styles = createStyles(theme);
+  const loginColors = getLoginColors(isDark);
+  const loginGradient = isDark ? LOGIN_GRADIENT_DARK : LOGIN_GRADIENT;
   const dispatch = useDispatch<AppDispatch>();
   const [formState, setFormState] = useState<ILoginFormState>(initialLoginState);
   const [password, setPassword] = useState('');
@@ -91,6 +94,7 @@ export const Login: React.FC<Props> = ({ navigation }) => {
     null
   );
   const [schoolPickerOpen, setSchoolPickerOpen] = useState(false);
+  const submittingRef = useRef(false);
 
   const { isConnected } = useNetworkError(nwError);
 
@@ -124,7 +128,6 @@ export const Login: React.FC<Props> = ({ navigation }) => {
           setSchools(list);
           if (list.length === 0) {
             setSelectedSchool(null);
-            setSchoolError(response.message || t('login.noSchools'));
             return;
           }
           const lastRaw = await AsyncStorage.getItem(
@@ -135,14 +138,12 @@ export const Login: React.FC<Props> = ({ navigation }) => {
             list.find((s) => s.schoolId === lastId) ??
             (list.length === 1 ? list[0] : null);
           setSelectedSchool(preferred);
-        } catch (err: unknown) {
+        } catch {
           if (cancelled) {
             return;
           }
           setSchools([]);
           setSelectedSchool(null);
-          const message = err instanceof Error ? err.message : String(err);
-          setSchoolError(message.replace(/^Could not load schools:\s*/, ''));
         } finally {
           if (!cancelled) {
             setSchoolsLoading(false);
@@ -193,9 +194,18 @@ export const Login: React.FC<Props> = ({ navigation }) => {
     if (error) {
       setError(null);
     }
+    if (schoolError) {
+      setSchoolError(null);
+    }
   };
 
   const handleLogin = async () => {
+    if (submittingRef.current || isLoading) {
+      return;
+    }
+
+    Keyboard.dismiss();
+
     const validationResult = validateMobileNumber(formState.mobileNumber.value);
     setFormState((prev) => ({
       ...prev,
@@ -204,59 +214,65 @@ export const Login: React.FC<Props> = ({ navigation }) => {
     if (!validationResult.isValid) {
       return;
     }
-    if (schoolsLoading) {
-      return;
-    }
-    if (!selectedSchool) {
-      if (schools.length > 1) {
-        setSchoolError(t('login.schoolRequired'));
-      }
-      return;
-    }
     if (!password.trim()) {
       setPasswordError(t('login.passwordRequired'));
       return;
     }
+
+    submittingRef.current = true;
+    setIsLoading(true);
     setPasswordError(null);
     setSchoolError(null);
+    setError(null);
+    setNwError(null);
 
-    const netInfoState = await NetInfo.fetch();
-    const hasInternet =
-      netInfoState.isConnected && netInfoState.isInternetReachable !== false;
-
-    if (!hasInternet) {
-      setNwError(getNetworkErrorMessage());
-      return;
-    }
-
-    setIsLoading(true);
     const tenDigit = digitsOf(formState.mobileNumber.value);
 
     try {
+      const netInfoState = await NetInfo.fetch();
+      if (netInfoState.isConnected === false) {
+        setError(t('login.networkError'));
+        return;
+      }
+
+      let school = selectedSchool;
+      if (!school) {
+        const schoolRes = await AuthService.listSchoolsForMobile(tenDigit);
+        const list = parseSchools(schoolRes.data);
+        setSchools(list);
+        if (list.length === 1) {
+          school = list[0];
+          setSelectedSchool(school);
+        } else if (list.length > 1) {
+          setSchoolError(t('login.schoolRequired'));
+          setSchoolPickerOpen(true);
+          return;
+        } else {
+          setError(schoolRes.message || t('login.noSchools'));
+          return;
+        }
+      }
+
       const response = await AuthService.passwordLogin(
         tenDigit,
         password.trim(),
-        selectedSchool.schoolId
+        school.schoolId
       );
       const result = await completeParentLogin(dispatch, response);
       if (!result.ok) {
-        setError(result.message);
+        setError(friendlyAuthError(result.message, t) || t('login.failed'));
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (message.includes('No Internet Connection')) {
-        setNwError(getNetworkErrorMessage());
-      } else {
-        setError(message.replace(/^Login failed:\s*/, '') || t('login.sendOtpFailed'));
-      }
+      setError(friendlyAuthError(err, t));
     } finally {
+      submittingRef.current = false;
       setIsLoading(false);
     }
   };
 
-  const fieldError = !formState.mobileNumber.isValid
+  const mobileError = !formState.mobileNumber.isValid
     ? formState.mobileNumber.error
-    : error;
+    : null;
   const schoolLabel = selectedSchool?.schoolName || t('login.schoolPlaceholder');
   const showSchoolPicker = schools.length > 1;
 
@@ -268,24 +284,24 @@ export const Login: React.FC<Props> = ({ navigation }) => {
       </View>
       <Text style={styles.cardSubtitle}>{t('login.cardSubtitle')}</Text>
 
-      <View style={[styles.field, fieldError ? styles.fieldError : null]}>
+      <View style={[styles.field, mobileError ? styles.fieldError : null]}>
         <MaterialCommunityIcons
           name="email-outline"
           size={22}
-          color={LOGIN_COLORS.icon}
+          color={loginColors.icon}
         />
         <RNTextInput
           style={styles.fieldInput}
           value={formState.mobileNumber.value}
           onChangeText={handleIdentifierChange}
           placeholder={t('login.identifierPlaceholder')}
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={loginColors.placeholder}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
         />
       </View>
-      {fieldError ? <Text style={styles.errorText}>{fieldError}</Text> : null}
+      {mobileError ? <Text style={styles.errorText}>{mobileError}</Text> : null}
 
       {showSchoolPicker ? (
         <Pressable
@@ -295,7 +311,7 @@ export const Login: React.FC<Props> = ({ navigation }) => {
           <MaterialCommunityIcons
             name="school-outline"
             size={22}
-            color={LOGIN_COLORS.icon}
+            color={loginColors.icon}
           />
           <Text
             style={[
@@ -309,17 +325,19 @@ export const Login: React.FC<Props> = ({ navigation }) => {
           <MaterialCommunityIcons
             name="chevron-down"
             size={22}
-            color="#9CA3AF"
+            color={loginColors.placeholder}
           />
         </Pressable>
       ) : null}
-      {schoolError ? <Text style={styles.errorText}>{schoolError}</Text> : null}
+      {showSchoolPicker && schoolError ? (
+        <Text style={styles.errorText}>{schoolError}</Text>
+      ) : null}
 
       <View style={[styles.field, passwordError ? styles.fieldError : null]}>
         <MaterialCommunityIcons
           name="lock-outline"
           size={22}
-          color={LOGIN_COLORS.icon}
+          color={loginColors.icon}
         />
         <RNTextInput
           style={styles.fieldInput}
@@ -330,7 +348,7 @@ export const Login: React.FC<Props> = ({ navigation }) => {
             if (error) setError(null);
           }}
           placeholder={t('login.passwordPlaceholder')}
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={loginColors.placeholder}
           secureTextEntry={hidePassword}
           autoCapitalize="none"
         />
@@ -338,7 +356,7 @@ export const Login: React.FC<Props> = ({ navigation }) => {
           <MaterialCommunityIcons
             name={hidePassword ? 'eye-off-outline' : 'eye-outline'}
             size={22}
-            color="#9CA3AF"
+            color={loginColors.placeholder}
           />
         </Pressable>
       </View>
@@ -351,13 +369,16 @@ export const Login: React.FC<Props> = ({ navigation }) => {
         <Text style={styles.forgotText}>{t('login.forgotPassword')}</Text>
       </Pressable>
 
+      {error ? <Text style={styles.formError}>{error}</Text> : null}
+
       <Pressable
-        style={styles.loginBtn}
+        style={[styles.loginBtn, isLoading && styles.loginBtnDisabled]}
         onPress={() => void handleLogin()}
         disabled={isLoading}
+        accessibilityState={{ disabled: isLoading, busy: isLoading }}
       >
         <LinearGradient
-          colors={[...LOGIN_GRADIENT]}
+          colors={[...loginGradient]}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={styles.loginBtnInner}

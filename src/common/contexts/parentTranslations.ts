@@ -32,6 +32,10 @@ const en = {
   "login.mobileRequired": "Mobile number is required",
   "login.mobileInvalid": "Please enter a valid 10-digit mobile number",
   "login.sendOtpFailed": "Failed to send OTP",
+  "login.networkError":
+    "Couldn't reach the server. Check your internet connection and try again.",
+  "login.serverError": "Something went wrong on our side. Please try again.",
+  "login.failed": "Couldn't log in. Please check your details and try again.",
   "login.legalPrefix": "By continuing, you agree to our",
   "login.legalMiddle": " and ",
   "login.legalSuffix": ".",
@@ -863,6 +867,10 @@ const hi: Record<TranslationKey, string> = {
   "login.mobileRequired": "मोबाइल नंबर आवश्यक है",
   "login.mobileInvalid": "कृपया वैध 10-अंकों का मोबाइल नंबर दर्ज करें",
   "login.sendOtpFailed": "ओटीपी भेजने में विफल",
+  "login.networkError":
+    "सर्वर से कनेक्ट नहीं हो पाया। अपना इंटरनेट जाँचें और फिर कोशिश करें।",
+  "login.serverError": "हमारी ओर से कुछ गलत हो गया। कृपया फिर कोशिश करें।",
+  "login.failed": "लॉगिन नहीं हो सका। कृपया विवरण जाँचें और फिर कोशिश करें।",
   "login.legalPrefix": "जारी रखकर, आप हमारी",
   "login.legalMiddle": " और ",
   "login.legalSuffix": " से सहमत होते हैं।",
@@ -1690,6 +1698,10 @@ const bn: Record<TranslationKey, string> = {
   "login.mobileRequired": "মোবাইল নম্বর প্রয়োজন",
   "login.mobileInvalid": "অনুগ্রহ করে বৈধ ১০-সংখ্যার মোবাইল নম্বর লিখুন",
   "login.sendOtpFailed": "ওটিপি পাঠাতে ব্যর্থ হয়েছে",
+  "login.networkError":
+    "সার্ভারে পৌঁছানো যায়নি। ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।",
+  "login.serverError": "আমাদের দিকে কিছু সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।",
+  "login.failed": "লগইন করা যায়নি। বিবরণ দেখে আবার চেষ্টা করুন।",
   "login.legalPrefix": "চালিয়ে গেলে, আপনি আমাদের",
   "login.legalMiddle": " এবং ",
   "login.legalSuffix": " মেনে নিচ্ছেন।",
@@ -2515,6 +2527,10 @@ const ta: Record<TranslationKey, string> = {
   "login.mobileRequired": "மொபைல் எண் அவசியம்",
   "login.mobileInvalid": "சரியான 10 இலக்க மொபைல் எண்ணை உள்ளிடவும்",
   "login.sendOtpFailed": "ஓடிபி அனுப்ப முடியவில்லை",
+  "login.networkError":
+    "சேவையகத்தை அடைய முடியவில்லை. இணைய இணைப்பை சரிபார்த்து மீண்டும் முயற்சிக்கவும்.",
+  "login.serverError": "எங்கள் பக்கத்தில் சிக்கல் ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்.",
+  "login.failed": "உள்நுழைய முடியவில்லை. விவரங்களை சரிபார்த்து மீண்டும் முயற்சிக்கவும்.",
   "login.legalPrefix": "தொடர்வதன் மூலம், எங்கள்",
   "login.legalMiddle": " மற்றும் ",
   "login.legalSuffix": "ஐ ஏற்கிறீர்கள்.",

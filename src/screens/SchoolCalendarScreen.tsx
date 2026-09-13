@@ -31,6 +31,7 @@ import { EmptyState } from '../components/EmptyState';
 import { StudentModuleHero } from '../components/layout/StudentModuleHero';
 import { useChildHubRestore, useHubAwareBack } from '../navigation/ChildHubNavContext';
 import { useReloadWhenActive } from '../navigation/TabNavigationContext';
+import { MAIN_TAB_CONTENT_INSET } from '../navigation/MainTabBar';
 import {
   clampMonthToSession,
   isDateInSession,
@@ -630,7 +631,7 @@ export function SchoolCalendarScreen({ embedded = false, active = true }: Props)
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   safe: { flex: 1 },
-  scroll: { padding: 16, paddingBottom: 40 },
+  scroll: { padding: 16, paddingBottom: MAIN_TAB_CONTENT_INSET },
   center: { paddingVertical: 48, alignItems: 'center' },
   filterRow: { gap: 8, paddingRight: 8 },
   filterChip: {

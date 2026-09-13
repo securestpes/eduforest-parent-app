@@ -23,6 +23,7 @@ import {
 import { useSelectionStore } from '../store/selectionStore';
 import { useChildHubRestore, useHubAwareBack } from '../navigation/ChildHubNavContext';
 import { useReloadWhenActive } from '../navigation/TabNavigationContext';
+import { MAIN_TAB_CONTENT_INSET } from '../navigation/MainTabBar';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import { kindFromStatus, sessionTimeRange } from '../utils/dashboardHome';
@@ -891,7 +892,7 @@ const styles = StyleSheet.create({
   },
   title: { fontWeight: '800', textAlign: 'center', width: '100%' },
   subtitle: { marginTop: 6, textAlign: 'center', width: '100%' },
-  listContent: { paddingHorizontal: 16, paddingBottom: 40 },
+  listContent: { paddingHorizontal: 16, paddingBottom: MAIN_TAB_CONTENT_INSET },
   tabs: {
     flexDirection: 'row',
     marginBottom: 16,

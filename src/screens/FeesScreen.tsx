@@ -21,6 +21,7 @@ import {
   type ParentStudent,
 } from '../services/parent';
 import { useSelectionStore } from '../store/selectionStore';
+import { MAIN_TAB_CONTENT_INSET } from '../navigation/MainTabBar';
 import { ScreenDecor } from '../components/ScreenDecor';
 import { EmptyState } from '../components/EmptyState';
 import { StudentModuleHero } from '../components/layout/StudentModuleHero';
@@ -773,7 +774,7 @@ function createStyles(colors: AppColors) {
   flex: { flex: 1 },
   safe: { flex: 1 },
   standalone: { flex: 1, backgroundColor: colors.background },
-  scroll: { paddingHorizontal: spacing.lg, paddingBottom: 40 },
+  scroll: { paddingHorizontal: spacing.lg, paddingBottom: MAIN_TAB_CONTENT_INSET },
   center: { paddingVertical: 48, alignItems: 'center' },
   summaryCard: {
     marginTop: 12,

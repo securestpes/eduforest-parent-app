@@ -1,20 +1,22 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
+  Easing,
   Image,
   Keyboard,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StatusBar,
+  StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useAppLanguage, useAppTheme } from '../../../common';
-import { createStyles, LOGIN_COLORS } from '../styles';
+import { createStyles, getLoginColors } from '../styles';
 
 const parentLogo = require('../../../assets/icon.png');
 const loginHero = require('../../../assets/login-hero.png');
@@ -23,73 +25,152 @@ export const AuthScreenShell: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { t } = useAppLanguage();
-  const { theme } = useAppTheme();
-  const { width, height } = useWindowDimensions();
+  const { theme, isDark } = useAppTheme();
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const styles = createStyles(theme);
-  const heroHeight = Math.round(Math.max(280, Math.min(348, height * 0.41)));
-  const heroImageWidth = Math.round(width * 1.18);
+  const loginColors = getLoginColors(isDark);
+  const progress = useRef(new Animated.Value(0)).current;
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  const expandedHero = Math.round(Math.max(300, Math.min(392, height * 0.44)));
+  const collapsedHero = Math.round(insets.top + 118);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const animate = (open: boolean, duration?: number) => {
+      setKeyboardOpen(open);
+      Animated.timing(progress, {
+        toValue: open ? 1 : 0,
+        duration: Math.max(duration ?? 250, 180),
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start();
+    };
+
+    const show = Keyboard.addListener(showEvent, (event) => {
+      animate(true, event.duration);
+    });
+    const hide = Keyboard.addListener(hideEvent, (event) => {
+      animate(false, event.duration);
+    });
+
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [progress]);
+
+  const heroHeight = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [expandedHero, collapsedHero],
+  });
+  const cardLift = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-28, -16],
+  });
+  const detailsOpacity = progress.interpolate({
+    inputRange: [0, 0.4, 1],
+    outputRange: [1, 0, 0],
+  });
+  const detailsHeight = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [34, 0],
+  });
+  const logoSize = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [68, 52],
+  });
+  const titleSize = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [30, 22],
+  });
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" backgroundColor={LOGIN_COLORS.sky} />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <Pressable style={{ flex: 1 }} onPress={Keyboard.dismiss} accessible={false}>
-          <View style={[styles.hero, { height: heroHeight }]}>
-            <Image
-              source={loginHero}
-              resizeMode="cover"
-              style={[
-                styles.heroImage,
-                {
-                  width: heroImageWidth,
-                  height: heroHeight,
-                },
-              ]}
+      <StatusBar barStyle="light-content" backgroundColor={loginColors.sky} />
+      <Pressable onPress={Keyboard.dismiss} accessible={false}>
+        <Animated.View style={[styles.hero, { height: heroHeight }]}>
+          <Image source={loginHero} resizeMode="cover" style={styles.heroImage} />
+          {isDark ? (
+            <View
+              pointerEvents="none"
+              style={{
+                ...StyleSheet.absoluteFillObject,
+                backgroundColor: 'rgba(8, 8, 18, 0.42)',
+              }}
             />
-            <SafeAreaView edges={['top']} style={styles.heroSafe}>
-              <View style={styles.brandRow}>
-                <View style={styles.brandLogoWrap}>
-                  <Image source={parentLogo} style={styles.brandLogo} resizeMode="cover" />
+          ) : null}
+          <View style={[styles.heroSafe, { paddingTop: insets.top + 8 }]}>
+            <View style={styles.brandRow}>
+              <Animated.View
+                style={[
+                  styles.brandLogoWrap,
+                  { width: logoSize, height: logoSize },
+                ]}
+              >
+                <Image source={parentLogo} style={styles.brandLogo} resizeMode="cover" />
+              </Animated.View>
+              <View style={styles.brandCopy}>
+                <View style={styles.brandTitleRow}>
+                  <Animated.Text style={[styles.brandEdu, { fontSize: titleSize }]}>
+                    {t('login.heroEdu')}
+                  </Animated.Text>
+                  <Animated.Text style={[styles.brandForest, { fontSize: titleSize }]}>
+                    {t('login.heroForest')}
+                  </Animated.Text>
                 </View>
-                <View style={styles.brandCopy}>
-                  <View style={styles.brandTitleRow}>
-                    <Text style={styles.brandEdu}>{t('login.heroEdu')}</Text>
-                    <Text style={styles.brandForest}>{t('login.heroForest')}</Text>
-                  </View>
-                  <Text style={styles.brandApp}>{t('login.heroApp')}</Text>
+                <Text style={styles.brandApp}>{t('login.heroApp')}</Text>
+                <Animated.View style={{ opacity: detailsOpacity, height: detailsHeight, overflow: 'hidden' }}>
                   <View style={styles.brandRule} />
                   <Text style={styles.brandTagline}>{t('login.heroTagline')}</Text>
-                </View>
+                </Animated.View>
               </View>
-            </SafeAreaView>
+            </View>
           </View>
+        </Animated.View>
+      </Pressable>
 
-          <View style={styles.card}>
-            <ScrollView
-              contentContainerStyle={styles.cardScroll}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              {children}
-            </ScrollView>
+      <Animated.View
+        style={[
+          styles.card,
+          {
+            marginTop: cardLift,
+            paddingBottom: keyboardOpen ? 12 : Math.max(insets.bottom, 8),
+          },
+        ]}
+      >
+        <ScrollView
+          contentContainerStyle={[
+            styles.cardScroll,
+            { paddingBottom: keyboardOpen ? 24 : 36 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+          showsVerticalScrollIndicator={false}
+        >
+          {children}
+        </ScrollView>
+        {keyboardOpen ? null : (
+          <>
             <MaterialCommunityIcons
               name="leaf"
               size={40}
-              color={LOGIN_COLORS.leaf}
-              style={styles.leafBl}
+              color={loginColors.leaf}
+              style={[styles.leafBl, { bottom: Math.max(insets.bottom, 8) }]}
             />
             <MaterialCommunityIcons
               name="leaf"
               size={40}
-              color={LOGIN_COLORS.leaf}
-              style={styles.leafBr}
+              color={loginColors.leaf}
+              style={[styles.leafBr, { bottom: Math.max(insets.bottom, 8) }]}
             />
-          </View>
-        </Pressable>
-      </KeyboardAvoidingView>
+          </>
+        )}
+      </Animated.View>
     </View>
   );
 };

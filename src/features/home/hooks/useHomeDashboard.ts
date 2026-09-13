@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format, isBefore, startOfDay } from 'date-fns';
 import {
   getMe,
@@ -52,7 +52,7 @@ export function useHomeDashboard(isActive = true) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewLoading, setOverviewLoading] = useState(true);
 
   const [attendancePct, setAttendancePct] = useState<number | null>(null);
   const [feeDue, setFeeDue] = useState<number | null>(null);
@@ -68,6 +68,8 @@ export function useHomeDashboard(isActive = true) {
   const [upcomingEvents, setUpcomingEvents] = useState<ParentCalendarEvent[]>([]);
   const [upcomingEventCount, setUpcomingEventCount] = useState(0);
   const [holidaysThisMonth, setHolidaysThisMonth] = useState(0);
+  const overviewRequestRef = useRef(0);
+  const lastOverviewStudentId = useRef<number | null>(null);
 
   const student =
     students.find((s) => s.id === selectedStudentId) ?? students[0] ?? null;
@@ -115,8 +117,21 @@ export function useHomeDashboard(isActive = true) {
     }
   }, [setSelected]);
 
-  const loadOverview = useCallback(async (studentId: number) => {
-    setOverviewLoading(true);
+  const selectStudent = useCallback(
+    (id: number | null) => {
+      const current = useSelectionStore.getState().selectedStudentId;
+      if (id != null && id !== current) {
+        setOverviewLoading(true);
+      }
+      setSelected(id);
+    },
+    [setSelected]
+  );
+
+  const loadOverview = useCallback(async (studentId: number, silent = false) => {
+    const requestId = overviewRequestRef.current + 1;
+    overviewRequestRef.current = requestId;
+    if (!silent) setOverviewLoading(true);
     try {
       const [attRes, feeRes, hwRes, examRes, leaveRes, busesRes, calRes] =
         await Promise.all([
@@ -128,6 +143,8 @@ export function useHomeDashboard(isActive = true) {
           getParentChildrenBuses().catch(() => null),
           getStudentSchoolCalendar(studentId).catch(() => null),
         ]);
+
+      if (requestId !== overviewRequestRef.current) return;
 
       const rows = attRes?.status && attRes.data?.content ? attRes.data.content : [];
       setAttendancePct(monthAttendancePct(rows));
@@ -203,7 +220,10 @@ export function useHomeDashboard(isActive = true) {
       setUpcomingEventCount(countUpcomingByType(events, 'EVENT'));
       setHolidaysThisMonth(countHolidaysThisMonth(events));
     } finally {
-      setOverviewLoading(false);
+      if (requestId === overviewRequestRef.current) {
+        lastOverviewStudentId.current = studentId;
+        setOverviewLoading(false);
+      }
     }
   }, []);
 
@@ -214,15 +234,17 @@ export function useHomeDashboard(isActive = true) {
 
   useEffect(() => {
     if (!student || !isActive) return;
-    void loadOverview(student.id);
+    const silent = lastOverviewStudentId.current === student.id;
+    void loadOverview(student.id, silent);
   }, [student?.id, isActive, loadOverview]);
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
     await loadStudents();
-    if (student) await loadOverview(student.id);
+    const id = useSelectionStore.getState().selectedStudentId ?? student?.id;
+    if (id != null) await loadOverview(id, true);
     setRefreshing(false);
-  }, [loadStudents, loadOverview, student]);
+  }, [loadStudents, loadOverview, student?.id]);
 
   const greetingHour = useMemo(() => {
     const h = new Date().getHours();
@@ -260,7 +282,7 @@ export function useHomeDashboard(isActive = true) {
     upcomingEvents,
     upcomingEventCount,
     holidaysThisMonth,
-    setSelected,
+    setSelected: selectStudent,
     refresh,
   };
 }

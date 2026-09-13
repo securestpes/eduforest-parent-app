@@ -11,7 +11,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppLanguage, useAppTheme, localStorageKeys } from '../../../common';
-import { createStyles, LOGIN_COLORS, LOGIN_GRADIENT } from '../styles';
+import { createStyles, getLoginColors, LOGIN_GRADIENT, LOGIN_GRADIENT_DARK } from '../styles';
 import { AuthService } from '../services';
 import { logout, passwordResetCompleted } from '../slices/authSlice';
 import type { RootState } from '../../../redux/store';
@@ -19,8 +19,10 @@ import { AuthScreenShell } from './AuthScreenShell';
 
 export const ResetPassword: React.FC = () => {
   const { t } = useAppLanguage();
-  const { theme } = useAppTheme();
+  const { theme, isDark } = useAppTheme();
   const styles = createStyles(theme);
+  const loginColors = getLoginColors(isDark);
+  const loginGradient = isDark ? LOGIN_GRADIENT_DARK : LOGIN_GRADIENT;
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.auth.user);
   const [password, setPassword] = useState('');
@@ -73,7 +75,7 @@ export const ResetPassword: React.FC = () => {
         <MaterialCommunityIcons
           name="lock-outline"
           size={22}
-          color={LOGIN_COLORS.icon}
+          color={loginColors.icon}
         />
         <RNTextInput
           style={styles.fieldInput}
@@ -83,7 +85,7 @@ export const ResetPassword: React.FC = () => {
             if (error) setError(null);
           }}
           placeholder={t('auth.newPassword')}
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={loginColors.placeholder}
           secureTextEntry={hidePassword}
           autoCapitalize="none"
         />
@@ -91,7 +93,7 @@ export const ResetPassword: React.FC = () => {
           <MaterialCommunityIcons
             name={hidePassword ? 'eye-off-outline' : 'eye-outline'}
             size={22}
-            color="#9CA3AF"
+            color={loginColors.placeholder}
           />
         </Pressable>
       </View>
@@ -99,7 +101,7 @@ export const ResetPassword: React.FC = () => {
         <MaterialCommunityIcons
           name="lock-check-outline"
           size={22}
-          color={LOGIN_COLORS.icon}
+          color={loginColors.icon}
         />
         <RNTextInput
           style={styles.fieldInput}
@@ -109,7 +111,7 @@ export const ResetPassword: React.FC = () => {
             if (error) setError(null);
           }}
           placeholder={t('auth.confirmPassword')}
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={loginColors.placeholder}
           secureTextEntry={hidePassword}
           autoCapitalize="none"
         />
@@ -123,7 +125,7 @@ export const ResetPassword: React.FC = () => {
         disabled={isLoading || password.length < 6 || confirm.length < 6}
       >
         <LinearGradient
-          colors={[...LOGIN_GRADIENT]}
+          colors={[...loginGradient]}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={styles.loginBtnInner}

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -19,6 +19,7 @@ import { useAppLanguage } from "../../../common";
 import { useParentTheme } from "../../../theme/useParentTheme";
 import type { RootStackParamList } from "../../../navigation/Navigation";
 import { useMainTabNavigation } from "../../../navigation/TabNavigationContext";
+import { MAIN_TAB_CONTENT_INSET } from "../../../navigation/MainTabBar";
 import { EmptyState } from "../../../components/EmptyState";
 import { useHomeDashboard } from "../hooks/useHomeDashboard";
 import { HomeHero, homeHeroHeight, HOME_SHEET_OVERLAP } from "../components/HomeHero";
@@ -28,6 +29,77 @@ import { OverviewGrid, type OverviewTile } from "../components/OverviewGrid";
 import { HomeExamsBanner } from "../components/HomeExamsBanner";
 import { UpcomingEventsList } from "../components/UpcomingEventsList";
 import { normalizeUploadUrl } from "../../../common/helpers/normalizeUploadUrl";
+
+function SmoothSwitchPanel({
+  loading,
+  children,
+}: {
+  loading: boolean;
+  children: React.ReactNode;
+}) {
+  const { colors } = useParentTheme();
+  const overlay = useRef(new Animated.Value(loading ? 1 : 0)).current;
+  const content = useRef(new Animated.Value(loading ? 0.45 : 1)).current;
+  const [overlayMounted, setOverlayMounted] = useState(loading);
+
+  useEffect(() => {
+    if (loading) {
+      setOverlayMounted(true);
+      Animated.parallel([
+        Animated.timing(overlay, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(content, {
+          toValue: 0.45,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      return;
+    }
+    Animated.parallel([
+      Animated.timing(overlay, {
+        toValue: 0,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+      Animated.timing(content, {
+        toValue: 1,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) setOverlayMounted(false);
+    });
+  }, [content, loading, overlay]);
+
+  return (
+    <View>
+      <Animated.View
+        style={{ opacity: content }}
+        pointerEvents={loading ? "none" : "auto"}
+      >
+        {children}
+      </Animated.View>
+      {overlayMounted ? (
+        <Animated.View
+          pointerEvents={loading ? "auto" : "none"}
+          style={[styles.overviewOverlay, { opacity: overlay }]}
+        >
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: colors.surface, opacity: 0.72 },
+            ]}
+          />
+          <ActivityIndicator size="large" color={colors.primary} />
+        </Animated.View>
+      ) : null}
+    </View>
+  );
+}
 
 export function HomeScreen({ active = true }: { active?: boolean }) {
   const { t } = useAppLanguage();
@@ -245,7 +317,7 @@ export function HomeScreen({ active = true }: { active?: boolean }) {
         }
         contentContainerStyle={{
           paddingTop: heroH - sheetOverlap,
-          paddingBottom: 32,
+          paddingBottom: MAIN_TAB_CONTENT_INSET,
         }}
       >
         <View
@@ -300,41 +372,43 @@ export function HomeScreen({ active = true }: { active?: boolean }) {
                   {t("home.quickOverview", { name: dash.firstName })}
                 </Text>
               </View>
-              <OverviewGrid tiles={tiles} />
-              <View style={{ marginTop: spacing.base }}>
-                <HomeExamsBanner
-                  nextExam={dash.nextExam}
-                  latestResult={dash.latestResult}
-                  hasAnyExams={dash.hasAnyExams}
-                  onOpenUpcoming={() => openChildHub("exams", "upcoming")}
-                  onOpenResults={() => openChildHub("exams", "results")}
-                />
-              </View>
-
-              <View style={[styles.sectionHead, { marginTop: spacing.xl }]}>
-                <Text style={[typography.section, { color: colors.text }]}>
-                  {t("home.upcomingEvents")}
-                </Text>
-                <Pressable
-                  onPress={() => navigateToTab("Calendar")}
-                  hitSlop={8}
-                  style={{ flexDirection: "row", alignItems: "center", gap: 2 }}
-                >
-                  <Text style={[typography.meta, { color: colors.primary }]}>
-                    {t("home.schoolCalendar")}
-                  </Text>
-                  <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={16}
-                    color={colors.primary}
+              <SmoothSwitchPanel loading={dash.overviewLoading}>
+                <OverviewGrid tiles={tiles} />
+                <View style={{ marginTop: spacing.base }}>
+                  <HomeExamsBanner
+                    nextExam={dash.nextExam}
+                    latestResult={dash.latestResult}
+                    hasAnyExams={dash.hasAnyExams}
+                    onOpenUpcoming={() => openChildHub("exams", "upcoming")}
+                    onOpenResults={() => openChildHub("exams", "results")}
                   />
-                </Pressable>
-              </View>
-              <UpcomingEventsList
-                events={dash.upcomingEvents}
-                emptyLabel={t("home.noUpcomingEvents")}
-                onOpen={() => navigateToTab("Calendar")}
-              />
+                </View>
+
+                <View style={[styles.sectionHead, { marginTop: spacing.xl }]}>
+                  <Text style={[typography.section, { color: colors.text }]}>
+                    {t("home.upcomingEvents")}
+                  </Text>
+                  <Pressable
+                    onPress={() => navigateToTab("Calendar")}
+                    hitSlop={8}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 2 }}
+                  >
+                    <Text style={[typography.meta, { color: colors.primary }]}>
+                      {t("home.schoolCalendar")}
+                    </Text>
+                    <MaterialCommunityIcons
+                      name="chevron-right"
+                      size={16}
+                      color={colors.primary}
+                    />
+                  </Pressable>
+                </View>
+                <UpcomingEventsList
+                  events={dash.upcomingEvents}
+                  emptyLabel={t("home.noUpcomingEvents")}
+                  onOpen={() => navigateToTab("Calendar")}
+                />
+              </SmoothSwitchPanel>
             </View>
           ) : null}
         </View>
@@ -385,5 +459,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
     gap: 12,
+  },
+  overviewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

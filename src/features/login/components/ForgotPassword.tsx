@@ -16,7 +16,7 @@ import {
   type IApiResponse,
   type StatusPopupVariant,
 } from '../../../common';
-import { createStyles, LOGIN_COLORS, LOGIN_GRADIENT } from '../styles';
+import { createStyles, getLoginColors, LOGIN_GRADIENT, LOGIN_GRADIENT_DARK } from '../styles';
 import { AuthService } from '../services';
 import type { RootStackParamList } from '../../../navigation/Navigation';
 import { AuthScreenShell } from './AuthScreenShell';
@@ -73,8 +73,10 @@ function looksLikeOtpError(message: string): boolean {
 
 export const ForgotPassword: React.FC<Props> = ({ navigation }) => {
   const { t } = useAppLanguage();
-  const { theme } = useAppTheme();
+  const { theme, isDark } = useAppTheme();
   const styles = createStyles(theme);
+  const loginColors = getLoginColors(isDark);
+  const loginGradient = isDark ? LOGIN_GRADIENT_DARK : LOGIN_GRADIENT;
   const [step, setStep] = useState<'mobile' | 'otp'>('mobile');
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
@@ -183,7 +185,7 @@ export const ForgotPassword: React.FC<Props> = ({ navigation }) => {
             <MaterialCommunityIcons
               name="cellphone"
               size={22}
-              color={LOGIN_COLORS.icon}
+              color={loginColors.icon}
             />
             <RNTextInput
               style={styles.fieldInput}
@@ -193,7 +195,7 @@ export const ForgotPassword: React.FC<Props> = ({ navigation }) => {
                 if (error) setError(null);
               }}
               placeholder={t('login.mobileLabel')}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={loginColors.placeholder}
               keyboardType="phone-pad"
               maxLength={10}
             />
@@ -206,7 +208,7 @@ export const ForgotPassword: React.FC<Props> = ({ navigation }) => {
             disabled={isLoading || mobile10.length !== 10}
           >
             <LinearGradient
-              colors={[...LOGIN_GRADIENT]}
+              colors={[...loginGradient]}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={styles.loginBtnInner}
@@ -226,7 +228,7 @@ export const ForgotPassword: React.FC<Props> = ({ navigation }) => {
             <MaterialCommunityIcons
               name="shield-key-outline"
               size={22}
-              color={LOGIN_COLORS.icon}
+              color={loginColors.icon}
             />
             <RNTextInput
               style={styles.fieldInput}
@@ -237,7 +239,7 @@ export const ForgotPassword: React.FC<Props> = ({ navigation }) => {
                 if (otpFieldError) setOtpFieldError(false);
               }}
               placeholder={t('auth.otpPlaceholder')}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={loginColors.placeholder}
               keyboardType="number-pad"
               maxLength={6}
             />
@@ -246,7 +248,7 @@ export const ForgotPassword: React.FC<Props> = ({ navigation }) => {
             <MaterialCommunityIcons
               name="lock-outline"
               size={22}
-              color={LOGIN_COLORS.icon}
+              color={loginColors.icon}
             />
             <RNTextInput
               style={styles.fieldInput}
@@ -256,7 +258,7 @@ export const ForgotPassword: React.FC<Props> = ({ navigation }) => {
                 if (error) setError(null);
               }}
               placeholder={t('auth.newPassword')}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={loginColors.placeholder}
               secureTextEntry={hidePassword}
               autoCapitalize="none"
             />
@@ -264,7 +266,7 @@ export const ForgotPassword: React.FC<Props> = ({ navigation }) => {
               <MaterialCommunityIcons
                 name={hidePassword ? 'eye-off-outline' : 'eye-outline'}
                 size={22}
-                color="#9CA3AF"
+                color={loginColors.placeholder}
               />
             </Pressable>
           </View>
@@ -272,7 +274,7 @@ export const ForgotPassword: React.FC<Props> = ({ navigation }) => {
             <MaterialCommunityIcons
               name="lock-check-outline"
               size={22}
-              color={LOGIN_COLORS.icon}
+              color={loginColors.icon}
             />
             <RNTextInput
               style={styles.fieldInput}
@@ -282,7 +284,7 @@ export const ForgotPassword: React.FC<Props> = ({ navigation }) => {
                 if (error) setError(null);
               }}
               placeholder={t('auth.confirmPassword')}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={loginColors.placeholder}
               secureTextEntry={hidePassword}
               autoCapitalize="none"
             />
@@ -296,7 +298,7 @@ export const ForgotPassword: React.FC<Props> = ({ navigation }) => {
             disabled={isLoading}
           >
             <LinearGradient
-              colors={[...LOGIN_GRADIENT]}
+              colors={[...loginGradient]}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={styles.loginBtnInner}

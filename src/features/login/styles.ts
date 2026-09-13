@@ -1,24 +1,63 @@
 import { StyleSheet } from 'react-native';
 import { AppTheme } from '../../theme';
 
-export const LOGIN_COLORS = {
-  sky: '#3B82F6',
-  edu: '#8DC63F',
-  forest: '#2D47B9',
+const LOGIN_LIGHT = {
+  sky: '#5B67F0',
+  edu: '#C8F25A',
+  forest: '#FFFFFF',
   heading: '#1A237E',
   parents: '#3D5AFE',
   body: '#6B7280',
   field: '#F0F3FA',
+  fieldText: '#1F2937',
+  placeholder: '#9CA3AF',
   icon: '#5B5CE6',
   link: '#3D5AFE',
   googleBorder: '#E5E7EB',
   leaf: '#8DC63F',
+  screen: '#FFFFFF',
+  card: '#FFFFFF',
+  modal: '#FFFFFF',
+  schoolActive: '#E0E7FF',
+  error: '#DC2626',
 };
 
-export const LOGIN_GRADIENT = ['#4F86FF', '#7B5CFF'] as const;
+const LOGIN_DARK = {
+  sky: '#3D3A8C',
+  edu: '#C8F25A',
+  forest: '#FFFFFF',
+  heading: '#F4F3FA',
+  parents: '#A78BFA',
+  body: '#B0ABC8',
+  field: '#222232',
+  fieldText: '#F4F3FA',
+  placeholder: '#7E7A98',
+  icon: '#8B7CFF',
+  link: '#A78BFA',
+  googleBorder: '#2E2E42',
+  leaf: '#86C44A',
+  screen: '#101018',
+  card: '#1A1A26',
+  modal: '#1A1A26',
+  schoolActive: '#2A2554',
+  error: '#F87171',
+};
 
-export const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+export type LoginColors = typeof LOGIN_LIGHT;
+
+export function getLoginColors(isDark: boolean): LoginColors {
+  return isDark ? LOGIN_DARK : LOGIN_LIGHT;
+}
+
+/** Light palette kept for screens that have not switched to `getLoginColors`. */
+export const LOGIN_COLORS = LOGIN_LIGHT;
+
+export const LOGIN_GRADIENT = ['#4F86FF', '#7B5CFF'] as const;
+export const LOGIN_GRADIENT_DARK = ['#5B4FE0', '#7C6CFF'] as const;
+
+export const createStyles = (theme: AppTheme) => {
+  const c = getLoginColors(Boolean(theme.dark));
+  return StyleSheet.create({
     container: {
       flexGrow: 1,
       justifyContent: 'center',
@@ -68,40 +107,43 @@ export const createStyles = (theme: AppTheme) =>
     },
     screen: {
       flex: 1,
-      backgroundColor: LOGIN_COLORS.sky,
+      backgroundColor: c.screen,
+    },
+    keyboardWrap: {
+      flex: 1,
+      backgroundColor: c.screen,
     },
     hero: {
       overflow: 'hidden',
-      backgroundColor: LOGIN_COLORS.sky,
+      backgroundColor: c.sky,
     },
     heroImage: {
-      position: 'absolute',
-      right: 0,
-      bottom: 0,
+      ...StyleSheet.absoluteFillObject,
+      width: '100%',
+      height: '100%',
     },
     heroSafe: {
       flex: 1,
-      paddingHorizontal: 16,
-      paddingTop: 4,
+      paddingHorizontal: 18,
       justifyContent: 'flex-start',
     },
     brandRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: 12,
     },
     brandLogoWrap: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
+      borderRadius: 999,
       backgroundColor: '#FFFFFF',
       overflow: 'hidden',
       alignItems: 'center',
       justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: 'rgba(255,255,255,0.92)',
     },
     brandLogo: {
-      width: 102,
-      height: 102,
+      width: '160%',
+      height: '160%',
     },
     brandCopy: {
       flex: 1,
@@ -111,54 +153,56 @@ export const createStyles = (theme: AppTheme) =>
       alignItems: 'baseline',
     },
     brandEdu: {
-      color: LOGIN_COLORS.edu,
-      fontSize: 28,
+      color: c.edu,
+      fontSize: 30,
       fontWeight: '800',
       letterSpacing: 0.2,
+      textShadowColor: 'rgba(30, 40, 120, 0.28)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 6,
     },
     brandForest: {
-      color: LOGIN_COLORS.forest,
-      fontSize: 28,
+      color: c.forest,
+      fontSize: 30,
       fontWeight: '800',
       letterSpacing: 0.2,
-      textShadowColor: 'rgba(255,255,255,0.55)',
-      textShadowOffset: { width: 0, height: 0 },
-      textShadowRadius: 4,
+      textShadowColor: 'rgba(30, 40, 120, 0.28)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 6,
     },
     brandApp: {
       color: '#FFFFFF',
-      fontSize: 15,
+      fontSize: 16,
       fontWeight: '600',
-      marginTop: 1,
+      marginTop: 2,
+      textShadowColor: 'rgba(30, 40, 120, 0.25)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 4,
     },
     brandRule: {
-      marginTop: 5,
-      width: 92,
+      marginTop: 6,
+      width: 96,
       height: 1.5,
-      backgroundColor: 'rgba(255,255,255,0.9)',
+      backgroundColor: 'rgba(255,255,255,0.92)',
     },
     brandTagline: {
-      marginTop: 5,
+      marginTop: 6,
       color: 'rgba(255,255,255,0.96)',
-      fontSize: 12,
+      fontSize: 12.5,
       fontWeight: '500',
+      textShadowColor: 'rgba(30, 40, 120, 0.22)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 4,
     },
     card: {
       flex: 1,
-      marginTop: -36,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: c.card,
       borderTopLeftRadius: 48,
       borderTopRightRadius: 48,
       paddingHorizontal: 24,
-      paddingTop: 32,
-      shadowColor: '#1E3A8A',
-      shadowOpacity: 0.1,
-      shadowRadius: 16,
-      shadowOffset: { width: 0, height: -4 },
-      elevation: 10,
+      paddingTop: 28,
     },
     cardScroll: {
-      paddingBottom: 36,
       flexGrow: 1,
     },
     welcomeRow: {
@@ -167,26 +211,26 @@ export const createStyles = (theme: AppTheme) =>
       alignItems: 'flex-end',
     },
     welcome: {
-      fontSize: 30,
+      fontSize: 24,
       fontWeight: '800',
-      color: LOGIN_COLORS.heading,
+      color: c.heading,
     },
     welcomeParents: {
-      fontSize: 30,
+      fontSize: 24,
       fontWeight: '800',
-      color: LOGIN_COLORS.parents,
+      color: c.parents,
     },
     cardSubtitle: {
       marginTop: 8,
       marginBottom: 24,
       fontSize: 14,
       lineHeight: 21,
-      color: LOGIN_COLORS.body,
+      color: c.body,
     },
     field: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: LOGIN_COLORS.field,
+      backgroundColor: c.field,
       borderRadius: 16,
       minHeight: 54,
       paddingHorizontal: 16,
@@ -194,32 +238,32 @@ export const createStyles = (theme: AppTheme) =>
     },
     fieldError: {
       borderWidth: 1,
-      borderColor: '#DC2626',
+      borderColor: c.error,
     },
     fieldInput: {
       flex: 1,
       marginLeft: 10,
       fontSize: 15,
-      color: '#1F2937',
+      color: c.fieldText,
       paddingVertical: 12,
     },
     fieldText: {
       flex: 1,
       marginLeft: 10,
       fontSize: 15,
-      color: '#1F2937',
+      color: c.fieldText,
       paddingVertical: 16,
     },
     fieldPlaceholder: {
-      color: '#9CA3AF',
+      color: c.placeholder,
     },
     modalBackdrop: {
       flex: 1,
-      backgroundColor: 'rgba(15, 23, 42, 0.45)',
+      backgroundColor: 'rgba(15, 23, 42, 0.55)',
       justifyContent: 'flex-end',
     },
     modalSheet: {
-      backgroundColor: '#FFFFFF',
+      backgroundColor: c.modal,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       paddingHorizontal: 20,
@@ -230,7 +274,7 @@ export const createStyles = (theme: AppTheme) =>
     modalTitle: {
       fontSize: 18,
       fontWeight: '800',
-      color: LOGIN_COLORS.heading,
+      color: c.heading,
       marginBottom: 12,
     },
     schoolOption: {
@@ -239,22 +283,29 @@ export const createStyles = (theme: AppTheme) =>
       paddingHorizontal: 14,
       justifyContent: 'center',
       marginBottom: 8,
-      backgroundColor: LOGIN_COLORS.field,
+      backgroundColor: c.field,
     },
     schoolOptionActive: {
-      backgroundColor: '#E0E7FF',
+      backgroundColor: c.schoolActive,
     },
     schoolOptionText: {
       fontSize: 15,
       fontWeight: '600',
-      color: '#1F2937',
+      color: c.fieldText,
     },
     errorText: {
-      color: '#DC2626',
+      color: c.error,
       fontSize: 12,
       marginTop: -6,
       marginBottom: 8,
       marginLeft: 4,
+    },
+    formError: {
+      color: c.error,
+      fontSize: 13,
+      lineHeight: 18,
+      marginBottom: 12,
+      textAlign: 'center',
     },
     forgot: {
       alignSelf: 'flex-end',
@@ -262,13 +313,16 @@ export const createStyles = (theme: AppTheme) =>
       marginTop: -2,
     },
     forgotText: {
-      color: LOGIN_COLORS.link,
+      color: c.link,
       fontSize: 14,
       fontWeight: '700',
     },
     loginBtn: {
       borderRadius: 16,
       overflow: 'hidden',
+    },
+    loginBtnDisabled: {
+      opacity: 0.72,
     },
     loginBtnInner: {
       minHeight: 54,
@@ -301,8 +355,8 @@ export const createStyles = (theme: AppTheme) =>
       minHeight: 54,
       borderRadius: 16,
       borderWidth: 1,
-      borderColor: LOGIN_COLORS.googleBorder,
-      backgroundColor: '#FFFFFF',
+      borderColor: c.googleBorder,
+      backgroundColor: c.card,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
@@ -323,7 +377,7 @@ export const createStyles = (theme: AppTheme) =>
     googleText: {
       fontSize: 15,
       fontWeight: '600',
-      color: '#374151',
+      color: c.fieldText,
     },
     footer: {
       marginTop: 26,
@@ -334,22 +388,22 @@ export const createStyles = (theme: AppTheme) =>
     },
     footerMuted: {
       fontSize: 14,
-      color: LOGIN_COLORS.body,
+      color: c.body,
     },
     footerLink: {
       fontSize: 14,
       fontWeight: '800',
-      color: LOGIN_COLORS.link,
+      color: c.link,
     },
     legal: {
       marginTop: 16,
       fontSize: 11,
       lineHeight: 16,
       textAlign: 'center',
-      color: LOGIN_COLORS.body,
+      color: c.body,
     },
     legalLink: {
-      color: LOGIN_COLORS.link,
+      color: c.link,
       textDecorationLine: 'underline',
     },
     hintText: {
@@ -357,7 +411,7 @@ export const createStyles = (theme: AppTheme) =>
       marginBottom: 14,
       fontSize: 12,
       lineHeight: 17,
-      color: LOGIN_COLORS.body,
+      color: c.body,
     },
     ghostBtn: {
       minHeight: 44,
@@ -366,7 +420,7 @@ export const createStyles = (theme: AppTheme) =>
       marginTop: 4,
     },
     ghostBtnText: {
-      color: LOGIN_COLORS.link,
+      color: c.link,
       fontSize: 14,
       fontWeight: '700',
     },
@@ -385,3 +439,4 @@ export const createStyles = (theme: AppTheme) =>
       transform: [{ rotate: '25deg' }],
     },
   });
+};

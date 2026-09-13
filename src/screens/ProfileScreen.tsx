@@ -33,7 +33,7 @@ import {
   saveNotificationPreferences,
 } from '../services/notificationPreferences';
 
-const APP_LOGO = require('../assets/logo.png');
+const APP_LOGO = require('../assets/icon.png');
 
 type ProfileVariant = 'all' | 'profile' | 'settings';
 
@@ -47,6 +47,7 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
   const user = useSelector((s: RootState) => s.auth.user);
   const [displayName, setDisplayName] = useState('');
   const [mobile, setMobile] = useState('');
+  const [schoolName, setSchoolName] = useState('');
   const [schools, setSchools] = useState<ParentSchoolOption[]>([]);
   const [schoolPickerOpen, setSchoolPickerOpen] = useState(false);
   const [switchingSchool, setSwitchingSchool] = useState(false);
@@ -73,9 +74,29 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
           }
           if (cancelled) return;
           if (res.status && res.data && typeof res.data === 'object') {
-            const d = res.data as { mobile?: string; firstName?: string };
-            setDisplayName(d.firstName ?? user?.name ?? t('common.parent'));
+            const d = res.data as {
+              mobile?: string;
+              firstName?: string;
+              lastName?: string;
+              name?: string;
+              clientName?: string;
+              instituteName?: string;
+            };
+            const first = d.firstName?.trim();
+            const last = d.lastName?.trim();
+            const full = d.name?.trim();
+            setDisplayName(
+              (first && last ? `${first} ${last}` : full || first) ||
+                user?.name ||
+                t('common.parent')
+            );
             setMobile(d.mobile ?? user?.mobile ?? '');
+            setSchoolName(
+              d.instituteName?.trim() ||
+                d.clientName?.trim() ||
+                user?.clientName ||
+                ''
+            );
           }
           if (schoolRes.status && Array.isArray(schoolRes.data)) {
             setSchools(schoolRes.data);
@@ -84,6 +105,7 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
           if (!cancelled) {
             setDisplayName(user?.name ?? t('common.parent'));
             setMobile(user?.mobile ?? '');
+            setSchoolName(user?.clientName ?? '');
           }
         }
       })();
@@ -134,7 +156,10 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
 
   const nameForAvatar = displayName || user?.name || t('common.parent');
   const hue = avatarHue(nameForAvatar);
-  const avatarBg = `hsl(${hue} 42% 42%)`;
+  const avatarBg = `hsl(${hue} 48% 46%)`;
+  const parentName = displayName || user?.name || t('common.parent');
+  const parentMobile = mobile || user?.mobile || '—';
+  const parentSchool = user?.clientName || schoolName || '—';
 
   const showIdentity = variant !== 'settings';
   const showSettings = variant !== 'profile';
@@ -244,33 +269,96 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
         <>
         <View
           style={[
-            styles.groupCard,
-            shadows.card,
             styles.accountCard,
-            { backgroundColor: colors.surface },
+            shadows.card,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
           ]}
         >
-          <View style={[styles.infoIcon, { backgroundColor: colors.primarySoft }]}>
-            <MaterialCommunityIcons name="cellphone" size={22} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={1}>
-              {displayName || user?.name || t('common.parent')}
-            </Text>
-            <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
-              {t('profile.mobileLabel')}: {mobile || user?.mobile || '—'}
-            </Text>
-            <Text style={[styles.rowSub, { color: colors.textSecondary, marginTop: 4 }]}>
-              {t('profile.schoolLabel')}: {user?.clientName || '—'}
-            </Text>
-            {schools.length > 1 ? (
-              <Pressable onPress={() => setSchoolPickerOpen(true)} hitSlop={8}>
-                <Text style={[styles.accountHint, { color: colors.primary, marginTop: 6 }]}>
-                  {switchingSchool ? t('profile.switchingSchool') : t('profile.switchSchool')}
+          <View style={styles.accountHeader}>
+            <View style={[styles.accountAvatar, { backgroundColor: avatarBg }]}>
+              <Text style={styles.accountAvatarLetters}>{initials(nameForAvatar)}</Text>
+            </View>
+            <View style={styles.accountIdentity}>
+              <Text
+                style={[styles.accountName, { color: colors.text }]}
+                numberOfLines={2}
+              >
+                {parentName}
+              </Text>
+              <View style={[styles.rolePill, { backgroundColor: colors.primarySoft }]}>
+                <Text style={[styles.rolePillText, { color: colors.primary }]}>
+                  {t('profile.roleParent')}
                 </Text>
-              </Pressable>
-            ) : null}
-            <Text style={[styles.accountHint, { color: colors.textTertiary }]}>
+              </View>
+            </View>
+          </View>
+
+          <View style={[styles.accountDivider, { backgroundColor: colors.divider }]} />
+
+          <View style={styles.accountMeta}>
+            <View style={styles.accountMetaRow}>
+              <View style={[styles.accountMetaIcon, { backgroundColor: colors.primarySoft }]}>
+                <MaterialCommunityIcons name="cellphone" size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[styles.accountMetaLabel, { color: colors.textTertiary }]}>
+                  {t('profile.mobileLabel')}
+                </Text>
+                <Text
+                  style={[styles.accountMetaValue, { color: colors.text }]}
+                  numberOfLines={1}
+                >
+                  {parentMobile}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.accountMetaRow}>
+              <View style={[styles.accountMetaIcon, { backgroundColor: colors.successSoft }]}>
+                <MaterialCommunityIcons name="school-outline" size={18} color={colors.success} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[styles.accountMetaLabel, { color: colors.textTertiary }]}>
+                  {t('profile.schoolLabel')}
+                </Text>
+                <Text
+                  style={[styles.accountMetaValue, { color: colors.text }]}
+                  numberOfLines={2}
+                >
+                  {parentSchool}
+                </Text>
+                {schools.length > 1 ? (
+                  <Pressable
+                    onPress={() => setSchoolPickerOpen(true)}
+                    hitSlop={6}
+                    style={[styles.switchSchoolBtn, { backgroundColor: colors.primarySoft }]}
+                  >
+                    <MaterialCommunityIcons
+                      name="swap-horizontal"
+                      size={16}
+                      color={colors.primary}
+                    />
+                    <Text style={[styles.switchSchoolText, { color: colors.primary }]}>
+                      {switchingSchool
+                        ? t('profile.switchingSchool')
+                        : t('profile.switchSchool')}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+          </View>
+
+          <View style={[styles.accountNote, { backgroundColor: colors.surfaceMuted }]}>
+            <MaterialCommunityIcons
+              name="information-outline"
+              size={16}
+              color={colors.textTertiary}
+              style={{ marginTop: 1 }}
+            />
+            <Text style={[styles.accountHint, { color: colors.textSecondary }]}>
               {t('profile.mobileChangeHint')}
             </Text>
           </View>
@@ -432,7 +520,9 @@ export function ProfileScreen({ variant = 'all' }: { variant?: ProfileVariant })
         </Pressable>
 
         <View style={styles.brandFooter}>
-          <Image source={APP_LOGO} style={styles.footerLogo} resizeMode="contain" />
+          <View style={styles.footerLogoWell}>
+            <Image source={APP_LOGO} style={styles.footerLogo} resizeMode="cover" />
+          </View>
           <Text style={[styles.footerTitle, { color: colors.text }]}>{t('branding.appTitle')}</Text>
           <Text style={[styles.footerTag, { color: colors.textTertiary }]}>
             {t('branding.tagline')}
@@ -655,16 +745,107 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   accountCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     padding: spacing.base,
     marginBottom: spacing.sm,
   },
-  accountHint: {
+  accountHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  accountAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountAvatarLetters: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  accountIdentity: {
+    flex: 1,
+    minWidth: 0,
+    gap: 8,
+  },
+  accountName: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  rolePill: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  rolePillText: {
     fontSize: 11,
-    lineHeight: 16,
-    marginTop: 6,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  accountDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: 14,
+  },
+  accountMeta: {
+    gap: 14,
+  },
+  accountMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  accountMetaIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountMetaLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
+  },
+  accountMetaValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 2,
+    lineHeight: 20,
+  },
+  switchSchoolBtn: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  switchSchoolText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  accountNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 14,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  accountHint: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
   },
   introRow: {
     flexDirection: 'row',
@@ -729,8 +910,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   signOutText: { fontSize: 16, fontWeight: '700' },
-  brandFooter: { alignItems: 'center', marginTop: 28, gap: 4 },
-  footerLogo: { width: 48, height: 48, marginBottom: 4 },
+  brandFooter: { alignItems: 'center', marginTop: 28, gap: 8 },
+  footerLogoWell: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  footerLogo: { width: 92, height: 92 },
   footerTitle: { fontSize: 14, fontWeight: '800' },
   footerTag: { fontSize: 12 },
   schoolModalBackdrop: {

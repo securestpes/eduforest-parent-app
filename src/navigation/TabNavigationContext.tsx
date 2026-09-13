@@ -3,16 +3,16 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 export type MainTabName = 'Home' | 'Attendance' | 'Calendar' | 'Fees' | 'Settings' | 'More' | 'Profile';
 
 const TAB_TO_INDEX: Record<MainTabName, number> = {
-  Attendance: 0,
-  Fees: 1,
-  Home: 2,
+  Home: 0,
+  Attendance: 1,
+  Fees: 2,
   Calendar: 3,
   Settings: 4,
   More: 4,
   Profile: 4,
 };
 
-const INDEX_TO_TAB: MainTabName[] = ['Attendance', 'Fees', 'Home', 'Calendar', 'Settings'];
+const INDEX_TO_TAB: MainTabName[] = ['Home', 'Attendance', 'Fees', 'Calendar', 'Settings'];
 
 type TabNavigationContextValue = {
   index: number;

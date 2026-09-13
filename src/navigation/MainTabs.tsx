@@ -22,12 +22,12 @@ export type MainTabParamList = {
   Settings: undefined;
 };
 
-const KEYS: MainTabKey[] = ['attendance', 'fees', 'home', 'calendar', 'settings'];
+const KEYS: MainTabKey[] = ['home', 'attendance', 'fees', 'calendar', 'settings'];
 
 export function MainTabs() {
   const hydrateSelection = useSelectionStore((s) => s.hydrate);
   const setSelectedStudentId = useSelectionStore((s) => s.setSelectedStudentId);
-  const [index, setIndex] = useState(2);
+  const [index, setIndex] = useState(0);
 
   useEffect(() => {
     void hydrateSelection();
@@ -36,14 +36,14 @@ export function MainTabs() {
   useEffect(() => {
     registerTabNavigateHandler(({ tab, studentId }) => {
       const map: Record<string, number> = {
-        Attendance: 0,
-        Fees: 1,
-        Home: 2,
+        Home: 0,
+        Attendance: 1,
+        Fees: 2,
         Calendar: 3,
         Settings: 4,
         More: 4,
       };
-      setIndex(map[tab] ?? 2);
+      setIndex(map[tab] ?? 0);
       if (studentId != null) setSelectedStudentId(studentId);
     });
     return () => unregisterTabNavigateHandler();
@@ -57,17 +57,17 @@ export function MainTabs() {
     <TabNavigationProvider index={index} setIndex={setIndex}>
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         <View style={{ flex: 1, display: index === 0 ? 'flex' : 'none' }}>
+          <HomeScreen active={index === 0} />
+        </View>
+        <View style={{ flex: 1, display: index === 1 ? 'flex' : 'none' }}>
           <AttendanceScreen
-            active={index === 0}
+            active={index === 1}
             highlightAttendanceId={attendanceHighlight?.highlightAttendanceId}
             highlightSessionDate={attendanceHighlight?.highlightSessionDate}
           />
         </View>
-        <View style={{ flex: 1, display: index === 1 ? 'flex' : 'none' }}>
-          <FeesScreen active={index === 1} />
-        </View>
         <View style={{ flex: 1, display: index === 2 ? 'flex' : 'none' }}>
-          <HomeScreen active={index === 2} />
+          <FeesScreen active={index === 2} />
         </View>
         <View style={{ flex: 1, display: index === 3 ? 'flex' : 'none' }}>
           <SchoolCalendarScreen active={index === 3} />
